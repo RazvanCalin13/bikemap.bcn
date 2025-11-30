@@ -1,56 +1,14 @@
 import { type Station, type Trip } from '@bikemap/db';
-import { Database } from 'bun:sqlite';
 import { glob } from 'glob';
 import path from 'path';
 import type { WorkerInput, WorkerOutput } from './worker';
+import { type CSVRow, mapRowToTrip, createDatabase } from './utils';
 
 const WORKER_COUNT = 10;
 
-// Open SQLite directly for fast bulk inserts
-const db = new Database(path.join(import.meta.dir, '../db/mydb.db'));
-db.exec('PRAGMA journal_mode = WAL;');
-
-const insertTripStmt = db.prepare(`
-  INSERT INTO Trip (id, startStationId, endStationId, startedAt, endedAt, rideableType, memberCasual, startLat, startLng, endLat, endLng)
-  VALUES ($id, $startStationId, $endStationId, $startedAt, $endedAt, $rideableType, $memberCasual, $startLat, $startLng, $endLat, $endLng)
-`);
-
-const insertStationStmt = db.prepare(`
-  INSERT OR IGNORE INTO Station (id, name, latitude, longitude)
-  VALUES ($id, $name, $latitude, $longitude)
-`);
-
-type CSVRow = {
-  ride_id: string;
-  rideable_type: string;
-  started_at: Date;
-  ended_at: Date;
-  start_station_name: string;
-  start_station_id: string;
-  end_station_name: string;
-  end_station_id: string;
-  start_lat: number;
-  start_lng: number;
-  end_lat: number;
-  end_lng: number;
-  member_casual: 'member' | 'casual';
-};
-
-function mapRowToTrip(row: CSVRow): Trip {
-  return {
-    id: row.ride_id,
-    startStationId: row.start_station_id,
-    endStationId: row.end_station_id,
-    startedAt: row.started_at,
-    endedAt: row.ended_at,
-    rideableType: row.rideable_type,
-    memberCasual: row.member_casual,
-    startLat: row.start_lat,
-    startLng: row.start_lng,
-    endLat: row.end_lat,
-    endLng: row.end_lng,
-  };
-}
+// Initialize database
+const dbPath = path.join(import.meta.dir, '../db/mydb.db');
+const { db, insertTrips, insertStations } = createDatabase(dbPath);
 
 function updateStationMap(stationMap: Map<string, Station>, rows: CSVRow[]): void {
   for (const row of rows) {
@@ -72,35 +30,6 @@ function updateStationMap(stationMap: Map<string, Station>, rows: CSVRow[]): voi
     }
   }
 }
-
-const insertTrips = db.transaction((trips: Trip[]) => {
-  for (const trip of trips) {
-    insertTripStmt.run({
-      $id: trip.id,
-      $startStationId: trip.startStationId,
-      $endStationId: trip.endStationId,
-      $startedAt: trip.startedAt.toISOString(),
-      $endedAt: trip.endedAt.toISOString(),
-      $rideableType: trip.rideableType,
-      $memberCasual: trip.memberCasual,
-      $startLat: trip.startLat,
-      $startLng: trip.startLng,
-      $endLat: trip.endLat,
-      $endLng: trip.endLng,
-    });
-  }
-});
-
-const insertStations = db.transaction((stations: Station[]) => {
-  for (const station of stations) {
-    insertStationStmt.run({
-      $id: station.id,
-      $name: station.name,
-      $latitude: station.latitude,
-      $longitude: station.longitude,
-    });
-  }
-});
 
 type ProcessResult = {
   totalTrips: number;
@@ -200,8 +129,19 @@ async function main(): Promise<void> {
   insertStations(Array.from(stationMap.values()));
 
   const totalTime = (Date.now() - startTime) / 1000;
-  console.log(`\nDone! ${totalTrips} trips, ${totalSkipped} skipped in ${totalTime.toFixed(1)}s`);
-  
+
+  // Benchmark summary
+  console.log('\n' + '='.repeat(50));
+  console.log('Summary:');
+  console.log(`  Total trips:    ${totalTrips.toLocaleString()}`);
+  console.log(`  Total skipped:  ${totalSkipped.toLocaleString()}`);
+  console.log(`  Total stations: ${stationMap.size.toLocaleString()}`);
+  console.log(`  Total time:     ${totalTime.toFixed(1)}s`);
+  console.log('\nThroughput:');
+  console.log(`  ${(totalTrips / totalTime).toFixed(0)} trips/sec`);
+  console.log(`  ${(csvFiles.length / totalTime).toFixed(1)} files/sec`);
+  console.log('='.repeat(50));
+
   db.close();
 }
 
