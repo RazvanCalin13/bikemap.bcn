@@ -1,5 +1,5 @@
 {
-  "name": "processing",
+  "name": "@bikemap/processing",
   "module": "index.ts",
   "type": "module",
   "private": true,
@@ -8,5 +8,11 @@
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "dependencies": {
+    "@bikemap/db": "workspace:*",
+    "csv-parse": "^6.1.0",
+    "glob": "^13.0.0",
+    "zod": "^4.1.13"
   }
 }
