@@ -18,6 +18,15 @@
         "typescript": "^5",
       },
     },
+    "packages/processing": {
+      "name": "processing",
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
+      },
+    },
   },
   "packages": {
     "@chevrotain/cst-dts-gen": ["@chevrotain/cst-dts-gen@10.5.0", "", { "dependencies": { "@chevrotain/gast": "10.5.0", "@chevrotain/types": "10.5.0", "lodash": "4.17.21" } }, "sha512-lhmC/FyqQ2o7pGK4Om+hzuDrm9rhFYIJ/AXoQBeongmn870Xeb0L6oGEiuR8nohFNL5sMaQEJWCxr1oIVIVXrw=="],
@@ -213,6 +222,8 @@
     "postgres": ["postgres@3.4.7", "", {}, "sha512-Jtc2612XINuBjIl/QTWsV5UvE8UHuNblcO3vVADSrKsrc6RqGX6lOW1cEo3CM2v0XG4Nat8nI+YM7/f26VxXLw=="],
 
     "prisma": ["prisma@7.0.1", "", { "dependencies": { "@prisma/config": "7.0.1", "@prisma/dev": "0.13.0", "@prisma/engines": "7.0.1", "@prisma/studio-core": "0.8.2", "mysql2": "3.15.3", "postgres": "3.4.7" }, "peerDependencies": { "better-sqlite3": ">=9.0.0", "typescript": ">=5.4.0" }, "optionalPeers": ["better-sqlite3", "typescript"], "bin": { "prisma": "build/index.js" } }, "sha512-zp93MdFMSU1IHPEXbUHVUuD8wauh2BUm14OVxhxGrWJQQpXpda0rW4VSST2bci4raoldX64/wQxHKkl/wqDskQ=="],
+
+    "processing": ["processing@workspace:packages/processing"],
 
     "promise-limit": ["promise-limit@2.7.0", "", {}, "sha512-7nJ6v5lnJsXwGprnGXga4wx6d1POjvi5Qmf1ivTRxTjH4Z/9Czja/UCMLVmB9N93GeWOU93XaFaEt6jbuoagNw=="],
 
