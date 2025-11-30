@@ -4,9 +4,14 @@
   "type": "module",
   "private": true,
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "prisma": "^7.0.1"
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "dependencies": {
+    "@prisma/adapter-libsql": "^7.0.1",
+    "@prisma/client": "^7.0.1"
   }
 }
