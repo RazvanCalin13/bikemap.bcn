@@ -1,10 +1,24 @@
-import { type Station, type Trip, prisma } from '@bikemap/db';
+import { type Station, type Trip } from '@bikemap/db';
+import { Database } from 'bun:sqlite';
 import { glob } from 'glob';
 import path from 'path';
 import type { WorkerInput, WorkerOutput } from './worker';
 
 const WORKER_COUNT = 10;
-const BATCH_SIZE = 10_000;
+
+// Open SQLite directly for fast bulk inserts
+const db = new Database(path.join(import.meta.dir, '../db/mydb.db'));
+db.exec('PRAGMA journal_mode = WAL;');
+
+const insertTripStmt = db.prepare(`
+  INSERT INTO Trip (id, startStationId, endStationId, startedAt, endedAt, rideableType, memberCasual, startLat, startLng, endLat, endLng)
+  VALUES ($id, $startStationId, $endStationId, $startedAt, $endedAt, $rideableType, $memberCasual, $startLat, $startLng, $endLat, $endLng)
+`);
+
+const insertStationStmt = db.prepare(`
+  INSERT OR IGNORE INTO Station (id, name, latitude, longitude)
+  VALUES ($id, $name, $latitude, $longitude)
+`);
 
 type CSVRow = {
   ride_id: string;
@@ -59,12 +73,34 @@ function updateStationMap(stationMap: Map<string, Station>, rows: CSVRow[]): voi
   }
 }
 
-async function insertTripsInBatches(trips: Trip[]): Promise<void> {
-  for (let i = 0; i < trips.length; i += BATCH_SIZE) {
-    const batch = trips.slice(i, i + BATCH_SIZE);
-    await prisma.trip.createMany({ data: batch });
+const insertTrips = db.transaction((trips: Trip[]) => {
+  for (const trip of trips) {
+    insertTripStmt.run({
+      $id: trip.id,
+      $startStationId: trip.startStationId,
+      $endStationId: trip.endStationId,
+      $startedAt: trip.startedAt.toISOString(),
+      $endedAt: trip.endedAt.toISOString(),
+      $rideableType: trip.rideableType,
+      $memberCasual: trip.memberCasual,
+      $startLat: trip.startLat,
+      $startLng: trip.startLng,
+      $endLat: trip.endLat,
+      $endLng: trip.endLng,
+    });
   }
-}
+});
+
+const insertStations = db.transaction((stations: Station[]) => {
+  for (const station of stations) {
+    insertStationStmt.run({
+      $id: station.id,
+      $name: station.name,
+      $latitude: station.latitude,
+      $longitude: station.longitude,
+    });
+  }
+});
 
 type ProcessResult = {
   totalTrips: number;
@@ -129,7 +165,7 @@ async function processFilesWithWorkers(filePaths: string[]): Promise<ProcessResu
           }
           totalTrips += trips.length;
 
-          writePromise = writePromise.then(() => insertTripsInBatches(trips));
+          writePromise = writePromise.then(() => insertTrips(trips));
 
           // Assign next work immediately (don't wait for DB write)
           assignWork(worker);
@@ -149,7 +185,9 @@ async function processFilesWithWorkers(filePaths: string[]): Promise<ProcessResu
 
 async function main(): Promise<void> {
   const dataDir = path.join(process.cwd(), '../../data');
-  const csvFiles = glob.sync('**/*.csv', { cwd: dataDir, absolute: true });
+
+  // TODO: All
+  const csvFiles = glob.sync('**/*202506*.csv', { cwd: dataDir, absolute: true });
 
   console.log(`Found ${csvFiles.length} CSV files\n`);
   console.log(`Processing with ${WORKER_COUNT} workers...\n`);
@@ -159,12 +197,12 @@ async function main(): Promise<void> {
 
   // Insert stations at the end
   console.log(`\nInserting ${stationMap.size} stations...`);
-  await prisma.station.createMany({
-    data: Array.from(stationMap.values()),
-  });
+  insertStations(Array.from(stationMap.values()));
 
   const totalTime = (Date.now() - startTime) / 1000;
   console.log(`\nDone! ${totalTrips} trips, ${totalSkipped} skipped in ${totalTime.toFixed(1)}s`);
+  
+  db.close();
 }
 
 main();
