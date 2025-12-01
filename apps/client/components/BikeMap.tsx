@@ -1,13 +1,13 @@
 "use client";
 
-import { getTrips } from "@/app/server/trips";
+import { getActiveRides } from "@/app/server/trips";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useState } from "react";
 import Map, { Layer, Source } from "react-map-gl/mapbox";
 import type { CircleLayer } from 'react-map-gl/maplibre';
 
 // Infer types from server function - no Prisma import needed
-type TripsResponse = Awaited<ReturnType<typeof getTrips>>;
+type TripsResponse = Awaited<ReturnType<typeof getActiveRides>>;
 type Trip = TripsResponse["trips"][number];
 
 const bikeLayer: CircleLayer = {
@@ -25,7 +25,7 @@ export const BikeMap = () => {
 
   useEffect(() => {
     const fetchTrips = async () => {
-      const data = await getTrips();
+      const data = await getActiveRides();
       console.log(`Found ${data.count} trips`);
       setTrips(data.trips);
     };
