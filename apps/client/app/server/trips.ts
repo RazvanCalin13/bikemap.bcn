@@ -66,3 +66,16 @@ export async function getActiveRides(params?: {
     trips: tripsWithRoutes,
   };
 }
+
+export async function getStations() {
+  const stations = await prisma.station.findMany({
+    select: {
+      id: true,
+      name: true,
+      latitude: true,
+      longitude: true,
+    },
+  });
+
+  return stations;
+}
