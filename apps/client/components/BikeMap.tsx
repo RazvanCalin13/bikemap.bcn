@@ -1,6 +1,7 @@
 "use client";
 
 import { getActiveRides } from "@/app/server/trips";
+import { getColorFromId } from "@/utils/map";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useEffect, useState } from "react";
 import Map, { Layer, Source } from "react-map-gl/mapbox";
@@ -34,7 +35,7 @@ export const BikeMap = () => {
         type: "Point",
         coordinates: [trip.startLng, trip.startLat],
       },
-      properties: { id: trip.id },
+      properties: { id: trip.id, color: getColorFromId(trip.id) },
     })),
   };
 
@@ -55,7 +56,7 @@ export const BikeMap = () => {
           type="circle"
           paint={{
             "circle-radius": 5,
-            "circle-color": "#ff0000",
+            "circle-color": ["get", "color"],
             "circle-opacity": 0.8,
           }}
         />
