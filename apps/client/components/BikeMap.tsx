@@ -1,7 +1,7 @@
 "use client";
 
 import { getActiveRides } from "@/app/server/trips";
-import { getColorFromId } from "@/utils/map";
+import { getColorFromBikeType } from "@/utils/map";
 import polyline from "@mapbox/polyline";
 import along from "@turf/along";
 import { lineString } from "@turf/helpers";
@@ -38,7 +38,7 @@ const FADE_DURATION_MS = 700;
 const TRANSITION_DURATION_MS = 700;
 
 // Ease-in at start, linear middle, ease-out at end
-function easeInOutEdges(t: number, edgePercent: number = 0.15): number {
+function easeInOutEdges(t: number, edgePercent: number = 0.1): number {
   const e = edgePercent;
 
   if (t < e) {
@@ -104,7 +104,7 @@ function prepareTrips(data: {
 
       return {
         id: trip.id,
-        color: getColorFromId(trip.id),
+        color: getColorFromBikeType(trip.rideableType),
         startTime: Math.max(0, tripStartMs - windowStartMs) - fadeDurationSim - transitionDurationSim,
         endTime: Math.min(windowDuration, tripEndMs - windowStartMs) + fadeDurationSim,
         startProgress,
