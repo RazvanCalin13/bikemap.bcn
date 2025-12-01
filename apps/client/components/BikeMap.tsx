@@ -151,8 +151,10 @@ function AnimationController(props: {
           continue;
         }
 
-        // Calculate fade boundaries (actual trip boundaries + fade padding)
+        // Calculate phase boundaries
         const fadeInEnd = trip.startTime + fadeDurationSim;
+        const transitionInEnd = fadeInEnd + fadeDurationSim;
+        const transitionOutStart = trip.endTime - (2 * fadeDurationSim);
         const fadeOutStart = trip.endTime - fadeDurationSim;
 
         // Determine phase and phase progress
@@ -162,6 +164,12 @@ function AnimationController(props: {
         if (simulationTime < fadeInEnd) {
           phase = "fading-in";
           phaseProgress = (simulationTime - trip.startTime) / fadeDurationSim;
+        } else if (simulationTime < transitionInEnd) {
+          phase = "transitioning-in";
+          phaseProgress = (simulationTime - fadeInEnd) / fadeDurationSim;
+        } else if (simulationTime > transitionOutStart && simulationTime <= fadeOutStart) {
+          phase = "transitioning-out";
+          phaseProgress = (simulationTime - transitionOutStart) / fadeDurationSim;
         } else if (simulationTime > fadeOutStart) {
           phase = "fading-out";
           phaseProgress = (simulationTime - fadeOutStart) / fadeDurationSim;
@@ -177,9 +185,11 @@ function AnimationController(props: {
         } else if (phase === "fading-out") {
           routeProgress = trip.endProgress; // Stationary at end
         } else {
-          // Normal interpolation during moving phase
-          const movingDuration = fadeOutStart - fadeInEnd;
-          const movingProgress = (simulationTime - fadeInEnd) / movingDuration;
+          // Moving during transitioning-in, moving, and transitioning-out
+          const movingStart = fadeInEnd;
+          const movingEnd = fadeOutStart;
+          const movingDuration = movingEnd - movingStart;
+          const movingProgress = (simulationTime - movingStart) / movingDuration;
           routeProgress =
             trip.startProgress +
             movingProgress * (trip.endProgress - trip.startProgress);
@@ -321,10 +331,30 @@ export const BikeMap = () => {
             "circle-color": [
               "case",
               ["==", ["get", "phase"], "fading-in"],
-              "#22c55e", // green (Tailwind green-500)
+              "#22c55e", // green
+
+              ["==", ["get", "phase"], "transitioning-in"],
+              [
+                "interpolate",
+                ["linear"],
+                ["get", "phaseProgress"],
+                0, "#22c55e", // green at start
+                1, ["get", "color"], // gray at end
+              ],
+
+              ["==", ["get", "phase"], "transitioning-out"],
+              [
+                "interpolate",
+                ["linear"],
+                ["get", "phaseProgress"],
+                0, ["get", "color"], // gray at start
+                1, "#ef4444", // red at end
+              ],
+
               ["==", ["get", "phase"], "fading-out"],
-              "#ef4444", // red (Tailwind red-500)
-              ["get", "color"], // moving = original blue color
+              "#ef4444", // red
+
+              ["get", "color"], // moving = gray
             ],
           }}
         />
