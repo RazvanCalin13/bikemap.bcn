@@ -25,7 +25,7 @@ type PreparedTrip = {
 };
 
 // Animation plays at 100x speed (e.g., 2 hours plays in ~72 seconds)
-const SPEEDUP = 5;
+const SPEEDUP = 200;
 
 // Haversine distance between two [lng, lat] points in meters
 function haversineDistance(
@@ -111,6 +111,13 @@ function prepareTrips(data: {
       const tripStartMs = new Date(trip.startedAt).getTime();
       const tripEndMs = new Date(trip.endedAt).getTime();
 
+      // Calculate implied speed and filter unrealistic trips
+      const tripDurationHours = (tripEndMs - tripStartMs) / (1000 * 60 * 60);
+      const speedKmh = totalDistance / 1000 / tripDurationHours;
+
+      // Skip trips faster than 30 km/h (unrealistic for bikes)
+      if (speedKmh > 25 || speedKmh < 0) return null;
+
       return {
         id: trip.id,
         color: getColorFromId(trip.id),
@@ -120,7 +127,8 @@ function prepareTrips(data: {
         cumulativeDistances,
         totalDistance,
       };
-    });
+    })
+    .filter((trip): trip is PreparedTrip => trip !== null);
 }
 
 const EMPTY_GEOJSON: GeoJSON.FeatureCollection = {
