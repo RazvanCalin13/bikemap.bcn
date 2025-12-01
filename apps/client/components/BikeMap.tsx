@@ -239,8 +239,8 @@ function AnimationController(props: {
         const point = along(trip.line, distanceAlongRoute, { units: "meters" });
 
         // Calculate bearing (direction) for icon rotation
-        // Look 100 meters ahead for smoother direction changes
-        const lookAheadDistance = Math.min(100, trip.totalDistance - distanceAlongRoute);
+        // Look 50 meters ahead for smoother direction changes
+        const lookAheadDistance = Math.min(50, trip.totalDistance - distanceAlongRoute);
         const nextDistance = distanceAlongRoute + lookAheadDistance;
         const nextPoint = along(trip.line, nextDistance, { units: "meters" });
         const targetBearing = bearing(point, nextPoint);
