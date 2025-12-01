@@ -32,10 +32,28 @@ type PreparedTrip = {
 const SPEEDUP = 150;
 
 // Fade duration for start/end animations (in real time)
-const FADE_DURATION_MS = 1000;
+const FADE_DURATION_MS = 700;
 
 // Color transition duration after fade-in (in real time)
 const TRANSITION_DURATION_MS = 700;
+
+// Ease-in at start, linear middle, ease-out at end
+function easeInOutEdges(t: number, edgePercent: number = 0.15): number {
+  const e = edgePercent;
+
+  if (t < e) {
+    // Ease-in: quadratic acceleration from 0 to linear speed
+    return (t * t) / (2 * e * (1 - e));
+  } else if (t > 1 - e) {
+    // Ease-out: quadratic deceleration from linear speed to 0
+    return 1 - ((1 - t) * (1 - t)) / (2 * e * (1 - e));
+  } else {
+    // Linear middle at constant speed
+    const positionAtE = e / (2 * (1 - e));
+    const slope = 1 / (1 - e);
+    return positionAtE + slope * (t - e);
+  }
+}
 
 function prepareTrips(data: {
   trips: Trip[];
@@ -191,9 +209,10 @@ function AnimationController(props: {
           const movingEnd = fadeOutStart;
           const movingDuration = movingEnd - movingStart;
           const movingProgress = (simulationTime - movingStart) / movingDuration;
+          const easedProgress = easeInOutEdges(movingProgress);
           routeProgress =
             trip.startProgress +
-            movingProgress * (trip.endProgress - trip.startProgress);
+            easedProgress * (trip.endProgress - trip.startProgress);
         }
 
         // Use turf's along() to get point at distance along the line
@@ -324,10 +343,10 @@ export const BikeMap = () => {
             "circle-opacity": [
               "case",
               ["==", ["get", "phase"], "fading-in"],
-              ["get", "phaseProgress"], // 0 → 1
+              ["*", ["get", "phaseProgress"], 0.8], // 0 → 0.8
               ["==", ["get", "phase"], "fading-out"],
-              ["-", 1, ["get", "phaseProgress"]], // 1 → 0
-              1, // moving = full opacity
+              ["*", ["-", 1, ["get", "phaseProgress"]], 0.8], // 0.8 → 0
+              0.8, // moving = max opacity
             ],
             "circle-color": [
               "case",
