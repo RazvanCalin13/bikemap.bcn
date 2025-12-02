@@ -46,6 +46,18 @@ const TRAIL_LENGTH_METERS = 200;
 const FADE_DURATION_SIM = (FADE_DURATION_MS / 1000) * SPEEDUP * 1000;
 const TRANSITION_DURATION_SIM = (TRANSITION_DURATION_MS / 1000) * SPEEDUP * 1000;
 
+// Format milliseconds timestamp to date + 12-hour time string (NYC timezone)
+const formatTime = (ms: number) =>
+  new Date(ms).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+    timeZone: "America/New_York",
+  });
+
 // Interpolate between two angles, handling 360°/0° wrapping
 function interpolateAngle(from: number, to: number, factor: number): number {
   // Normalize angles to 0-360
@@ -161,7 +173,7 @@ function prepareTrips(data: {
       const speedKmh = totalDistance / 1000 / tripDurationHours;
 
       // Skip trips faster than 25 km/h (unrealistic for bikes)
-      if (speedKmh > 25 || speedKmh < 0.25) return null;
+      if (speedKmh > 20 || speedKmh < 2) return null;
 
       // Calculate where on the route the bike should be at window boundaries
       // For trips that start before or end after the window
@@ -192,12 +204,14 @@ const EMPTY_GEOJSON: GeoJSON.FeatureCollection = {
 
 function AnimationController(props: {
   preparedTrips: PreparedTrip[];
+  windowStartMs: number;
   windowDurationMs: number;
   animationDurationMs: number;
 }) {
-  const { preparedTrips, windowDurationMs, animationDurationMs } = props;
+  const { preparedTrips, windowStartMs, windowDurationMs, animationDurationMs } = props;
   const { current: mapRef } = useMap();
   const [animState, setAnimState] = useState<AnimationState>("idle");
+  const clockRef = useRef<HTMLSpanElement>(null);
 
   const animationRef = useRef<{
     rafId: number | null;
@@ -222,9 +236,18 @@ function AnimationController(props: {
       const simulationTime =
         (elapsedReal / animationDurationMs) * windowDurationMs;
 
+      // Update clock display
+      if (clockRef.current) {
+        clockRef.current.textContent = formatTime(windowStartMs + simulationTime);
+      }
+
       // Check if animation finished
       if (simulationTime >= windowDurationMs) {
         setAnimState("finished");
+        // Set clock to end time
+        if (clockRef.current) {
+          clockRef.current.textContent = formatTime(windowStartMs + windowDurationMs);
+        }
         const source = map.getSource("riders") as GeoJSONSource | undefined;
         if (source) {
           source.setData(EMPTY_GEOJSON);
@@ -418,7 +441,7 @@ function AnimationController(props: {
 
       ref.rafId = requestAnimationFrame((ts) => animateFnRef.current?.(ts));
     };
-  }, [mapRef, preparedTrips, windowDurationMs, animationDurationMs]);
+  }, [mapRef, preparedTrips, windowStartMs, windowDurationMs, animationDurationMs]);
 
   const play = useCallback(() => {
     animationRef.current.startTimestamp = null;
@@ -446,29 +469,39 @@ function AnimationController(props: {
   }, []);
 
   return (
-    <div className="absolute top-4 left-4 z-10">
-      {animState === "idle" && (
-        <button
-          onClick={play}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-lg transition-colors"
-        >
-          Play
-        </button>
-      )}
-      {animState === "playing" && (
-        <div className="bg-gray-800 text-white font-medium px-4 py-2 rounded-lg shadow-lg">
-          Playing...
+    <>
+      {/* Clock display - top center */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
+        <div className="bg-white/10 backdrop-blur-xl text-white text-sm font-medium px-3 py-1.5 rounded-lg">
+          <span ref={clockRef}>{formatTime(windowStartMs)}</span>
         </div>
-      )}
-      {animState === "finished" && (
-        <button
-          onClick={replay}
-          className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg shadow-lg transition-colors"
-        >
-          Replay
-        </button>
-      )}
-    </div>
+      </div>
+
+      {/* Play/Replay controls - top left */}
+      <div className="absolute top-4 left-4 z-10">
+        {animState === "idle" && (
+          <button
+            onClick={play}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-lg transition-colors"
+          >
+            Play
+          </button>
+        )}
+        {animState === "playing" && (
+          <div className="bg-gray-800 text-white font-medium px-4 py-2 rounded-lg shadow-lg">
+            Playing...
+          </div>
+        )}
+        {animState === "finished" && (
+          <button
+            onClick={replay}
+            className="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg shadow-lg transition-colors"
+          >
+            Replay
+          </button>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -503,25 +536,32 @@ function IconLoader() {
 
 export const BikeMap = () => {
   const [preparedTrips, setPreparedTrips] = useState<PreparedTrip[]>([]);
+  const [windowStartMs, setWindowStartMs] = useState(0);
   const [windowDurationMs, setWindowDurationMs] = useState(0);
 
   useEffect(() => {
     const fetchTrips = async () => {
-      const data = await getActiveRides();
+      const data = await getActiveRides({
+        startTime: new Date("2025-06-08T16:00:00.000Z"), // 12pm EDT
+        endTime: new Date("2025-06-08T19:00:00.000Z"),   // 3pm EDT
+      });
       console.log(`Found ${data.count} trips`);
+      
 
-      const windowStartMs = data.startTime.getTime();
-      const windowEndMs = data.endTime.getTime();
+
+      const startMs = data.startTime.getTime();
+      const endMs = data.endTime.getTime();
 
       const prepared = prepareTrips({
         trips: data.trips,
-        windowStartMs,
-        windowEndMs,
+        windowStartMs: startMs,
+        windowEndMs: endMs,
       });
 
       console.log(`Prepared ${prepared.length} trips with routes`);
       setPreparedTrips(prepared);
-      setWindowDurationMs(windowEndMs - windowStartMs);
+      setWindowStartMs(startMs);
+      setWindowDurationMs(endMs - startMs);
     };
     fetchTrips();
   }, []);
@@ -632,6 +672,7 @@ export const BikeMap = () => {
       {preparedTrips.length > 0 && windowDurationMs > 0 && (
         <AnimationController
           preparedTrips={preparedTrips}
+          windowStartMs={windowStartMs}
           windowDurationMs={windowDurationMs}
           animationDurationMs={windowDurationMs / SPEEDUP}
         />
