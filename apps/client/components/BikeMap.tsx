@@ -53,7 +53,8 @@ const WINDOW_START = new Date("2025-06-08T05:00:00.000Z"); // 1am EDT
 
 // Theme colors
 const THEME = {
-  trailColor0: [160, 160, 160] as Color, // gray - classic bikes
+  //   trailColor0: [160, 160, 160] as Color, // gray - classic bikes
+  trailColor0: [139, 92, 246] as Color, // violet - classic bikes
   trailColor1: [96, 165, 250] as Color, // blue - electric bikes
   fadeInColor: [34, 197, 94] as Color, // green #22c55e
   fadeOutColor: [239, 68, 68] as Color, // red #ef4444
