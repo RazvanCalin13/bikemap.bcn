@@ -30,6 +30,7 @@ type DeckTrip = {
   visibleStartSeconds: number; // when bike first appears (fade-in starts)
   visibleEndSeconds: number; // when bike disappears (fade-out ends)
   cumulativeDistances: number[]; // meters from route start
+  lastSegmentIndex: number; // cached cursor for O(1) segment lookup
 };
 
 // Animation config - all times in seconds
@@ -199,6 +200,7 @@ function prepareTripsForDeck(data: {
         visibleStartSeconds: tripStartSeconds - FADE_DURATION_SIM_SECONDS - TRANSITION_DURATION_SIM_SECONDS,
         visibleEndSeconds: tripEndSeconds + Math.max(FADE_DURATION_SIM_SECONDS, TRAIL_LENGTH_SECONDS),
         cumulativeDistances,
+        lastSegmentIndex: 0,
       };
     })
     .filter((trip): trip is DeckTrip => trip !== null);
@@ -276,16 +278,12 @@ function getBikeState(
     // Map to timestamp along route
     const tripTime = timestamps[0] + movingProgress * (timestamps[timestamps.length - 1] - timestamps[0]);
 
-    // Binary search to find segment
-    let lo = 0;
-    let hi = timestamps.length - 1;
-    while (lo < hi) {
-      const mid = Math.floor((lo + hi) / 2);
-      if (timestamps[mid] < tripTime) lo = mid + 1;
-      else hi = mid;
+    // Use cached index and scan forward (time only increases)
+    idx = trip.lastSegmentIndex;
+    while (idx < timestamps.length - 1 && timestamps[idx + 1] < tripTime) {
+      idx++;
     }
-
-    idx = Math.max(0, lo - 1);
+    trip.lastSegmentIndex = idx;
     if (idx >= path.length - 1) {
       position = path[path.length - 1];
     } else {
