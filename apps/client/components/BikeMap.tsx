@@ -196,7 +196,7 @@ function prepareTripsForDeck(data: {
         startTimeSeconds: tripStartSeconds,
         endTimeSeconds: tripEndSeconds,
         visibleStartSeconds: tripStartSeconds - FADE_DURATION_SIM_SECONDS - TRANSITION_DURATION_SIM_SECONDS,
-        visibleEndSeconds: tripEndSeconds + FADE_DURATION_SIM_SECONDS,
+        visibleEndSeconds: tripEndSeconds + Math.max(FADE_DURATION_SIM_SECONDS, TRAIL_LENGTH_SECONDS),
         cumulativeDistances,
       };
     })
@@ -267,7 +267,10 @@ function getBikeState(
     const movingStart = transitionInEnd;
     const movingEnd = fadeOutStart;
     const movingDuration = movingEnd - movingStart;
-    const movingProgress = Math.max(0, Math.min(1, (currentTime - movingStart) / movingDuration));
+    // Guard against division by zero for very short trips
+    const movingProgress = movingDuration > 0
+      ? Math.max(0, Math.min(1, (currentTime - movingStart) / movingDuration))
+      : 1;
 
     // Map to timestamp along route
     const tripTime = timestamps[0] + movingProgress * (timestamps[timestamps.length - 1] - timestamps[0]);
