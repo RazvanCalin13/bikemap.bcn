@@ -77,6 +77,52 @@ const INITIAL_VIEW_STATE: MapViewState = {
   bearing: 0,
 };
 
+// Layer accessor functions (extracted to avoid recreation on each render)
+const getPath = (d: DeckTrip) => d.path;
+const getTimestamps = (d: DeckTrip) => d.timestamps;
+const getTripColor = (d: DeckTrip) =>
+  d.bikeType === "electric_bike" ? THEME.trailColor1 : THEME.trailColor0;
+
+type BikeHead = {
+  position: [number, number];
+  bearing: number;
+  id: string;
+  bikeType: string;
+  phase: string;
+  phaseProgress: number;
+};
+
+const getBikeHeadPosition = (d: BikeHead) => d.position;
+const getBikeHeadAngle = (d: BikeHead) => -d.bearing;
+const getBikeHeadIcon = () => "arrow";
+const getBikeHeadSize = () => 9;
+const getBikeHeadColor = (d: BikeHead): [number, number, number, number] => {
+  const bikeColor = d.bikeType === "electric_bike" ? THEME.trailColor1 : THEME.trailColor0;
+  const maxAlpha = 0.8 * 255;
+
+  if (d.phase === "fading-in") {
+    const alpha = d.phaseProgress * maxAlpha;
+    return [THEME.fadeInColor[0], THEME.fadeInColor[1], THEME.fadeInColor[2], alpha];
+  }
+  if (d.phase === "transitioning-in") {
+    return [
+      THEME.fadeInColor[0] + (bikeColor[0] - THEME.fadeInColor[0]) * d.phaseProgress,
+      THEME.fadeInColor[1] + (bikeColor[1] - THEME.fadeInColor[1]) * d.phaseProgress,
+      THEME.fadeInColor[2] + (bikeColor[2] - THEME.fadeInColor[2]) * d.phaseProgress,
+      maxAlpha,
+    ];
+  }
+  if (d.phase === "fading-out") {
+    const alpha = (1 - d.phaseProgress) * maxAlpha;
+    return [THEME.fadeOutColor[0], THEME.fadeOutColor[1], THEME.fadeOutColor[2], alpha];
+  }
+  return [bikeColor[0], bikeColor[1], bikeColor[2], maxAlpha];
+};
+
+const ICON_MAPPING = {
+  arrow: { x: 0, y: 0, width: 24, height: 24, anchorX: 12, anchorY: 12, mask: true },
+};
+
 // Format milliseconds timestamp to date + 12-hour time string (NYC timezone)
 const formatTime = (ms: number) =>
   new Date(ms).toLocaleString("en-US", {
@@ -557,14 +603,7 @@ export const BikeMap = () => {
 
   // Calculate current bike head positions, bearings, and phases
   const bikeHeads = useMemo(() => {
-    const heads: {
-      position: [number, number];
-      bearing: number;
-      id: string;
-      bikeType: string;
-      phase: string;
-      phaseProgress: number;
-    }[] = [];
+    const heads: BikeHead[] = [];
     for (const trip of activeTrips) {
       const state = getBikeState(trip, time);
       if (state) {
@@ -574,65 +613,43 @@ export const BikeMap = () => {
     return heads;
   }, [activeTrips, time]);
 
-  const layers = [
-    new TripsLayer<DeckTrip>({
-      id: "trips",
-      data: activeTrips,
-      getPath: (d) => d.path,
-      getTimestamps: (d) => d.timestamps,
-      getColor: (d) => (d.bikeType === "electric_bike" ? THEME.trailColor1 : THEME.trailColor0),
-      opacity: 0.3,
-      widthMinPixels: 3,
-      rounded: true,
-      trailLength: TRAIL_LENGTH_SECONDS,
-      currentTime: time,
-    }),
-    new IconLayer({
-      id: "bike-heads",
-      data: bikeHeads,
-      billboard: false,
-      opacity: 0.8,
-      getPosition: (d) => d.position,
-      getAngle: (d) => -d.bearing,
-      getIcon: () => "arrow",
-      getSize: 9,
-      getColor: (d) => {
-        const bikeColor = d.bikeType === "electric_bike" ? THEME.trailColor1 : THEME.trailColor0;
-        const maxAlpha = 0.8 * 255;
-
-        if (d.phase === "fading-in") {
-          // Green, fading in
-          const alpha = d.phaseProgress * maxAlpha;
-          return [THEME.fadeInColor[0], THEME.fadeInColor[1], THEME.fadeInColor[2], alpha];
-        }
-        if (d.phase === "transitioning-in") {
-          // Interpolate green → bike color
-          return [
-            THEME.fadeInColor[0] + (bikeColor[0] - THEME.fadeInColor[0]) * d.phaseProgress,
-            THEME.fadeInColor[1] + (bikeColor[1] - THEME.fadeInColor[1]) * d.phaseProgress,
-            THEME.fadeInColor[2] + (bikeColor[2] - THEME.fadeInColor[2]) * d.phaseProgress,
-            maxAlpha,
-          ];
-        }
-        if (d.phase === "fading-out") {
-          // Red, fading out
-          const alpha = (1 - d.phaseProgress) * maxAlpha;
-          return [THEME.fadeOutColor[0], THEME.fadeOutColor[1], THEME.fadeOutColor[2], alpha];
-        }
-        // moving - bike color at full opacity
-        return [bikeColor[0], bikeColor[1], bikeColor[2], maxAlpha];
-      },
-      iconAtlas: ARROW_SVG,
-      iconMapping: {
-        arrow: { x: 0, y: 0, width: 24, height: 24, anchorX: 12, anchorY: 12, mask: true },
-      },
-      updateTriggers: {
-        getPosition: [bikeHeads],
-        getAngle: [bikeHeads],
-        getColor: [bikeHeads],
-      },
-    }),
-  ];
+  const layers = useMemo(
+    () => [
+      new TripsLayer<DeckTrip>({
+        id: "trips",
+        data: activeTrips,
+        getPath,
+        getTimestamps,
+        getColor: getTripColor,
+        opacity: 0.3,
+        widthMinPixels: 3,
+        rounded: true,
+        trailLength: TRAIL_LENGTH_SECONDS,
+        currentTime: time,
+        pickable: false,
+      }),
+      new IconLayer<BikeHead>({
+        id: "bike-heads",
+        data: bikeHeads,
+        billboard: false,
+        opacity: 0.8,
+        getPosition: getBikeHeadPosition,
+        getAngle: getBikeHeadAngle,
+        getIcon: getBikeHeadIcon,
+        getSize: getBikeHeadSize,
+        getColor: getBikeHeadColor,
+        iconAtlas: ARROW_SVG,
+        iconMapping: ICON_MAPPING,
+        pickable: false,
+        updateTriggers: {
+          getPosition: [time],
+          getAngle: [time],
+          getColor: [time],
+        },
+      }),
+    ],
+    [activeTrips, bikeHeads, time]
+  );
 
   return (
     <div className="relative w-full h-full">
