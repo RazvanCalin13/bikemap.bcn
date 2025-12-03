@@ -34,7 +34,7 @@ type DeckTrip = {
 
 // Animation config - all times in seconds
 const SPEEDUP = 100;
-const TRAIL_LENGTH_SECONDS = 60; // 1 minute of trail
+const TRAIL_LENGTH_SECONDS = 30;
 
 // Fade/transition duration in real milliseconds (matches original)
 const FADE_DURATION_MS = 700;
