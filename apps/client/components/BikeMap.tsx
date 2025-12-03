@@ -18,6 +18,7 @@ type ChunkResponse = Awaited<ReturnType<typeof getTripsForChunk>>;
 type Trip = ChunkResponse["trips"][number];
 
 type AnimationState = "idle" | "playing" | "finished";
+type Phase = "fading-in" | "transitioning-in" | "moving" | "fading-out";
 
 // DeckGL TripsLayer data format
 type DeckTrip = {
@@ -31,6 +32,12 @@ type DeckTrip = {
   visibleEndSeconds: number; // when bike disappears (fade-out ends)
   cumulativeDistances: number[]; // meters from route start
   lastSegmentIndex: number; // cached cursor for O(1) segment lookup
+  // Mutable state (updated in place each frame to avoid allocations)
+  currentPosition: [number, number];
+  currentBearing: number;
+  currentPhase: Phase;
+  currentPhaseProgress: number;
+  isVisible: boolean;
 };
 
 // Animation config - all times in seconds
@@ -83,40 +90,75 @@ const getTimestamps = (d: DeckTrip) => d.timestamps;
 const getTripColor = (d: DeckTrip) =>
   d.bikeType === "electric_bike" ? THEME.trailColor1 : THEME.trailColor0;
 
-type BikeHead = {
-  position: [number, number];
-  bearing: number;
-  id: string;
-  bikeType: string;
-  phase: string;
-  phaseProgress: number;
+// =============================================================================
+// Color utilities (gl-matrix style)
+// =============================================================================
+// These utilities mutate arrays in-place to avoid allocations in hot loops.
+// This is safe because deck.gl's accessors (like `getColor`) are called
+// synchronously — deck.gl copies the RGBA values immediately before calling
+// the accessor again for the next item. By the time we mutate the array for
+// item N+1, deck.gl has already copied item N's values into its internal buffer.
+//
+// WARNING: Do NOT store references returned by getBikeHeadColor() for later use.
+// The underlying array will be mutated on the next call.
+// =============================================================================
+type Color4 = [number, number, number, number];
+type RGB = readonly [number, number, number];
+
+const color4 = {
+  /** Copy RGB values and set alpha, writes to `out` */
+  set(out: Color4, rgb: RGB, alpha: number): Color4 {
+    out[0] = rgb[0];
+    out[1] = rgb[1];
+    out[2] = rgb[2];
+    out[3] = alpha;
+    return out;
+  },
+  /** Linear interpolate between RGB colors a and b, set alpha, writes to `out` */
+  lerp(out: Color4, a: RGB, b: RGB, t: number, alpha: number): Color4 {
+    out[0] = a[0] + (b[0] - a[0]) * t;
+    out[1] = a[1] + (b[1] - a[1]) * t;
+    out[2] = a[2] + (b[2] - a[2]) * t;
+    out[3] = alpha;
+    return out;
+  },
 };
 
-const getBikeHeadPosition = (d: BikeHead) => d.position;
-const getBikeHeadAngle = (d: BikeHead) => -d.bearing;
+// Source colors (immutable)
+const COLORS = {
+  fadeIn: [115, 255, 140] as const,
+  fadeOut: [247, 118, 142] as const,
+  electric: [125, 207, 255] as const,
+  classic: [187, 154, 247] as const,
+} as const
+
+// Single output buffer (mutated and reused each call)
+const colorScratch: Color4 = [0, 0, 0, 0];
+const MAX_ALPHA = 0.8 * 255;
+
+// IconLayer accessors - now use DeckTrip directly (no intermediate BikeHead objects)
+const getBikeHeadPosition = (d: DeckTrip, { target }: { target: number[] }): [number, number, number] => {
+  target[0] = d.currentPosition[0];
+  target[1] = d.currentPosition[1];
+  target[2] = 0;
+  return target as [number, number, number];
+};
+const getBikeHeadAngle = (d: DeckTrip) => -d.currentBearing;
 const getBikeHeadIcon = () => "arrow";
 const getBikeHeadSize = () => 9;
-const getBikeHeadColor = (d: BikeHead): [number, number, number, number] => {
-  const bikeColor = d.bikeType === "electric_bike" ? THEME.trailColor1 : THEME.trailColor0;
-  const maxAlpha = 0.8 * 255;
+const getBikeHeadColor = (d: DeckTrip): Color4 => {
+  const bikeColor = d.bikeType === "electric_bike" ? COLORS.electric : COLORS.classic;
 
-  if (d.phase === "fading-in") {
-    const alpha = d.phaseProgress * maxAlpha;
-    return [THEME.fadeInColor[0], THEME.fadeInColor[1], THEME.fadeInColor[2], alpha];
+  switch (d.currentPhase) {
+    case "fading-in":
+      return color4.set(colorScratch, COLORS.fadeIn, d.currentPhaseProgress * MAX_ALPHA);
+    case "transitioning-in":
+      return color4.lerp(colorScratch, COLORS.fadeIn, bikeColor, d.currentPhaseProgress, MAX_ALPHA);
+    case "fading-out":
+      return color4.set(colorScratch, COLORS.fadeOut, (1 - d.currentPhaseProgress) * MAX_ALPHA);
+    default: // moving
+      return color4.set(colorScratch, bikeColor, MAX_ALPHA);
   }
-  if (d.phase === "transitioning-in") {
-    return [
-      THEME.fadeInColor[0] + (bikeColor[0] - THEME.fadeInColor[0]) * d.phaseProgress,
-      THEME.fadeInColor[1] + (bikeColor[1] - THEME.fadeInColor[1]) * d.phaseProgress,
-      THEME.fadeInColor[2] + (bikeColor[2] - THEME.fadeInColor[2]) * d.phaseProgress,
-      maxAlpha,
-    ];
-  }
-  if (d.phase === "fading-out") {
-    const alpha = (1 - d.phaseProgress) * maxAlpha;
-    return [THEME.fadeOutColor[0], THEME.fadeOutColor[1], THEME.fadeOutColor[2], alpha];
-  }
-  return [bikeColor[0], bikeColor[1], bikeColor[2], maxAlpha];
 };
 
 const ICON_MAPPING = {
@@ -247,6 +289,12 @@ function prepareTripsForDeck(data: {
         visibleEndSeconds: tripEndSeconds + Math.max(FADE_DURATION_SIM_SECONDS, TRAIL_LENGTH_SECONDS),
         cumulativeDistances,
         lastSegmentIndex: 0,
+        // Mutable state - initialized once, updated in place each frame
+        currentPosition: [0, 0] as [number, number],
+        currentBearing: 0,
+        currentPhase: "fading-in" as Phase,
+        currentPhaseProgress: 0,
+        isVisible: false,
       };
     })
     .filter((trip): trip is DeckTrip => trip !== null);
@@ -254,11 +302,8 @@ function prepareTripsForDeck(data: {
   return prepared;
 }
 
-// Get interpolated position, bearing, and phase for a trip at a given time
-function getBikeState(
-  trip: DeckTrip,
-  currentTime: number
-): { position: [number, number]; bearing: number; phase: string; phaseProgress: number } | null {
+// Update trip's mutable state in place. Returns true if visible.
+function updateTripState(trip: DeckTrip, currentTime: number): boolean {
   const {
     timestamps,
     path,
@@ -271,7 +316,8 @@ function getBikeState(
 
   // Not visible yet or already gone
   if (currentTime < visibleStartSeconds || currentTime > visibleEndSeconds) {
-    return null;
+    trip.isVisible = false;
+    return false;
   }
 
   // Calculate phase boundaries (matching original timing exactly)
@@ -280,7 +326,7 @@ function getBikeState(
   const fadeOutStart = endTimeSeconds; // movement stops at actual trip end
 
   // Determine phase and progress
-  let phase: string;
+  let phase: Phase;
   let phaseProgress: number;
 
   if (currentTime < fadeInEnd) {
@@ -298,25 +344,24 @@ function getBikeState(
   }
 
   // Calculate position based on phase
-  let position: [number, number];
   let idx = 0;
   let t = 0;
 
   if (phase === "fading-in") {
     // Stationary at start position
-    position = path[0];
+    trip.currentPosition[0] = path[0][0];
+    trip.currentPosition[1] = path[0][1];
   } else if (phase === "fading-out") {
     // Stationary at end position
-    position = path[path.length - 1];
+    trip.currentPosition[0] = path[path.length - 1][0];
+    trip.currentPosition[1] = path[path.length - 1][1];
     idx = path.length - 2;
     t = 1;
   } else {
     // transitioning-in or moving: interpolate along route
-    // Movement starts at transitionInEnd (= startTimeSeconds) and ends at fadeOutStart (= endTimeSeconds)
     const movingStart = transitionInEnd;
     const movingEnd = fadeOutStart;
     const movingDuration = movingEnd - movingStart;
-    // Guard against division by zero for very short trips
     const movingProgress = movingDuration > 0
       ? Math.max(0, Math.min(1, (currentTime - movingStart) / movingDuration))
       : 1;
@@ -330,8 +375,10 @@ function getBikeState(
       idx++;
     }
     trip.lastSegmentIndex = idx;
+
     if (idx >= path.length - 1) {
-      position = path[path.length - 1];
+      trip.currentPosition[0] = path[path.length - 1][0];
+      trip.currentPosition[1] = path[path.length - 1][1];
     } else {
       const t0 = timestamps[idx];
       const t1 = timestamps[idx + 1];
@@ -339,10 +386,8 @@ function getBikeState(
 
       const p0 = path[idx];
       const p1 = path[idx + 1];
-      position = [
-        p0[0] + t * (p1[0] - p0[0]),
-        p0[1] + t * (p1[1] - p0[1]),
-      ];
+      trip.currentPosition[0] = p0[0] + t * (p1[0] - p0[0]);
+      trip.currentPosition[1] = p0[1] + t * (p1[1] - p0[1]);
     }
   }
 
@@ -368,22 +413,25 @@ function getBikeState(
   const laFrac = laD1 > laD0 ? (lookAheadDist - laD0) / (laD1 - laD0) : 0;
   const laP0 = path[laIdx];
   const laP1 = path[laIdx + 1] ?? laP0;
-  const lookAheadPos: [number, number] = [
-    laP0[0] + laFrac * (laP1[0] - laP0[0]),
-    laP0[1] + laFrac * (laP1[1] - laP0[1]),
-  ];
+  const lookAheadX = laP0[0] + laFrac * (laP1[0] - laP0[0]);
+  const lookAheadY = laP0[1] + laFrac * (laP1[1] - laP0[1]);
 
   // Calculate bearing from current position to look-ahead point
-  const dx = lookAheadPos[0] - position[0];
-  const dy = lookAheadPos[1] - position[1];
+  const dx = lookAheadX - trip.currentPosition[0];
+  const dy = lookAheadY - trip.currentPosition[1];
   const targetBearing = Math.atan2(dx, dy) * (180 / Math.PI);
 
   // During fade-in, rotate from 0° (north) to target bearing
-  const bearing = phase === "fading-in"
+  trip.currentBearing = phase === "fading-in"
     ? interpolateAngle(0, targetBearing, phaseProgress)
     : targetBearing;
 
-  return { position, bearing, phase, phaseProgress };
+  // Update phase state
+  trip.currentPhase = phase;
+  trip.currentPhaseProgress = phaseProgress;
+  trip.isVisible = true;
+
+  return true;
 }
 
 export const BikeMap = () => {
@@ -601,16 +649,13 @@ export const BikeMap = () => {
     throw new Error("NEXT_PUBLIC_MAPBOX_TOKEN is not set");
   }
 
-  // Calculate current bike head positions, bearings, and phases
-  const bikeHeads = useMemo(() => {
-    const heads: BikeHead[] = [];
+  // Update all trip states in place, filter to visible ones
+  // Note: filter() creates a new array, but the trips themselves are reused (no object creation per trip)
+  const visibleTrips = useMemo(() => {
     for (const trip of activeTrips) {
-      const state = getBikeState(trip, time);
-      if (state) {
-        heads.push({ ...state, id: trip.id, bikeType: trip.bikeType });
-      }
+      updateTripState(trip, time);
     }
-    return heads;
+    return activeTrips.filter(t => t.isVisible);
   }, [activeTrips, time]);
 
   const layers = useMemo(
@@ -628,9 +673,9 @@ export const BikeMap = () => {
         currentTime: time,
         pickable: false,
       }),
-      new IconLayer<BikeHead>({
+      new IconLayer<DeckTrip>({
         id: "bike-heads",
-        data: bikeHeads,
+        data: visibleTrips,
         billboard: false,
         opacity: 0.8,
         getPosition: getBikeHeadPosition,
@@ -648,7 +693,7 @@ export const BikeMap = () => {
         },
       }),
     ],
-    [activeTrips, bikeHeads, time]
+    [activeTrips, visibleTrips, time]
   );
 
   return (
