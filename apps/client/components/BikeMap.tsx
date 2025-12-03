@@ -544,6 +544,7 @@ export const BikeMap = () => {
       id: "bike-heads",
       data: bikeHeads,
       billboard: false,
+      opacity: 0.8,
       getPosition: (d) => d.position,
       getAngle: (d) => -d.bearing,
       getIcon: () => "arrow",
