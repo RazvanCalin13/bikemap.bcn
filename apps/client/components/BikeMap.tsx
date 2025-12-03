@@ -49,7 +49,7 @@ const CHUNK_SIZE_SECONDS = 15 * 60; // 15 minutes in seconds
 const LOOKAHEAD_CHUNKS = 1;
 
 // Animation start time
-const WINDOW_START = new Date("2025-06-08T17:00:00.000Z"); // 1pm EDT
+const WINDOW_START = new Date("2025-06-08T05:00:00.000Z"); // 1am EDT
 
 // Theme colors
 const THEME = {
@@ -535,7 +535,7 @@ export const BikeMap = () => {
       getTimestamps: (d) => d.timestamps,
       getColor: (d) => (d.vendor === 0 ? THEME.trailColor0 : THEME.trailColor1),
       opacity: 0.3,
-      widthMinPixels: 2,
+      widthMinPixels: 3,
       rounded: true,
       trailLength: TRAIL_LENGTH_SECONDS,
       currentTime: time,
@@ -548,7 +548,7 @@ export const BikeMap = () => {
       getPosition: (d) => d.position,
       getAngle: (d) => -d.bearing,
       getIcon: () => "arrow",
-      getSize: 8,
+      getSize: 9,
       getColor: (d) => {
         const bikeColor = d.vendor === 0 ? THEME.trailColor0 : THEME.trailColor1;
         const maxAlpha = 0.8 * 255;
