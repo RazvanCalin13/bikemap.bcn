@@ -28,16 +28,15 @@ type DeckTrip = {
 };
 
 // Animation config - all times in seconds
-const SPEEDUP = 600; // 10x real time
+const SPEEDUP = 150;
 const TRAIL_LENGTH_SECONDS = 60; // 1 minute of trail
 
 // Chunking config
 const CHUNK_SIZE_SECONDS = 15 * 60; // 15 minutes in seconds
 const LOOKAHEAD_CHUNKS = 1;
 
-// Full animation window
-const WINDOW_START = new Date("2025-06-08T08:00:00.000Z"); // 4am EDT
-const WINDOW_END = new Date("2025-06-09T01:00:00.000Z"); // 9pm EDT
+// Animation start time
+const WINDOW_START = new Date("2025-06-08T17:00:00.000Z"); // 1pm EDT
 
 // Theme colors
 const THEME = {
@@ -134,7 +133,6 @@ function prepareTripsForDeck(data: {
 
 export const BikeMap = () => {
   const windowStartMs = WINDOW_START.getTime();
-  const windowDurationSeconds = (WINDOW_END.getTime() - windowStartMs) / 1000;
 
   const [activeTrips, setActiveTrips] = useState<DeckTrip[]>([]);
   const [tripCount, setTripCount] = useState(0);
@@ -167,8 +165,7 @@ export const BikeMap = () => {
         return;
       }
 
-      const totalChunks = Math.ceil(windowDurationSeconds / CHUNK_SIZE_SECONDS);
-      if (chunkIndex < 0 || chunkIndex >= totalChunks) {
+      if (chunkIndex < 0) {
         return;
       }
 
@@ -197,7 +194,7 @@ export const BikeMap = () => {
         loadingChunksRef.current.delete(chunkIndex);
       }
     },
-    [windowStartMs, windowDurationSeconds]
+    [windowStartMs]
   );
 
   // Initial load: rides active at t=0 plus rides starting in first chunk
