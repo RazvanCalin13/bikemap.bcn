@@ -1,6 +1,6 @@
 "use client";
 
-import { getRidesStartingIn, getTripsForChunk } from "@/app/server/trips";
+import { getRidesStartingIn as getRidesInWindow, getTripsForChunk } from "@/app/server/trips";
 import { DataFilterExtension } from "@deck.gl/extensions";
 import { TripsLayer } from "@deck.gl/geo-layers";
 import { IconLayer, PathLayer } from "@deck.gl/layers";
@@ -67,7 +67,7 @@ const CHUNK_SIZE_SECONDS = 15 * 60; // 15 minutes in seconds
 const LOOKAHEAD_CHUNKS = 1;
 
 // Animation start time
-const WINDOW_START = new Date("2025-06-30T16:00:00.000Z"); // 12:00pm EDT (16:00 UTC)
+const WINDOW_START = new Date("2025-06-04T22:00:00.000Z"); // 6:00pm EDT (22:00 UTC)
 
 const THEME = {
   trailColor0: [187, 154, 247] as Color, // purple
@@ -540,7 +540,7 @@ export const BikeMap = () => {
       const to = new Date(windowStartMs + (chunkIndex + 1) * CHUNK_SIZE_SECONDS * 1000);
 
       try {
-        const data = await getRidesStartingIn({ from, to });
+        const data = await getRidesInWindow({ from, to });
         const prepared = prepareTripsForDeck({
           trips: data.trips,
           windowStartMs,
