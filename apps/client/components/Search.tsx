@@ -1,5 +1,6 @@
 "use client"
-import { getStations } from "@/app/server/trips"
+import { getStations, getTripsFromStation } from "@/app/server/trips"
+import { EBike } from "@/components/icons/Ebike"
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command"
 import { REFERENCE_DATE } from "@/lib/config"
 import { usePickerStore } from "@/lib/store"
@@ -7,7 +8,7 @@ import distance from "@turf/distance"
 import { point } from "@turf/helpers"
 import * as chrono from "chrono-node"
 import { Fzf } from "fzf"
-import { ArrowLeft, ArrowRight, Bike, CalendarSearch, MapPin, X } from "lucide-react"
+import { ArrowLeft, ArrowRight, Bike, CalendarSearch, Clock, MapPin, X } from "lucide-react"
 import React from "react"
 
 type Station = {
@@ -19,7 +20,17 @@ type Station = {
 
 type StationWithDistance = Station & { distance: number }
 
-type SearchStep = "station" | "datetime"
+type Trip = {
+  id: string
+  startStationId: string
+  endStationId: string
+  startedAt: Date
+  endedAt: Date
+  rideableType: string
+  memberCasual: string
+}
+
+type SearchStep = "station" | "datetime" | "results"
 
 const MAX_RESULTS = 10
 
@@ -45,6 +56,27 @@ function formatDateTime(date: Date): string {
   })
 }
 
+function formatDuration(startedAt: Date, endedAt: Date): string {
+  const ms = new Date(endedAt).getTime() - new Date(startedAt).getTime()
+  const totalSeconds = Math.floor(ms / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`
+}
+
+function formatTime(date: Date): string {
+  return new Date(date).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  })
+}
+
+function getStationName(stationId: string, stations: Station[]): string {
+  const station = stations.find((s) => s.ids.includes(stationId))
+  return station?.name ?? stationId
+}
+
 export function Search() {
   const [open, setOpen] = React.useState(false)
   const [stations, setStations] = React.useState<Station[]>([])
@@ -54,6 +86,7 @@ export function Search() {
   const [step, setStep] = React.useState<SearchStep>("station")
   const [selectedStation, setSelectedStation] = React.useState<Station | null>(null)
   const [datetimeInput, setDatetimeInput] = React.useState("")
+  const [trips, setTrips] = React.useState<Trip[]>([])
 
   const { pickedLocation, startPicking, clearPicking } = usePickerStore()
 
@@ -93,6 +126,7 @@ export function Search() {
       setSelectedStation(null)
       setDatetimeInput("")
       setSearch("")
+      setTrips([])
     }
   }
 
@@ -147,16 +181,29 @@ export function Search() {
     setStep("station")
     setSelectedStation(null)
     setDatetimeInput("")
+    setTrips([])
   }
 
-  const handleConfirmSelection = () => {
+  const handleBackToDatetime = () => {
+    setStep("datetime")
+    setTrips([])
+  }
+
+  const handleConfirmSelection = async () => {
     if (selectedStation && parsedDate) {
-      console.log("Final selection:", {
-        station: selectedStation,
+      const result = await getTripsFromStation({
+        startStationIds: selectedStation.ids,
         datetime: parsedDate,
+        intervalSeconds: 1800,
       })
-      handleOpenChange(false)
+      setTrips(result.trips)
+      setStep("results")
     }
+  }
+
+  const handleSelectTrip = (trip: Trip) => {
+    console.log("Selected trip:", trip)
+    handleOpenChange(false)
   }
 
   // Render datetime step
@@ -189,6 +236,51 @@ export function Search() {
               </CommandItem>
             </CommandGroup>
           )}
+        </CommandList>
+      </CommandDialog>
+    )
+  }
+
+  // Render results step
+  if (step === "results" && selectedStation) {
+    return (
+      <CommandDialog open={open} onOpenChange={handleOpenChange} shouldFilter={false}>
+        <div className="flex items-center gap-2 border-b px-3 py-2">
+          <button
+            onClick={handleBackToDatetime}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="size-4" />
+          </button>
+          <span className="font-medium">
+            {trips.length} ride{trips.length !== 1 ? "s" : ""} found
+          </span>
+        </div>
+        <CommandList>
+          <CommandGroup>
+            {trips.map((trip) => (
+              <CommandItem key={trip.id} onSelect={() => handleSelectTrip(trip)}>
+                <div className="flex flex-col gap-1 w-full">
+                  <div className="flex items-center gap-2">
+                    <Clock className="size-3 text-muted-foreground" />
+                    <span className="font-medium tabular-nums w-20">{formatTime(trip.startedAt)}</span>
+                    <span className="text-muted-foreground">·</span>
+                    <span className="text-muted-foreground tabular-nums w-12">{formatDuration(trip.startedAt, trip.endedAt)}</span>
+                    <div className="ml-auto flex items-center gap-2">
+                      {trip.rideableType === "electric_bike" ? (
+                        <EBike className="size-4 text-[#7DCFFF]" />
+                      ) : (
+                        <Bike className="size-4 text-[#BB9AF7]" />
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {getStationName(trip.startStationId, stations)} → {getStationName(trip.endStationId, stations)}
+                  </div>
+                </div>
+              </CommandItem>
+            ))}
+          </CommandGroup>
         </CommandList>
       </CommandDialog>
     )
