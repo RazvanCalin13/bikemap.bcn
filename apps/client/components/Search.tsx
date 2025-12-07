@@ -175,7 +175,7 @@ export function Search() {
         </div>
         <CommandInput
           autoFocus
-          placeholder="Specify a date..."
+          placeholder="When did this ride start?"
           value={datetimeInput}
           onValueChange={setDatetimeInput}
           icon={<CalendarSearch className="size-4 shrink-0 text-muted-foreground" />}
