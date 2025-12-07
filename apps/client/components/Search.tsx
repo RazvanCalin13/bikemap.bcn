@@ -171,12 +171,41 @@ export function Search() {
     }
   }
 
-  const fzf = React.useMemo(
+  const nameFzf = React.useMemo(
     () => new Fzf(stations, { selector: (s) => s.name }),
     [stations]
   )
 
+  const neighborhoodFzf = React.useMemo(
+    () =>
+      new Fzf(stations, {
+        selector: (s) => {
+          const region = s.ids.map((id) => stationRegions[id]).find(Boolean)
+          return region?.neighborhood ?? ""
+        },
+      }),
+    [stations, stationRegions]
+  )
+
   const filteredStations = React.useMemo((): (Station | StationWithDistance)[] => {
+    // Helper to merge results from both fzf instances
+    const getMergedMatches = (query: string): Station[] => {
+      const nameMatches = nameFzf.find(query).map((r) => r.item)
+      const neighborhoodMatches = neighborhoodFzf.find(query).map((r) => r.item)
+
+      const seen = new Set<string>()
+      const merged: Station[] = []
+
+      for (const station of [...nameMatches, ...neighborhoodMatches]) {
+        if (!seen.has(station.name)) {
+          seen.add(station.name)
+          merged.push(station)
+        }
+      }
+
+      return merged
+    }
+
     // If we have a picked location, sort by distance
     if (pickedLocation) {
       const pickedPoint = point([pickedLocation.lng, pickedLocation.lat])
@@ -186,11 +215,9 @@ export function Search() {
       }))
       withDistance.sort((a, b) => a.distance - b.distance)
 
-      // If there's a search query, filter by name too
+      // If there's a search query, filter by merged matches
       if (search.trim()) {
-        const matchingNames = new Set(
-          fzf.find(search.trim()).map((r) => r.item.name)
-        )
+        const matchingNames = new Set(getMergedMatches(search.trim()).map((s) => s.name))
         return withDistance.filter((s) => matchingNames.has(s.name)).slice(0, MAX_RESULTS)
       }
 
@@ -200,8 +227,25 @@ export function Search() {
     // Normal fuzzy search
     const query = search.trim()
     if (!query) return stations.slice(0, MAX_RESULTS)
-    return fzf.find(query).slice(0, MAX_RESULTS).map((result) => result.item)
-  }, [stations, search, fzf, pickedLocation])
+    return getMergedMatches(query).slice(0, MAX_RESULTS)
+  }, [stations, search, nameFzf, neighborhoodFzf, pickedLocation])
+
+  // Filter trips by end station name + neighborhood
+  const filteredTrips = React.useMemo(() => {
+    const query = resultsSearch.trim()
+    if (!query) return trips
+
+    const tripFzf = new Fzf(trips, {
+      selector: (trip) => {
+        const endStation = stationMap.get(trip.endStationId)
+        const endStationName = endStation?.name ?? ""
+        const neighborhood = stationRegions[trip.endStationId]?.neighborhood ?? ""
+        return `${endStationName} ${neighborhood}`
+      },
+    })
+
+    return tripFzf.find(query).map((r) => r.item)
+  }, [trips, resultsSearch, stationMap, stationRegions])
 
   const handlePickFromMap = () => {
     setOpen(false)
@@ -286,7 +330,7 @@ export function Search() {
   // Render results step
   if (step === "results" && selectedStation) {
     return (
-      <CommandDialog open={open} onOpenChange={handleOpenChange} className="sm:max-w-xl">
+      <CommandDialog open={open} onOpenChange={handleOpenChange} className="sm:max-w-xl" shouldFilter={false}>
         <div className="flex items-center gap-2 border-b px-3 py-2">
           <button
             onClick={handleBackToDatetime}
@@ -302,8 +346,8 @@ export function Search() {
         <CommandInput placeholder="Search end station..." value={resultsSearch} onValueChange={setResultsSearch} />
         <CommandList className="max-h-[500px]">
           <CommandGroup>
-            {trips.map((trip) => (
-              <CommandItem key={trip.id} value={`${trip.id} ${getStationName(trip.endStationId, stationMap)}`} onSelect={() => handleSelectTrip(trip)}>
+            {filteredTrips.map((trip) => (
+              <CommandItem key={trip.id} onSelect={() => handleSelectTrip(trip)}>
                 <div className="flex items-center gap-3 w-full">
                   {trip.rideableType === "electric_bike" ? (
                     <EBike className="size-8 text-[#7DCFFF] shrink-0" />
@@ -315,19 +359,18 @@ export function Search() {
                       Bike ride · {formatDurationMinutes(trip.startedAt, trip.endedAt)}
                     </span>
                     <span className="text-sm text-muted-foreground">
-                      {formatDateTimeFull(trip.startedAt)}
+                      {formatDateTimeFull(trip.startedAt)}{trip.routeDistance && ` · ${formatDistance(trip.routeDistance)}`}
                     </span>
                   </div>
                   <div className="ml-auto flex flex-col items-end">
                     <span className="text-zinc-100 font-normal truncate max-w-[30ch]">
                       {getStationName(trip.endStationId, stationMap)}
                     </span>
-                    <div className="flex gap-2 text-sm text-muted-foreground">
-                      {stationRegions[trip.endStationId]?.neighborhood && (
-                        <span>{stationRegions[trip.endStationId].neighborhood}</span>
-                      )}
-                      {trip.routeDistance && <span>{formatDistance(trip.routeDistance)}</span>}
-                    </div>
+                    {stationRegions[trip.endStationId]?.neighborhood && (
+                      <span className="text-sm text-muted-foreground">
+                        {stationRegions[trip.endStationId].neighborhood}
+                      </span>
+                    )}
                   </div>
                 </div>
               </CommandItem>
@@ -340,7 +383,7 @@ export function Search() {
 
   // Render station step (default)
   return (
-    <CommandDialog open={open} onOpenChange={handleOpenChange} className="sm:max-w-xl">
+    <CommandDialog open={open} onOpenChange={handleOpenChange} className="sm:max-w-xl" shouldFilter={false}>
       <CommandInput
         placeholder={pickedLocation ? "Filter nearby stations..." : "Type a station name..."}
         value={search}
