@@ -776,7 +776,7 @@ export const BikeMap = () => {
         getPath,
         getTimestamps,
         getColor: getTripColor,
-        opacity: 0.3,
+        opacity: 0.2,
         widthMinPixels: 3,
         jointRounded: true,
         capRounded: true,
