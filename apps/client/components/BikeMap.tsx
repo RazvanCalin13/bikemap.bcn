@@ -3,14 +3,12 @@
 import { getRidesStartingIn as getRidesInWindow, getTripsForChunk } from "@/app/server/trips";
 import { useAnimationStore } from "@/lib/animation-store";
 import { usePickerStore } from "@/lib/store";
-import { filterTrips } from "@/lib/trip-filters";
+import { TripProcessorClient } from "@/lib/trip-processor-client";
+import type { DeckTrip, Phase, RawTrip } from "@/lib/trip-types";
 import { DataFilterExtension } from "@deck.gl/extensions";
 import { TripsLayer } from "@deck.gl/geo-layers";
 import { IconLayer, PathLayer } from "@deck.gl/layers";
 import { DeckGL } from "@deck.gl/react";
-import polyline from "@mapbox/polyline";
-import distance from "@turf/distance";
-import { point } from "@turf/helpers";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Map as MapboxMap } from "react-map-gl/mapbox";
@@ -18,46 +16,16 @@ import { Map as MapboxMap } from "react-map-gl/mapbox";
 import type { Color, MapViewState } from "@deck.gl/core";
 import { LinearInterpolator } from "@deck.gl/core";
 
-// Infer types from server function
-type ChunkResponse = Awaited<ReturnType<typeof getTripsForChunk>>;
-type Trip = ChunkResponse["trips"][number];
-
 type AnimationState = "idle" | "playing";
-type Phase = "fading-in" | "moving" | "fading-out";
-
-// DeckGL TripsLayer data format
-type DeckTrip = {
-  id: string;
-  path: [number, number][];
-  timestamps: number[]; // seconds from window start
-  bikeType: string;
-  startTimeSeconds: number; // actual trip start (movement begins after transition)
-  endTimeSeconds: number; // actual trip end (movement stops, fade-out begins)
-  visibleStartSeconds: number; // when bike first appears (fade-in starts)
-  visibleEndSeconds: number; // when bike disappears (fade-out ends)
-  cumulativeDistances: number[]; // meters from route start
-  lastSegmentIndex: number; // cached cursor for O(1) segment lookup
-  // Precomputed phase boundary (avoid recalculating each frame)
-  fadeInEndSeconds: number;
-  // Precomputed bearings for stationary phases
-  firstSegmentBearing: number;
-  lastSegmentBearing: number;
-  // Mutable state (updated in place each frame to avoid allocations)
-  currentPosition: [number, number];
-  currentBearing: number;
-  currentPhase: Phase;
-  currentPhaseProgress: number;
-  isVisible: boolean;
-  isSelected: boolean;
-};
 
 // Animation config - all times in seconds
 const TRAIL_LENGTH_SECONDS = 45;
-const EASE_DISTANCE_METERS = 300; // Fixed easing distance at start/end of trips
 
 // Chunking config
-const CHUNK_SIZE_SECONDS = 1 * 60; // 1 minute in seconds
-const LOOKAHEAD_CHUNKS = 1;
+const CHUNK_SIZE_SECONDS = 60; // 1 minute in seconds
+const BATCH_SIZE_SECONDS = 60 * 60; // 1 hour in seconds
+const CHUNKS_PER_BATCH = BATCH_SIZE_SECONDS / CHUNK_SIZE_SECONDS; // 60 chunks per batch
+const PREFETCH_THRESHOLD_CHUNKS = 50; // Prefetch next batch when 10 chunks from batch end
 
 const THEME = {
   trailColor0: [187, 154, 247] as Color, // purple
@@ -204,143 +172,6 @@ function interpolateAngle(from: number, to: number, factor: number): number {
   if (diff > 180) diff -= 360;
   if (diff < -180) diff += 360;
   return ((from + diff * factor) % 360 + 360) % 360;
-}
-
-// Compute time fraction from distance, with fixed-distance easing at edges
-// Makes bikes slow at start/end (docking) and constant speed in middle
-function getTimeFraction(dist: number, totalDist: number): number {
-  if (totalDist <= 0) return 0;
-
-  // Scale down ease distance for short trips (max 25% of trip at each end)
-  const easeDist = Math.min(EASE_DISTANCE_METERS, totalDist / 4);
-
-  const easeInEnd = easeDist;
-  const easeOutStart = totalDist - easeDist;
-  const linearDist = totalDist - 2 * easeDist;
-
-  // Time allocation: easing phases take 2x the time per meter
-  const totalTime = 2 * easeDist + linearDist + 2 * easeDist;
-  const easeInTime = 2 * easeDist;
-  const linearTime = linearDist;
-
-  if (dist < easeInEnd) {
-    // INVERSE quadratic ease-in: time = sqrt(position) for slow start
-    const t = dist / easeDist;
-    const timeInEase = Math.sqrt(t);
-    return (timeInEase * easeInTime) / totalTime;
-  } else if (dist > easeOutStart) {
-    // INVERSE quadratic ease-out: slow end
-    const distIntoEaseOut = dist - easeOutStart;
-    // Clamp t to prevent NaN from floating point errors at boundary
-    const t = Math.min(1, distIntoEaseOut / easeDist);
-    const timeInEase = 1 - Math.sqrt(1 - t);
-    const timeBeforeEaseOut = easeInTime + linearTime;
-    return (timeBeforeEaseOut + timeInEase * easeInTime) / totalTime;
-  } else {
-    // Linear middle
-    const distIntoLinear = dist - easeInEnd;
-    return (easeInTime + distIntoLinear) / totalTime;
-  }
-}
-
-// Prepare trips for deck.gl TripsLayer format with timestamps in seconds from window start
-function prepareTripsForDeck(data: {
-  trips: Trip[];
-  windowStartMs: number;
-  fadeDurationSimSeconds: number;
-}): DeckTrip[] {
-  const { trips, windowStartMs, fadeDurationSimSeconds } = data;
-
-  // Pre-filter trips using shared filter logic
-  const validTrips = filterTrips(trips) as (Trip & { routeGeometry: string })[];
-
-  const prepared = validTrips
-    .map((trip) => {
-      // Decode polyline6 - returns [lat, lng][], flip to [lng, lat]
-      const decoded = polyline.decode(trip.routeGeometry, 6);
-      const coordinates = decoded.map(
-        ([lat, lng]) => [lng, lat] as [number, number]
-      );
-
-      if (coordinates.length < 2) return null;
-
-      // Calculate cumulative distances for timestamp distribution
-      const cumulativeDistances: number[] = [0];
-      for (let i = 1; i < coordinates.length; i++) {
-        const segmentDist = distance(
-          point(coordinates[i - 1]),
-          point(coordinates[i]),
-          { units: "meters" }
-        );
-        cumulativeDistances.push(cumulativeDistances[i - 1] + segmentDist);
-      }
-
-      const totalDistance = cumulativeDistances[cumulativeDistances.length - 1];
-
-      // Convert to seconds from window start
-      const tripStartMs = new Date(trip.startedAt).getTime();
-      const tripEndMs = new Date(trip.endedAt).getTime();
-      const tripStartSeconds = (tripStartMs - windowStartMs) / 1000;
-      const tripEndSeconds = (tripEndMs - windowStartMs) / 1000;
-      const tripDurationSeconds = tripEndSeconds - tripStartSeconds;
-
-      // Generate timestamps with easing: slow at start/end (100m), fast in middle
-      const timestamps = cumulativeDistances.map((dist) => {
-        const timeFraction = getTimeFraction(dist, totalDistance);
-        return tripStartSeconds + timeFraction * tripDurationSeconds;
-      });
-
-      // Precompute phase boundary
-      const visibleStartSeconds = tripStartSeconds - fadeDurationSimSeconds;
-      const fadeInEndSeconds = visibleStartSeconds + fadeDurationSimSeconds;
-
-      // Precompute fade-in bearing using 20m look-ahead (matches original behavior)
-      const lookAheadDistPrep = Math.min(20, totalDistance);
-      let laIdxPrep = 0;
-      while (laIdxPrep < cumulativeDistances.length - 1 && cumulativeDistances[laIdxPrep + 1] < lookAheadDistPrep) {
-        laIdxPrep++;
-      }
-      const laD0Prep = cumulativeDistances[laIdxPrep];
-      const laD1Prep = cumulativeDistances[laIdxPrep + 1] ?? laD0Prep;
-      const laFracPrep = laD1Prep > laD0Prep ? (lookAheadDistPrep - laD0Prep) / (laD1Prep - laD0Prep) : 0;
-      const laP0Prep = coordinates[laIdxPrep];
-      const laP1Prep = coordinates[laIdxPrep + 1] ?? laP0Prep;
-      const lookAheadXPrep = laP0Prep[0] + laFracPrep * (laP1Prep[0] - laP0Prep[0]);
-      const lookAheadYPrep = laP0Prep[1] + laFracPrep * (laP1Prep[1] - laP0Prep[1]);
-      const firstSegmentBearing = Math.atan2(lookAheadXPrep - coordinates[0][0], lookAheadYPrep - coordinates[0][1]) * (180 / Math.PI);
-
-      // Precompute last segment bearing (for fade-out)
-      const lastIdx = coordinates.length - 1;
-      const fdxN = coordinates[lastIdx][0] - coordinates[lastIdx - 1][0];
-      const fdyN = coordinates[lastIdx][1] - coordinates[lastIdx - 1][1];
-      const lastSegmentBearing = Math.atan2(fdxN, fdyN) * (180 / Math.PI);
-
-      return {
-        id: trip.id,
-        path: coordinates,
-        timestamps,
-        bikeType: trip.rideableType,
-        startTimeSeconds: tripStartSeconds,
-        endTimeSeconds: tripEndSeconds,
-        visibleStartSeconds,
-        visibleEndSeconds: tripEndSeconds + Math.max(fadeDurationSimSeconds, TRAIL_LENGTH_SECONDS),
-        cumulativeDistances,
-        lastSegmentIndex: 0,
-        fadeInEndSeconds,
-        firstSegmentBearing,
-        lastSegmentBearing,
-        // Mutable state - initialized once, updated in place each frame
-        currentPosition: [0, 0] as [number, number],
-        currentBearing: 0,
-        currentPhase: "fading-in" as Phase,
-        currentPhaseProgress: 0,
-        isVisible: false,
-        isSelected: false,
-      };
-    })
-    .filter((trip): trip is DeckTrip => trip !== null);
-
-  return prepared;
 }
 
 // Update trip's mutable state in place. Returns true if visible.
@@ -504,6 +335,8 @@ export const BikeMap = () => {
   const loadingChunksRef = useRef<Set<number>>(new Set());
   const loadedChunksRef = useRef<Set<number>>(new Set());
   const lastChunkRef = useRef(-1);
+  const lastBatchRef = useRef(-1);
+  const processorClientRef = useRef<TripProcessorClient | null>(null);
 
   // Convert seconds to real time (ms) for clock display
   const secondsToRealTime = useCallback(
@@ -517,35 +350,27 @@ export const BikeMap = () => {
     []
   );
 
-  // Load rides starting in a specific chunk
+  // Load rides starting in a specific chunk (from worker)
   const loadUpcomingRides = useCallback(
     async (chunkIndex: number) => {
       if (loadedChunksRef.current.has(chunkIndex) || loadingChunksRef.current.has(chunkIndex)) {
         return;
       }
 
-      if (chunkIndex < 0) {
+      if (chunkIndex < 0 || !processorClientRef.current) {
         return;
       }
 
       loadingChunksRef.current.add(chunkIndex);
-      console.log(`Loading rides starting in chunk ${chunkIndex}...`);
-
-      const from = new Date(windowStartMs + chunkIndex * CHUNK_SIZE_SECONDS * 1000);
-      const to = new Date(windowStartMs + (chunkIndex + 1) * CHUNK_SIZE_SECONDS * 1000);
 
       try {
-        const data = await getRidesInWindow({ from, to });
-        const prepared = prepareTripsForDeck({
-          trips: data.trips,
-          windowStartMs,
-          fadeDurationSimSeconds,
-        });
+        // Request pre-processed trips from worker
+        const trips = await processorClientRef.current.requestChunk(chunkIndex);
 
-        console.log(`Chunk ${chunkIndex}: ${prepared.length} new rides`);
+        console.log(`Chunk ${chunkIndex}: ${trips.length} rides from worker`);
 
         // Add to ref (dedupes by ID)
-        for (const trip of prepared) {
+        for (const trip of trips) {
           tripMapRef.current.set(trip.id, trip);
         }
 
@@ -554,54 +379,121 @@ export const BikeMap = () => {
         loadingChunksRef.current.delete(chunkIndex);
       }
     },
-    [windowStartMs, fadeDurationSimSeconds]
+    []
   );
 
-  // Initial load: rides active at t=0 plus rides starting in first chunk
+  // Helper to convert server trips to RawTrip format for worker
+  const convertToRawTrips = useCallback((trips: Array<{
+    id: string;
+    startStationId: string;
+    endStationId: string;
+    startedAt: Date;
+    endedAt: Date;
+    rideableType: string;
+    memberCasual: string;
+    startLat: number;
+    startLng: number;
+    endLat: number | null;
+    endLng: number | null;
+    routeGeometry: string | null;
+    routeDistance: number | null;
+    routeDuration: number | null;
+  }>): RawTrip[] => {
+    return trips.map(t => ({
+      ...t,
+      startedAt: t.startedAt.toISOString(),
+      endedAt: t.endedAt.toISOString(),
+    }));
+  }, []);
+
+  // Initialize worker and load first batch
   const initialLoadDone = useRef(false);
   useEffect(() => {
     if (initialLoadDone.current) return;
     initialLoadDone.current = true;
 
-    const loadInitial = async () => {
-      console.log("Loading initial rides...");
-      // Get rides that overlap with t=0 (already in progress)
-      const data = await getTripsForChunk({
-        chunkStart: animationStartDate,
-        chunkEnd: new Date(windowStartMs + CHUNK_SIZE_SECONDS * 1000),
+    const initWorker = async () => {
+      console.log("Initializing trip processor worker...");
+
+      // Create worker client with batch fetcher
+      const client = new TripProcessorClient({
+        onBatchRequest: async (batchId: number) => {
+          const batchStartMs = windowStartMs + batchId * BATCH_SIZE_SECONDS * 1000;
+          const batchEndMs = batchStartMs + BATCH_SIZE_SECONDS * 1000;
+
+          console.log(`Fetching batch ${batchId} from server...`);
+          const data = await getRidesInWindow({
+            from: new Date(batchStartMs),
+            to: new Date(batchEndMs),
+          });
+
+          // For batch 0, also fetch trips already in progress at animation start
+          if (batchId === 0) {
+            const overlapData = await getTripsForChunk({
+              chunkStart: animationStartDate,
+              chunkEnd: new Date(windowStartMs + CHUNK_SIZE_SECONDS * 1000),
+            });
+
+            // Merge and dedupe by id
+            const tripMap = new Map<string, typeof data.trips[number]>();
+            for (const trip of overlapData.trips) {
+              tripMap.set(trip.id, trip);
+            }
+            for (const trip of data.trips) {
+              tripMap.set(trip.id, trip);
+            }
+
+            console.log(`Batch 0: ${data.trips.length} starting + ${overlapData.trips.length} overlap = ${tripMap.size} unique`);
+            return convertToRawTrips(Array.from(tripMap.values()));
+          }
+
+          return convertToRawTrips(data.trips);
+        },
       });
-      const prepared = prepareTripsForDeck({
-        trips: data.trips,
+
+      processorClientRef.current = client;
+
+      // Initialize worker
+      await client.init({
         windowStartMs,
         fadeDurationSimSeconds,
       });
-      console.log(`Initial load: ${prepared.length} rides`);
 
-      for (const trip of prepared) {
-        tripMapRef.current.set(trip.id, trip);
-      }
-      loadedChunksRef.current.add(0);
+      // Load first batch (hour 0)
+      await client.loadBatch(0);
+      lastBatchRef.current = 0;
 
-      // Load lookahead chunks in parallel (chunks 1 through LOOKAHEAD_CHUNKS + 1)
-      const lookaheadPromises = [];
-      for (let i = 1; i <= LOOKAHEAD_CHUNKS + 1; i++) {
-        lookaheadPromises.push(loadUpcomingRides(i));
+      // Request initial chunks (0-2 to have some buffer)
+      const initialChunks = [0, 1, 2];
+      for (const chunkIndex of initialChunks) {
+        const trips = await client.requestChunk(chunkIndex);
+        for (const trip of trips) {
+          tripMapRef.current.set(trip.id, trip);
+        }
+        loadedChunksRef.current.add(chunkIndex);
       }
-      await Promise.all(lookaheadPromises);
+
+      console.log(`Initial load complete: ${tripMapRef.current.size} trips`);
 
       // Update state for initial render
       setActiveTrips(Array.from(tripMapRef.current.values()));
       setTripCount(tripMapRef.current.size);
     };
 
-    loadInitial();
-  }, [windowStartMs, loadUpcomingRides, animationStartDate, fadeDurationSimSeconds]);
+    initWorker();
+
+    // Cleanup on unmount
+    return () => {
+      processorClientRef.current?.terminate();
+      processorClientRef.current = null;
+    };
+  }, [windowStartMs, fadeDurationSimSeconds, convertToRawTrips]);
 
   // Calculate current real time for clock display
   const currentRealTime = secondsToRealTime(time);
   const currentChunk = getChunkIndex(time);
 
-  // On chunk change: prefetch upcoming, remove ended trips, sync state
+  // On chunk change: load chunk from worker, prefetch next batch, cleanup old trips
   useEffect(() => {
     if (animState !== "playing") return;
     if (currentChunk === lastChunkRef.current) return;
@@ -609,9 +501,24 @@ export const BikeMap = () => {
     console.log(`Entered chunk ${currentChunk}`);
     lastChunkRef.current = currentChunk;
 
-    // Prefetch next chunk
-    const nextChunk = currentChunk + LOOKAHEAD_CHUNKS + 1;
-    loadUpcomingRides(nextChunk);
+    // Load this chunk and next chunk from worker
+    loadUpcomingRides(currentChunk);
+    loadUpcomingRides(currentChunk + 1);
+
+    // Check if we need to prefetch next batch (when 10 chunks from batch end)
+    const currentBatch = Math.floor(currentChunk / CHUNKS_PER_BATCH);
+    const chunkInBatch = currentChunk % CHUNKS_PER_BATCH;
+
+    if (chunkInBatch >= PREFETCH_THRESHOLD_CHUNKS && processorClientRef.current) {
+      const nextBatch = currentBatch + 1;
+      processorClientRef.current.prefetchBatch(nextBatch);
+    }
+
+    // Clear old batch from worker memory (keep current batch and previous)
+    if (currentBatch > 1 && processorClientRef.current) {
+      const oldBatch = currentBatch - 2;
+      processorClientRef.current.clearBatch(oldBatch);
+    }
 
     // Remove trips that have fully finished (including fade-out)
     for (const [id, trip] of tripMapRef.current) {
@@ -624,7 +531,7 @@ export const BikeMap = () => {
     const currentTrips = Array.from(tripMapRef.current.values());
     setActiveTrips(currentTrips);
     setTripCount(currentTrips.length);
-  }, [currentChunk, animState, loadUpcomingRides]);
+  }, [currentChunk, animState, loadUpcomingRides, time]);
 
   const play = useCallback(() => {
     setAnimState("playing");
@@ -673,47 +580,78 @@ export const BikeMap = () => {
     tripMapRef.current.clear();
     loadingChunksRef.current.clear();
     loadedChunksRef.current.clear();
-    initialLoadDone.current = false;
     lastChunkRef.current = -1;
+    lastBatchRef.current = -1;
     setActiveTrips([]);
     setTripCount(0);
     setAnimState("idle");
 
-    // Reload initial data
-    const loadInitial = async () => {
-      const data = await getTripsForChunk({
-        chunkStart: animationStartDate,
-        chunkEnd: new Date(windowStartMs + CHUNK_SIZE_SECONDS * 1000),
+    // Recreate worker with new config (callback needs fresh closures)
+    const recreateWorker = async () => {
+      // Terminate old worker
+      processorClientRef.current?.terminate();
+
+      // Create new worker with updated closures
+      const client = new TripProcessorClient({
+        onBatchRequest: async (batchId: number) => {
+          const batchStartMs = windowStartMs + batchId * BATCH_SIZE_SECONDS * 1000;
+          const batchEndMs = batchStartMs + BATCH_SIZE_SECONDS * 1000;
+
+          const data = await getRidesInWindow({
+            from: new Date(batchStartMs),
+            to: new Date(batchEndMs),
+          });
+
+          if (batchId === 0) {
+            const overlapData = await getTripsForChunk({
+              chunkStart: animationStartDate,
+              chunkEnd: new Date(windowStartMs + CHUNK_SIZE_SECONDS * 1000),
+            });
+
+            const tripMap = new Map<string, typeof data.trips[number]>();
+            for (const trip of overlapData.trips) {
+              tripMap.set(trip.id, trip);
+            }
+            for (const trip of data.trips) {
+              tripMap.set(trip.id, trip);
+            }
+
+            return convertToRawTrips(Array.from(tripMap.values()));
+          }
+
+          return convertToRawTrips(data.trips);
+        },
       });
-      const prepared = prepareTripsForDeck({
-        trips: data.trips,
+
+      processorClientRef.current = client;
+
+      await client.init({
         windowStartMs,
         fadeDurationSimSeconds,
       });
 
-      for (const trip of prepared) {
-        tripMapRef.current.set(trip.id, trip);
-      }
-      loadedChunksRef.current.add(0);
+      await client.loadBatch(0);
+      lastBatchRef.current = 0;
 
-      // Load lookahead chunks in parallel
-      const lookaheadPromises = [];
-      for (let i = 1; i <= LOOKAHEAD_CHUNKS + 1; i++) {
-        lookaheadPromises.push(loadUpcomingRides(i));
+      const initialChunks = [0, 1, 2];
+      for (const chunkIndex of initialChunks) {
+        const trips = await client.requestChunk(chunkIndex);
+        for (const trip of trips) {
+          tripMapRef.current.set(trip.id, trip);
+        }
+        loadedChunksRef.current.add(chunkIndex);
       }
-      await Promise.all(lookaheadPromises);
 
       setActiveTrips(Array.from(tripMapRef.current.values()));
       setTripCount(tripMapRef.current.size);
 
-      // Auto-play if a trip is selected (e.g., from Search)
       if (selectedTripId) {
         play();
       }
     };
 
-    loadInitial();
-  }, [windowStartMs, speedup, animationStartDate, fadeDurationSimSeconds, loadUpcomingRides, selectedTripId, play]);
+    recreateWorker();
+  }, [windowStartMs, speedup, fadeDurationSimSeconds, selectedTripId, play, animationStartDate, convertToRawTrips]);
 
   // Select a random visible biker
   const selectRandomBiker = useCallback(() => {
