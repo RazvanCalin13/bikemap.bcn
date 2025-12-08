@@ -2,7 +2,7 @@
 import { getStations, getTripsFromStation } from "@/app/server/trips"
 import { EBike } from "@/components/icons/Ebike"
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command"
-import { REFERENCE_DATE } from "@/lib/config"
+import { useAnimationStore } from "@/lib/animation-store"
 import { usePickerStore } from "@/lib/store"
 import distance from "@turf/distance"
 import { point } from "@turf/helpers"
@@ -101,12 +101,13 @@ export function Search() {
   const [stationRegions, setStationRegions] = React.useState<Record<string, StationRegion>>({})
 
   const { pickedLocation, startPicking, clearPicking } = usePickerStore()
+  const { animationStartDate } = useAnimationStore()
 
   // Parse datetime with chrono
   const parsedDate = React.useMemo(() => {
     if (!datetimeInput.trim()) return null
-    return chrono.parseDate(datetimeInput, REFERENCE_DATE)
-  }, [datetimeInput])
+    return chrono.parseDate(datetimeInput, animationStartDate)
+  }, [datetimeInput, animationStartDate])
 
   // Map station IDs to stations for O(1) lookup
   const stationMap = React.useMemo(() => {

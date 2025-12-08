@@ -1,7 +1,7 @@
 "use client";
 
 import { getRidesStartingIn as getRidesInWindow, getTripsForChunk } from "@/app/server/trips";
-import { REFERENCE_DATE } from "@/lib/config";
+import { useAnimationStore } from "@/lib/animation-store";
 import { usePickerStore } from "@/lib/store";
 import { DataFilterExtension } from "@deck.gl/extensions";
 import { TripsLayer } from "@deck.gl/geo-layers";
@@ -22,7 +22,7 @@ type ChunkResponse = Awaited<ReturnType<typeof getTripsForChunk>>;
 type Trip = ChunkResponse["trips"][number];
 
 type AnimationState = "idle" | "playing" | "finished";
-type Phase = "fading-in" | "transitioning-in" | "moving" | "fading-out";
+type Phase = "fading-in" | "moving" | "fading-out";
 
 // DeckGL TripsLayer data format
 type DeckTrip = {
@@ -36,9 +36,8 @@ type DeckTrip = {
   visibleEndSeconds: number; // when bike disappears (fade-out ends)
   cumulativeDistances: number[]; // meters from route start
   lastSegmentIndex: number; // cached cursor for O(1) segment lookup
-  // Precomputed phase boundaries (avoid recalculating each frame)
+  // Precomputed phase boundary (avoid recalculating each frame)
   fadeInEndSeconds: number;
-  transitionInEndSeconds: number;
   // Precomputed bearings for stationary phases
   firstSegmentBearing: number;
   lastSegmentBearing: number;
@@ -52,23 +51,12 @@ type DeckTrip = {
 };
 
 // Animation config - all times in seconds
-const SPEEDUP = 150;
 const TRAIL_LENGTH_SECONDS = 45;
 const EASE_DISTANCE_METERS = 300; // Fixed easing distance at start/end of trips
-
-// Fade/transition duration in real milliseconds (matches original)
-const FADE_DURATION_MS = 700;
-const TRANSITION_DURATION_MS = 700;
-
-// Convert to simulation seconds: realMs / 1000 * SPEEDUP
-const FADE_DURATION_SIM_SECONDS = (FADE_DURATION_MS / 1000) * SPEEDUP;
-const TRANSITION_DURATION_SIM_SECONDS = (TRANSITION_DURATION_MS / 1000) * SPEEDUP;
 
 // Chunking config
 const CHUNK_SIZE_SECONDS = 15 * 60; // 15 minutes in seconds
 const LOOKAHEAD_CHUNKS = 1;
-
-// Animation start time (imported from config)
 
 const THEME = {
   trailColor0: [187, 154, 247] as Color, // purple
@@ -178,9 +166,8 @@ const getBikeHeadColor = (d: DeckTrip): Color4 => {
 
   switch (d.currentPhase) {
     case "fading-in":
-      return color4.set(colorScratch, COLORS.fadeIn, d.currentPhaseProgress * MAX_ALPHA);
-    case "transitioning-in":
-      return color4.lerp(colorScratch, COLORS.fadeIn, bikeColor, d.currentPhaseProgress, MAX_ALPHA);
+      // Simultaneous opacity fade-in + color transition
+      return color4.lerp(colorScratch, COLORS.fadeIn, bikeColor, d.currentPhaseProgress, d.currentPhaseProgress * MAX_ALPHA);
     case "fading-out":
       return color4.set(colorScratch, COLORS.fadeOut, (1 - d.currentPhaseProgress) * MAX_ALPHA);
     default: // moving
@@ -261,8 +248,9 @@ function getTimeFraction(dist: number, totalDist: number): number {
 function prepareTripsForDeck(data: {
   trips: Trip[];
   windowStartMs: number;
+  fadeDurationSimSeconds: number;
 }): DeckTrip[] {
-  const { trips, windowStartMs } = data;
+  const { trips, windowStartMs, fadeDurationSimSeconds } = data;
 
   const prepared = trips
     .filter(
@@ -312,10 +300,9 @@ function prepareTripsForDeck(data: {
         return tripStartSeconds + timeFraction * tripDurationSeconds;
       });
 
-      // Precompute phase boundaries
-      const visibleStartSeconds = tripStartSeconds - FADE_DURATION_SIM_SECONDS - TRANSITION_DURATION_SIM_SECONDS;
-      const fadeInEndSeconds = visibleStartSeconds + FADE_DURATION_SIM_SECONDS;
-      const transitionInEndSeconds = fadeInEndSeconds + TRANSITION_DURATION_SIM_SECONDS;
+      // Precompute phase boundary
+      const visibleStartSeconds = tripStartSeconds - fadeDurationSimSeconds;
+      const fadeInEndSeconds = visibleStartSeconds + fadeDurationSimSeconds;
 
       // Precompute fade-in bearing using 20m look-ahead (matches original behavior)
       const lookAheadDistPrep = Math.min(20, totalDistance);
@@ -346,11 +333,10 @@ function prepareTripsForDeck(data: {
         startTimeSeconds: tripStartSeconds,
         endTimeSeconds: tripEndSeconds,
         visibleStartSeconds,
-        visibleEndSeconds: tripEndSeconds + Math.max(FADE_DURATION_SIM_SECONDS, TRAIL_LENGTH_SECONDS),
+        visibleEndSeconds: tripEndSeconds + Math.max(fadeDurationSimSeconds, TRAIL_LENGTH_SECONDS),
         cumulativeDistances,
         lastSegmentIndex: 0,
         fadeInEndSeconds,
-        transitionInEndSeconds,
         firstSegmentBearing,
         lastSegmentBearing,
         // Mutable state - initialized once, updated in place each frame
@@ -368,13 +354,16 @@ function prepareTripsForDeck(data: {
 }
 
 // Update trip's mutable state in place. Returns true if visible.
-function updateTripState(trip: DeckTrip, currentTime: number): boolean {
+function updateTripState(
+  trip: DeckTrip,
+  currentTime: number,
+  fadeDurationSimSeconds: number
+): boolean {
   const {
     path,
     visibleStartSeconds,
     visibleEndSeconds,
     fadeInEndSeconds,
-    transitionInEndSeconds,
     endTimeSeconds,
     firstSegmentBearing,
     lastSegmentBearing,
@@ -392,13 +381,10 @@ function updateTripState(trip: DeckTrip, currentTime: number): boolean {
 
   if (currentTime < fadeInEndSeconds) {
     phase = "fading-in";
-    phaseProgress = (currentTime - visibleStartSeconds) / FADE_DURATION_SIM_SECONDS;
-  } else if (currentTime < transitionInEndSeconds) {
-    phase = "transitioning-in";
-    phaseProgress = (currentTime - fadeInEndSeconds) / TRANSITION_DURATION_SIM_SECONDS;
+    phaseProgress = (currentTime - visibleStartSeconds) / fadeDurationSimSeconds;
   } else if (currentTime >= endTimeSeconds) {
     phase = "fading-out";
-    phaseProgress = (currentTime - endTimeSeconds) / FADE_DURATION_SIM_SECONDS;
+    phaseProgress = (currentTime - endTimeSeconds) / fadeDurationSimSeconds;
   } else {
     phase = "moving";
     phaseProgress = 1;
@@ -425,11 +411,11 @@ function updateTripState(trip: DeckTrip, currentTime: number): boolean {
     return true;
   }
 
-  // Moving phases: interpolate along route with look-ahead bearing
+  // Moving phase: interpolate along route with look-ahead bearing
   const { timestamps, cumulativeDistances } = trip;
-  const movingDuration = endTimeSeconds - transitionInEndSeconds;
+  const movingDuration = endTimeSeconds - fadeInEndSeconds;
   const movingProgress = movingDuration > 0
-    ? Math.max(0, Math.min(1, (currentTime - transitionInEndSeconds) / movingDuration))
+    ? Math.max(0, Math.min(1, (currentTime - fadeInEndSeconds) / movingDuration))
     : 1;
 
   // Map to timestamp along route
@@ -491,12 +477,25 @@ function updateTripState(trip: DeckTrip, currentTime: number): boolean {
   return true;
 }
 
+// Fade duration in real-time milliseconds
+const FADE_DURATION_MS = 700;
+
 export const BikeMap = () => {
-  const windowStartMs = REFERENCE_DATE.getTime();
+  // Animation store - source values only
+  const speedup = useAnimationStore((s) => s.speedup);
+  const animationStartDate = useAnimationStore((s) => s.animationStartDate);
+  const time = useAnimationStore((s) => s.currentTime);
+  const storePlay = useAnimationStore((s) => s.play);
+  const advanceTime = useAnimationStore((s) => s.advanceTime);
+  const setCurrentTime = useAnimationStore((s) => s.setCurrentTime);
+  const resetPlayback = useAnimationStore((s) => s.resetPlayback);
+
+  // Derived values (computed at consumption time)
+  const windowStartMs = animationStartDate.getTime();
+  const fadeDurationSimSeconds = (FADE_DURATION_MS / 1000) * speedup;
 
   const [activeTrips, setActiveTrips] = useState<DeckTrip[]>([]);
   const [tripCount, setTripCount] = useState(0);
-  const [time, setTime] = useState(0); // seconds from window start
   const [animState, setAnimState] = useState<AnimationState>("idle");
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [initialViewState, setInitialViewState] = useState<MapViewState>(INITIAL_VIEW_STATE);
@@ -547,6 +546,7 @@ export const BikeMap = () => {
         const prepared = prepareTripsForDeck({
           trips: data.trips,
           windowStartMs,
+          fadeDurationSimSeconds,
         });
 
         console.log(`Chunk ${chunkIndex}: ${prepared.length} new rides`);
@@ -561,7 +561,7 @@ export const BikeMap = () => {
         loadingChunksRef.current.delete(chunkIndex);
       }
     },
-    [windowStartMs]
+    [windowStartMs, fadeDurationSimSeconds]
   );
 
   // Initial load: rides active at t=0 plus rides starting in first chunk
@@ -574,12 +574,13 @@ export const BikeMap = () => {
       console.log("Loading initial rides...");
       // Get rides that overlap with t=0 (already in progress)
       const data = await getTripsForChunk({
-        chunkStart: REFERENCE_DATE,
+        chunkStart: animationStartDate,
         chunkEnd: new Date(windowStartMs + CHUNK_SIZE_SECONDS * 1000),
       });
       const prepared = prepareTripsForDeck({
         trips: data.trips,
         windowStartMs,
+        fadeDurationSimSeconds,
       });
       console.log(`Initial load: ${prepared.length} rides`);
 
@@ -597,7 +598,60 @@ export const BikeMap = () => {
     };
 
     loadInitial();
-  }, [windowStartMs, loadUpcomingRides]);
+  }, [windowStartMs, loadUpcomingRides, animationStartDate, fadeDurationSimSeconds]);
+
+  // Reset and reload when config changes (track source values directly)
+  const configRef = useRef({ windowStartMs, speedup });
+  useEffect(() => {
+    const prev = configRef.current;
+    // Skip if config unchanged (including initial mount)
+    if (prev.windowStartMs === windowStartMs && prev.speedup === speedup) return;
+    configRef.current = { windowStartMs, speedup };
+
+    console.log("Config changed, resetting animation...");
+
+    // Stop current animation
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    lastTimestampRef.current = null;
+
+    // Clear all state
+    tripMapRef.current.clear();
+    loadingChunksRef.current.clear();
+    loadedChunksRef.current.clear();
+    initialLoadDone.current = false;
+    lastChunkRef.current = -1;
+    setActiveTrips([]);
+    setTripCount(0);
+    setAnimState("idle");
+
+    // Reload initial data
+    const loadInitial = async () => {
+      const data = await getTripsForChunk({
+        chunkStart: animationStartDate,
+        chunkEnd: new Date(windowStartMs + CHUNK_SIZE_SECONDS * 1000),
+      });
+      const prepared = prepareTripsForDeck({
+        trips: data.trips,
+        windowStartMs,
+        fadeDurationSimSeconds,
+      });
+
+      for (const trip of prepared) {
+        tripMapRef.current.set(trip.id, trip);
+      }
+      loadedChunksRef.current.add(0);
+
+      await loadUpcomingRides(1);
+
+      setActiveTrips(Array.from(tripMapRef.current.values()));
+      setTripCount(tripMapRef.current.size);
+    };
+
+    loadInitial();
+  }, [windowStartMs, speedup, animationStartDate, fadeDurationSimSeconds, loadUpcomingRides]);
 
   // Calculate current real time for clock display
   const currentRealTime = secondsToRealTime(time);
@@ -630,7 +684,8 @@ export const BikeMap = () => {
 
   const play = useCallback(() => {
     setAnimState("playing");
-    setTime(0);
+    setCurrentTime(0);
+    storePlay();
     lastChunkRef.current = 0;
     lastTimestampRef.current = null;
 
@@ -638,7 +693,7 @@ export const BikeMap = () => {
       if (lastTimestampRef.current !== null) {
         const deltaMs = timestamp - lastTimestampRef.current;
         const deltaSeconds = deltaMs / 1000;
-        setTime((t) => t + deltaSeconds * SPEEDUP);
+        advanceTime(deltaSeconds * speedup);
         const currentFps = 1000 / deltaMs;
         smoothedFpsRef.current = smoothedFpsRef.current * 0.9 + currentFps * 0.1;
         if (fpsRef.current && timestamp - lastFpsUpdateRef.current >= 100) {
@@ -651,7 +706,7 @@ export const BikeMap = () => {
     };
 
     rafRef.current = requestAnimationFrame(tick);
-  }, []);
+  }, [speedup, advanceTime, setCurrentTime, storePlay]);
 
   const replay = useCallback(() => {
     // Stop current animation
@@ -659,6 +714,7 @@ export const BikeMap = () => {
       cancelAnimationFrame(rafRef.current);
     }
     lastTimestampRef.current = null;
+    resetPlayback();
 
     // Reset state
     tripMapRef.current.clear();
@@ -672,12 +728,13 @@ export const BikeMap = () => {
     // Reload initial data
     const loadInitial = async () => {
       const data = await getTripsForChunk({
-        chunkStart: REFERENCE_DATE,
+        chunkStart: animationStartDate,
         chunkEnd: new Date(windowStartMs + CHUNK_SIZE_SECONDS * 1000),
       });
       const prepared = prepareTripsForDeck({
         trips: data.trips,
         windowStartMs,
+        fadeDurationSimSeconds,
       });
 
       for (const trip of prepared) {
@@ -695,7 +752,7 @@ export const BikeMap = () => {
     };
 
     loadInitial();
-  }, [windowStartMs, loadUpcomingRides, play]);
+  }, [windowStartMs, loadUpcomingRides, play, animationStartDate, fadeDurationSimSeconds, resetPlayback]);
 
   // Select a random visible biker
   const selectRandomBiker = useCallback(() => {
@@ -721,13 +778,13 @@ export const BikeMap = () => {
   // Update all trip states in place - GPU handles visibility filtering via DataFilterExtension
   useMemo(() => {
     for (const trip of activeTrips) {
-      updateTripState(trip, time);
+      updateTripState(trip, time, fadeDurationSimSeconds);
       // Only set isSelected if there's actually a selection (avoid work when no selection)
       if (selectedTripId !== null) {
         trip.isSelected = trip.id === selectedTripId;
       }
     }
-  }, [activeTrips, time, selectedTripId]);
+  }, [activeTrips, time, selectedTripId, fadeDurationSimSeconds]);
 
   // Camera follow effect - use LinearInterpolator for smooth transitions
   useEffect(() => {
