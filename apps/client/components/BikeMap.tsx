@@ -56,7 +56,7 @@ const TRAIL_LENGTH_SECONDS = 45;
 const EASE_DISTANCE_METERS = 300; // Fixed easing distance at start/end of trips
 
 // Chunking config
-const CHUNK_SIZE_SECONDS = 15 * 60; // 15 minutes in seconds
+const CHUNK_SIZE_SECONDS = 1 * 60; // 15 minutes in seconds
 const LOOKAHEAD_CHUNKS = 1;
 
 const THEME = {
@@ -472,6 +472,9 @@ function updateTripState(
 // Fade duration in real-time milliseconds
 const FADE_DURATION_MS = 700;
 
+// Cached interpolator for camera follow (avoid allocating new object every frame)
+const cameraInterpolator = new LinearInterpolator(["longitude", "latitude"]);
+
 export const BikeMap = () => {
   // Animation store
   const speedup = useAnimationStore((s) => s.speedup);
@@ -784,10 +787,11 @@ export const BikeMap = () => {
     }
   }, [activeTrips, time, selectedTripId, fadeDurationSimSeconds]);
 
-  // Camera follow effect - use LinearInterpolator for smooth transitions
+  // Camera follow effect
   useEffect(() => {
     if (selectedTripId === null) return;
-    const trip = activeTrips.find((t) => t.id === selectedTripId);
+    // O(1) lookup via tripMapRef instead of O(n) activeTrips.find()
+    const trip = tripMapRef.current.get(selectedTripId);
 
     // Only follow if trip exists AND is visible
     if (trip?.isVisible) {
@@ -796,7 +800,7 @@ export const BikeMap = () => {
         longitude: trip.currentPosition[0],
         latitude: trip.currentPosition[1],
         transitionDuration: 100,
-        transitionInterpolator: new LinearInterpolator(["longitude", "latitude"]),
+        transitionInterpolator: cameraInterpolator,
       }));
     }
     // Only clear selection if trip has FINISHED (past visibleEndSeconds)
@@ -804,8 +808,8 @@ export const BikeMap = () => {
     else if (trip && time > trip.visibleEndSeconds) {
       selectTrip(null);
     }
-    // If trip not found in activeTrips at all, it might be in a future chunk - don't clear yet
-  }, [activeTrips, time, selectedTripId, selectTrip]);
+    // If trip not found in tripMapRef at all, it might be in a future chunk - don't clear yet
+  }, [time, selectedTripId, selectTrip]);
 
   // Memoize selected trip data separately to avoid filtering every frame
   const selectedTripData = useMemo(
@@ -864,6 +868,8 @@ export const BikeMap = () => {
         extensions: [dataFilter],
         getFilterValue,
         filterRange: [[-Infinity, time], [time, Infinity]],
+        // updateTriggers required - deck.gl caches accessor results and won't
+        // re-read mutated DeckTrip properties without this signal
         updateTriggers: {
           getPosition: [time],
           getAngle: [time],
