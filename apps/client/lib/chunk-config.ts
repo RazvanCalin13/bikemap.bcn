@@ -1,5 +1,7 @@
 // Chunking config - single source of truth
-export const CHUNK_SIZE_SECONDS = 30;
+// Chunk: how often deck.gl rebuilds geometry and also limit
+// Batch: how often we fetch from API + worker processes trips
+export const CHUNK_SIZE_SECONDS = 60 * 1;
 export const BATCH_SIZE_SECONDS = 60 * 60; // 1 hour
 export const CHUNKS_PER_BATCH = BATCH_SIZE_SECONDS / CHUNK_SIZE_SECONDS;
 
