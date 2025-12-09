@@ -233,10 +233,10 @@ function handleLoadBatch(msg: LoadBatchMessage): void {
     fadeDurationSimSeconds,
   });
 
-  // Partition into 60-second chunks by startTimeSeconds
-  // Trips with negative start times (already in progress) go to chunk 0
+  // Partition into 60-second chunks by visibleStartSeconds (not startTimeSeconds)
+  // This ensures trips are delivered in time for their fade-in animation
   for (const trip of processed) {
-    const chunkIndex = Math.max(0, Math.floor(trip.startTimeSeconds / CHUNK_SIZE_SECONDS));
+    const chunkIndex = Math.max(0, Math.floor(trip.visibleStartSeconds / CHUNK_SIZE_SECONDS));
 
     if (!chunkMap.has(chunkIndex)) {
       chunkMap.set(chunkIndex, []);
