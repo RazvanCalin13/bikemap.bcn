@@ -30,9 +30,9 @@ function getNJRegion(data: { lat: number; lng: number }): StationRegion | null {
   // West of Hudson River = NJ
   if (lng < -74.02) {
     if (lat > 40.735) {
-      return { region: "Hoboken", neighborhood: "Hoboken" };
+      return { region: "New Jersey", neighborhood: "Hoboken" };
     }
-    return { region: "Jersey City", neighborhood: "Jersey City" };
+    return { region: "New Jersey", neighborhood: "Jersey City" };
   }
 
   return null;
@@ -77,8 +77,7 @@ function getStationRegion(data: {
   });
   if (nycRegion) return nycRegion;
 
-  // Fallback
-  return { region: "Unknown", neighborhood: "Unknown" };
+  throw new Error(`Could not determine region for station ${data}`);
 }
 
 async function main() {

@@ -2,8 +2,8 @@
 import { getStations, getTripsFromStation } from "@/app/server/trips"
 import { EBike } from "@/components/icons/Ebike"
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command"
+import { formatDateTime, formatDateTimeFull, formatDistance, formatDurationMinutes } from "@/lib/format"
 import { useAnimationStore } from "@/lib/stores/animation-store"
-import { formatDateTimeFull, formatDateTime, formatDistance, formatDurationMinutes } from "@/lib/format"
 import { usePickerStore } from "@/lib/stores/location-picker-store"
 import distance from "@turf/distance"
 import { point } from "@turf/helpers"
@@ -114,6 +114,19 @@ export function Search() {
       return null
     },
     [stationRegions]
+  )
+
+  // Get display label for station region (dedupes if neighborhood === region)
+  const getStationRegionLabel = React.useCallback(
+    (stationIds: string[]): string | null => {
+      const r = getStationRegion(stationIds)
+      if (!r) return null
+      if (r.neighborhood.toLowerCase() === r.region.toLowerCase()) {
+        return r.neighborhood
+      }
+      return `${r.neighborhood}, ${r.region}`
+    },
+    [getStationRegion]
   )
 
   // Re-open dialog when location is picked
@@ -392,9 +405,9 @@ export function Search() {
               <Bike className="size-4" />
               <div className="flex flex-col flex-1">
                 <span>{station.name}</span>
-                {getStationRegion(station.ids) && (
+                {getStationRegionLabel(station.ids) && (
                   <span className="text-xs text-muted-foreground">
-                    {getStationRegion(station.ids)?.neighborhood}, {getStationRegion(station.ids)?.region}
+                    {getStationRegionLabel(station.ids)}
                   </span>
                 )}
               </div>
