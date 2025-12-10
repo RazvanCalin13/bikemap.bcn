@@ -566,7 +566,7 @@ export const BikeMap = () => {
               id: "selected-route",
               data: selectedTripData,
               getPath: (d) => d.path,
-              getColor: COLORS.selected as unknown as Color,
+              getColor: COLORS.selected,
               getWidth: 4,
               widthMinPixels: 2,
               opacity: 0.4,
