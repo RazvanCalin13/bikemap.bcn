@@ -15,7 +15,6 @@ import type {
   LoadBatchMessage,
   MainToWorkerMessage,
   RequestChunkMessage,
-  UpdateConfigMessage,
   WorkerToMainMessage,
 } from "../lib/trip-processor-protocol";
 import { filterTrips } from "../lib/trip-filters";
@@ -240,15 +239,6 @@ function handleRequestChunk(msg: RequestChunkMessage): void {
   });
 }
 
-function handleUpdateConfig(msg: UpdateConfigMessage): void {
-  if (msg.windowStartMs !== undefined) {
-    windowStartMs = msg.windowStartMs;
-  }
-  if (msg.fadeDurationSimSeconds !== undefined) {
-    fadeDurationSimSeconds = msg.fadeDurationSimSeconds;
-  }
-}
-
 function handleClearBatch(msg: ClearBatchMessage): void {
   const { batchId } = msg;
   const startChunk = batchId * CHUNKS_PER_BATCH;
@@ -273,9 +263,6 @@ self.onmessage = (event: MessageEvent<MainToWorkerMessage>) => {
       break;
     case "request-chunk":
       handleRequestChunk(message);
-      break;
-    case "update-config":
-      handleUpdateConfig(message);
       break;
     case "clear-batch":
       handleClearBatch(message);

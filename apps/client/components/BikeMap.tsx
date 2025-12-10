@@ -1,17 +1,15 @@
 "use client";
 
-import { getRidesStartingIn as getRidesInWindow, getTripsForChunk } from "@/app/server/trips";
 import { useAnimationStore } from "@/lib/animation-store";
 import {
-  BATCH_SIZE_SECONDS,
   CHUNK_SIZE_SECONDS,
   CHUNKS_PER_BATCH,
   PREFETCH_THRESHOLD_CHUNKS,
   TRAIL_LENGTH_SECONDS,
 } from "@/lib/chunk-config";
 import { usePickerStore } from "@/lib/store";
-import { TripProcessorClient } from "@/lib/trip-processor-client";
-import type { DeckTrip, Phase, RawTrip } from "@/lib/trip-types";
+import type { DeckTrip, Phase } from "@/lib/trip-types";
+import { TripDataService } from "@/services/trip-data-service";
 import { DataFilterExtension } from "@deck.gl/extensions";
 import { TripsLayer } from "@deck.gl/geo-layers";
 import { IconLayer, PathLayer } from "@deck.gl/layers";
@@ -334,7 +332,7 @@ export const BikeMap = () => {
   const loadedChunksRef = useRef<Set<number>>(new Set());
   const lastChunkRef = useRef(-1);
   const lastBatchRef = useRef(-1);
-  const processorClientRef = useRef<TripProcessorClient | null>(null);
+  const serviceRef = useRef<TripDataService | null>(null);
 
   // Convert seconds to real time (ms) for clock display
   const secondsToRealTime = useCallback(
@@ -355,15 +353,15 @@ export const BikeMap = () => {
         return;
       }
 
-      if (chunkIndex < 0 || !processorClientRef.current) {
+      if (chunkIndex < 0 || !serviceRef.current) {
         return;
       }
 
       loadingChunksRef.current.add(chunkIndex);
 
       try {
-        // Request pre-processed trips from worker
-        const trips = await processorClientRef.current.requestChunk(chunkIndex);
+        // Request pre-processed trips from service
+        const trips = await serviceRef.current.requestChunk(chunkIndex);
 
         console.log(`Chunk ${chunkIndex}: ${trips.length} rides from worker`);
 
@@ -380,112 +378,44 @@ export const BikeMap = () => {
     []
   );
 
-  // Helper to convert server trips to RawTrip format for worker
-  const convertToRawTrips = useCallback((trips: Array<{
-    id: string;
-    startStationId: string;
-    endStationId: string;
-    startedAt: Date;
-    endedAt: Date;
-    rideableType: string;
-    memberCasual: string;
-    startLat: number;
-    startLng: number;
-    endLat: number | null;
-    endLng: number | null;
-    routeGeometry: string | null;
-    routeDistance: number | null;
-    routeDuration: number | null;
-  }>): RawTrip[] => {
-    return trips.map(t => ({
-      ...t,
-      startedAt: t.startedAt.toISOString(),
-      endedAt: t.endedAt.toISOString(),
-    }));
-  }, []);
-
-  // Initialize worker and load first batch
+  // Initialize service and load first batch
   const initialLoadDone = useRef(false);
   useEffect(() => {
     if (initialLoadDone.current) return;
     initialLoadDone.current = true;
 
-    const initWorker = async () => {
-      console.log("Initializing trip processor worker...");
-
-      // Create worker client with batch fetcher
-      const client = new TripProcessorClient({
-        onBatchRequest: async (batchId: number) => {
-          const batchStartMs = windowStartMs + batchId * BATCH_SIZE_SECONDS * 1000;
-          const batchEndMs = batchStartMs + BATCH_SIZE_SECONDS * 1000;
-
-          console.log(`Fetching batch ${batchId} from server...`);
-          const data = await getRidesInWindow({
-            from: new Date(batchStartMs),
-            to: new Date(batchEndMs),
-          });
-
-          // For batch 0, also fetch trips already in progress at animation start
-          if (batchId === 0) {
-            const overlapData = await getTripsForChunk({
-              chunkStart: animationStartDate,
-              chunkEnd: new Date(windowStartMs + CHUNK_SIZE_SECONDS * 1000),
-            });
-
-            // Merge and dedupe by id
-            const tripMap = new Map<string, typeof data.trips[number]>();
-            for (const trip of overlapData.trips) {
-              tripMap.set(trip.id, trip);
-            }
-            for (const trip of data.trips) {
-              tripMap.set(trip.id, trip);
-            }
-
-            console.log(`Batch 0: ${data.trips.length} starting + ${overlapData.trips.length} overlap = ${tripMap.size} unique`);
-            return convertToRawTrips(Array.from(tripMap.values()));
-          }
-
-          return convertToRawTrips(data.trips);
-        },
-      });
-
-      processorClientRef.current = client;
-
-      // Initialize worker
-      await client.init({
+    const initService = async () => {
+      const service = new TripDataService({
         windowStartMs,
+        animationStartDate,
         fadeDurationSimSeconds,
       });
 
-      // Load first batch (hour 0)
-      await client.loadBatch(0);
-      lastBatchRef.current = 0;
+      serviceRef.current = service;
 
-      // Request initial chunks (0-2 to have some buffer)
-      const initialChunks = [0, 1, 2];
-      for (const chunkIndex of initialChunks) {
-        const trips = await client.requestChunk(chunkIndex);
-        for (const trip of trips) {
-          tripMapRef.current.set(trip.id, trip);
-        }
-        loadedChunksRef.current.add(chunkIndex);
+      // Initialize and get initial trips
+      const initialTrips = await service.init();
+
+      // Copy to local ref
+      tripMapRef.current = initialTrips;
+      for (let i = 0; i <= 2; i++) {
+        loadedChunksRef.current.add(i);
       }
-
-      console.log(`Initial load complete: ${tripMapRef.current.size} trips`);
+      lastBatchRef.current = 0;
 
       // Update state for initial render
       setActiveTrips(Array.from(tripMapRef.current.values()));
       setTripCount(tripMapRef.current.size);
     };
 
-    initWorker();
+    initService();
 
     // Cleanup on unmount
     return () => {
-      processorClientRef.current?.terminate();
-      processorClientRef.current = null;
+      serviceRef.current?.terminate();
+      serviceRef.current = null;
     };
-  }, [windowStartMs, fadeDurationSimSeconds, convertToRawTrips]);
+  }, [windowStartMs, animationStartDate, fadeDurationSimSeconds]);
 
   // Calculate current real time for clock display
   const currentRealTime = secondsToRealTime(time);
@@ -507,15 +437,15 @@ export const BikeMap = () => {
     const currentBatch = Math.floor(currentChunk / CHUNKS_PER_BATCH);
     const chunkInBatch = currentChunk % CHUNKS_PER_BATCH;
 
-    if (chunkInBatch >= PREFETCH_THRESHOLD_CHUNKS && processorClientRef.current) {
+    if (chunkInBatch >= PREFETCH_THRESHOLD_CHUNKS && serviceRef.current) {
       const nextBatch = currentBatch + 1;
-      processorClientRef.current.prefetchBatch(nextBatch);
+      serviceRef.current.prefetchBatch(nextBatch);
     }
 
     // Clear old batch from worker memory (keep current batch and previous)
-    if (currentBatch > 1 && processorClientRef.current) {
+    if (currentBatch > 1 && serviceRef.current) {
       const oldBatch = currentBatch - 2;
-      processorClientRef.current.clearBatch(oldBatch);
+      serviceRef.current.clearBatch(oldBatch);
     }
 
     // Remove trips that have fully finished (including fade-out)
@@ -584,61 +514,29 @@ export const BikeMap = () => {
     setTripCount(0);
     setAnimState("idle");
 
-    // Recreate worker with new config (callback needs fresh closures)
-    const recreateWorker = async () => {
-      // Terminate old worker
-      processorClientRef.current?.terminate();
+    // Recreate service with new config
+    const recreateService = async () => {
+      // Terminate old service
+      serviceRef.current?.terminate();
 
-      // Create new worker with updated closures
-      const client = new TripProcessorClient({
-        onBatchRequest: async (batchId: number) => {
-          const batchStartMs = windowStartMs + batchId * BATCH_SIZE_SECONDS * 1000;
-          const batchEndMs = batchStartMs + BATCH_SIZE_SECONDS * 1000;
-
-          const data = await getRidesInWindow({
-            from: new Date(batchStartMs),
-            to: new Date(batchEndMs),
-          });
-
-          if (batchId === 0) {
-            const overlapData = await getTripsForChunk({
-              chunkStart: animationStartDate,
-              chunkEnd: new Date(windowStartMs + CHUNK_SIZE_SECONDS * 1000),
-            });
-
-            const tripMap = new Map<string, typeof data.trips[number]>();
-            for (const trip of overlapData.trips) {
-              tripMap.set(trip.id, trip);
-            }
-            for (const trip of data.trips) {
-              tripMap.set(trip.id, trip);
-            }
-
-            return convertToRawTrips(Array.from(tripMap.values()));
-          }
-
-          return convertToRawTrips(data.trips);
-        },
-      });
-
-      processorClientRef.current = client;
-
-      await client.init({
+      // Create new service
+      const service = new TripDataService({
         windowStartMs,
+        animationStartDate,
         fadeDurationSimSeconds,
       });
 
-      await client.loadBatch(0);
-      lastBatchRef.current = 0;
+      serviceRef.current = service;
 
-      const initialChunks = [0, 1, 2];
-      for (const chunkIndex of initialChunks) {
-        const trips = await client.requestChunk(chunkIndex);
-        for (const trip of trips) {
-          tripMapRef.current.set(trip.id, trip);
-        }
-        loadedChunksRef.current.add(chunkIndex);
+      // Initialize and get initial trips
+      const initialTrips = await service.init();
+
+      // Copy to local ref
+      tripMapRef.current = initialTrips;
+      for (let i = 0; i <= 2; i++) {
+        loadedChunksRef.current.add(i);
       }
+      lastBatchRef.current = 0;
 
       setActiveTrips(Array.from(tripMapRef.current.values()));
       setTripCount(tripMapRef.current.size);
@@ -648,8 +546,8 @@ export const BikeMap = () => {
       }
     };
 
-    recreateWorker();
-  }, [windowStartMs, speedup, fadeDurationSimSeconds, selectedTripId, play, animationStartDate, convertToRawTrips]);
+    recreateService();
+  }, [windowStartMs, speedup, fadeDurationSimSeconds, selectedTripId, play, animationStartDate]);
 
   // Select a random visible biker
   const selectRandomBiker = useCallback(() => {

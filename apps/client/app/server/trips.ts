@@ -1,7 +1,7 @@
 "use server";
 
-import { Prisma, prisma } from "@bikemap/db";
 import { filterTrips } from "@/lib/trip-filters";
+import { Prisma, prisma } from "@bikemap/db";
 
 // Default: June 8, 2025 10:00 AM - 12:00 PM (peak commute)
 const DEFAULT_START_TIME = new Date("2025-06-08T10:00:00.000Z");

@@ -189,16 +189,6 @@ export class TripProcessorClient {
     return this.loadedBatches.has(batchId);
   }
 
-  updateConfig(config: {
-    windowStartMs?: number;
-    fadeDurationSimSeconds?: number;
-  }): void {
-    this.post({
-      type: "update-config",
-      ...config,
-    });
-  }
-
   reset(): void {
     // Clear all state
     this.loadedBatches.clear();

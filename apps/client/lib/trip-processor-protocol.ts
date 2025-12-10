@@ -40,13 +40,6 @@ export const RequestChunkMessageSchema = z.object({
 });
 export type RequestChunkMessage = z.infer<typeof RequestChunkMessageSchema>;
 
-export const UpdateConfigMessageSchema = z.object({
-  type: z.literal("update-config"),
-  windowStartMs: z.number().optional(),
-  fadeDurationSimSeconds: z.number().optional(),
-});
-export type UpdateConfigMessage = z.infer<typeof UpdateConfigMessageSchema>;
-
 export const ClearBatchMessageSchema = z.object({
   type: z.literal("clear-batch"),
   batchId: z.number(),
@@ -57,7 +50,6 @@ export type MainToWorkerMessage =
   | InitMessage
   | LoadBatchMessage
   | RequestChunkMessage
-  | UpdateConfigMessage
   | ClearBatchMessage;
 
 // === Worker -> Main Thread Messages ===
