@@ -6,7 +6,7 @@ import {
   CHUNKS_PER_BATCH,
   PREFETCH_THRESHOLD_CHUNKS,
   TRAIL_LENGTH_SECONDS,
-} from "@/lib/chunk-config";
+} from "@/lib/config";
 import { usePickerStore } from "@/lib/store";
 import type { Phase, ProcessedTrip } from "@/lib/trip-types";
 import { TripDataService } from "@/services/trip-data-service";

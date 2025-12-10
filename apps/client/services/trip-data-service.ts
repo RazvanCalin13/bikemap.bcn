@@ -6,7 +6,7 @@ import {
   BATCH_SIZE_SECONDS,
   CHUNK_SIZE_SECONDS,
   CHUNKS_PER_BATCH,
-} from "@/lib/chunk-config";
+} from "@/lib/config";
 import type {
   MainToWorkerMessage,
   ProcessedTrip,

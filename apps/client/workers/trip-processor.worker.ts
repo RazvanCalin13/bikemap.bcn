@@ -8,7 +8,7 @@ import {
   CHUNKS_PER_BATCH,
   EASE_DISTANCE_METERS,
   TRAIL_LENGTH_SECONDS,
-} from "../lib/chunk-config";
+} from "../lib/config";
 import { filterTrips } from "../lib/trip-filters";
 import type {
   ClearBatchMessage,
