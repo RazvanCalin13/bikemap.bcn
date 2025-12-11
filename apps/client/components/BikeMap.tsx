@@ -658,45 +658,48 @@ export const BikeMap = () => {
         </MapboxMap>
       </DeckGL>
 
-      {/* Clock display - top center */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
-        <div className="bg-white/10 backdrop-blur-xl text-white text-sm font-medium px-3 py-1.5 rounded-lg">
-          {formatTime(currentRealTime)}
-        </div>
-      </div>
-
-      {/* Stats - top right */}
-      <div className="absolute top-4 right-4 z-10">
-        <div className="bg-white/10 backdrop-blur-xl text-white text-xs px-3 py-2 rounded-lg">
-          <div className="font-medium mb-1">Active Trips</div>
-          <div className="text-lg font-bold">{tripCount.toLocaleString()}</div>
-          <div ref={fpsRef} className="text-white/60 mt-1">-- FPS</div>
-        </div>
-      </div>
-
-      {/* Play/Replay controls - top left */}
-      <div className="absolute top-4 left-4 z-10 flex gap-2">
-        {animState === "idle" && (
-          <button
-            onClick={play}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-lg transition-colors"
-          >
-            Play
-          </button>
-        )}
-        {animState === "playing" && (
-          <>
-            <div className="bg-gray-800 text-white font-medium px-4 py-2 rounded-lg shadow-lg">
-              Playing...
-            </div>
+      {/* HUD - top bar */}
+      <div className="absolute top-3 inset-x-0 z-10 flex items-start justify-between px-3 pointer-events-none">
+        {/* Controls - left */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          {animState === "idle" && (
             <button
-              onClick={selectRandomBiker}
-              className="bg-orange-500 hover:bg-orange-600 text-white font-medium px-4 py-2 rounded-lg shadow-lg transition-colors"
+              onClick={play}
+              className="bg-black/45 hover:bg-black/65 text-white/90 text-sm font-medium px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md transition-colors shadow-[0_0_20px_rgba(0,0,0,0.6)]"
             >
-              Random Biker
+              Play
             </button>
-          </>
-        )}
+          )}
+          {animState === "playing" && (
+            <>
+              <div className="bg-black/45 text-white/80 text-sm font-medium px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md">
+                Playing
+              </div>
+              <button
+                onClick={selectRandomBiker}
+                className="bg-black/45 hover:bg-black/65 text-white/90 text-sm font-medium px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md transition-colors"
+              >
+                Random
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Time - center */}
+        <div className="pointer-events-none">
+          <div className="bg-black/45 backdrop-blur-md text-white/90 text-xs px-3 py-1.5 rounded-full border border-white/10 tracking-wide font-mono shadow-[0_0_24px_rgba(0,0,0,0.6)]">
+            {formatTime(currentRealTime)}
+          </div>
+        </div>
+
+        {/* Stats - right */}
+        <div className="pointer-events-none">
+          <div className="bg-black/45 backdrop-blur-md text-white/90 px-3 py-2 rounded-xl border border-white/10 shadow-[0_0_24px_rgba(0,0,0,0.6)] min-w-[120px]">
+            <div className="text-[10px] uppercase tracking-widest text-white/60">Active Trips</div>
+            <div className="mt-0.5 text-xl font-semibold tabular-nums">{tripCount.toLocaleString()}</div>
+            <div ref={fpsRef} className="mt-0.5 text-[10px] tracking-wide text-white/50">-- FPS</div>
+          </div>
+        </div>
       </div>
     </div>
   );
