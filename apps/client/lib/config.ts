@@ -68,3 +68,5 @@ export const COLORS = {
   fadeIn: [115, 255, 140], // green
   fadeOut: [247, 118, 142], // red/pink
 } as const satisfies Record<string, Color>;
+
+export const CAMERA_POLLING_INTERVAL_MS = 250;

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CAMERA_POLLING_INTERVAL_MS,
   CHUNK_SIZE_SECONDS,
   CHUNKS_PER_BATCH,
   COLORS,
@@ -19,10 +20,10 @@ import { DataFilterExtension } from "@deck.gl/extensions";
 import { TripsLayer } from "@deck.gl/geo-layers";
 import { IconLayer, PathLayer } from "@deck.gl/layers";
 import { DeckGL } from "@deck.gl/react";
+import { Pause, Play, Shuffle } from "lucide-react";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Map as MapboxMap, Marker } from "react-map-gl/mapbox";
-import { Pause, Play, Shuffle } from "lucide-react";
 import ActiveBikesGraph from "./ActiveBikesGraph";
 import { TimeDisplay } from "./TimeDisplay";
 
@@ -283,6 +284,7 @@ export const BikeMap = () => {
   const serviceRef = useRef<TripDataService | null>(null);
   const graphSamplerRef = useRef(createThrottledSampler({ intervalMs: 60 }));
   const fpsSamplerRef = useRef(createThrottledSampler({ intervalMs: 100 }));
+  const cameraSamplerRef = useRef(createThrottledSampler({ intervalMs: CAMERA_POLLING_INTERVAL_MS }));
 
   // Get chunk index from simulation time (seconds)
   const getChunkIndex = useCallback(
@@ -429,6 +431,32 @@ export const BikeMap = () => {
             return updated.filter((p) => currentSimTime - p.time <= GRAPH_WINDOW_SIZE_SECONDS);
           });
         });
+
+        // Camera follow + cleanup - throttled to 500ms
+        cameraSamplerRef.current.sample(() => {
+          const state = useAnimationStore.getState();
+          const selectedId = state.selectedTripId;
+          if (selectedId === null) return;
+
+          const trip = tripMapRef.current.get(selectedId);
+
+          // Clear selection if trip ended
+          if (trip && state.currentTime > trip.visibleEndSeconds) {
+            state.selectTrip(null);
+            return;
+          }
+
+          // Follow if visible
+          if (trip?.isVisible) {
+            setInitialViewState((prev) => ({
+              ...prev,
+              longitude: trip.currentPosition[0],
+              latitude: trip.currentPosition[1],
+              transitionDuration: CAMERA_POLLING_INTERVAL_MS,
+              transitionInterpolator: cameraInterpolator,
+            }));
+          }
+        });
       }
       lastTimestampRef.current = timestamp;
       rafRef.current = requestAnimationFrame(tick);
@@ -563,30 +591,6 @@ export const BikeMap = () => {
       }
     }
   }, [activeTrips, time, selectedTripId, fadeDurationSimSeconds]);
-
-  // Camera follow effect
-  useEffect(() => {
-    if (selectedTripId === null) return;
-    // O(1) lookup via tripMapRef instead of O(n) activeTrips.find()
-    const trip = tripMapRef.current.get(selectedTripId);
-
-    // Only follow if trip exists AND is visible
-    if (trip?.isVisible) {
-      setInitialViewState((prev) => ({
-        ...prev,
-        longitude: trip.currentPosition[0],
-        latitude: trip.currentPosition[1],
-        transitionDuration: 100,
-        transitionInterpolator: cameraInterpolator,
-      }));
-    }
-    // Only clear selection if trip has FINISHED (past visibleEndSeconds)
-    // Don't clear if trip just hasn't started yet
-    else if (trip && time > trip.visibleEndSeconds) {
-      selectTrip(null);
-    }
-    // If trip not found in tripMapRef at all, it might be in a future chunk - don't clear yet
-  }, [time, selectedTripId, selectTrip]);
 
   // Memoize selected trip data separately to avoid filtering every frame
   const selectedTripData = useMemo(
