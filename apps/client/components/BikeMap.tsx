@@ -22,6 +22,7 @@ import { DeckGL } from "@deck.gl/react";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Map as MapboxMap, Marker } from "react-map-gl/mapbox";
+import { Pause, Play, Shuffle } from "lucide-react";
 import ActiveBikesGraph from "./ActiveBikesGraph";
 import { TimeDisplay } from "./TimeDisplay";
 
@@ -251,6 +252,8 @@ export const BikeMap = () => {
   const animationStartDate = useAnimationStore((s) => s.animationStartDate);
   const time = useAnimationStore((s) => s.currentTime);
   const storePlay = useAnimationStore((s) => s.play);
+  const storePause = useAnimationStore((s) => s.pause);
+  const isPlaying = useAnimationStore((s) => s.isPlaying);
   const advanceTime = useAnimationStore((s) => s.advanceTime);
   const setCurrentTime = useAnimationStore((s) => s.setCurrentTime);
   const selectedTripId = useAnimationStore((s) => s.selectedTripId);
@@ -400,16 +403,8 @@ export const BikeMap = () => {
     setTripCount(currentTrips.length);
   }, [currentChunk, animState, loadUpcomingRides, time]);
 
-  const play = useCallback(() => {
-    setAnimState("playing");
-    setCurrentTime(0);
-    storePlay();
-    lastChunkRef.current = 0;
-    lastTimestampRef.current = null;
-    graphSamplerRef.current.reset();
-    fpsSamplerRef.current.reset();
-    setGraphData([]);
-
+  // Start the animation loop (used by both play and resume)
+  const startLoop = useCallback(() => {
     const tick = (timestamp: number) => {
       if (lastTimestampRef.current !== null) {
         const deltaMs = timestamp - lastTimestampRef.current;
@@ -440,7 +435,33 @@ export const BikeMap = () => {
     };
 
     rafRef.current = requestAnimationFrame(tick);
-  }, [speedup, advanceTime, setCurrentTime, storePlay]);
+  }, [speedup, advanceTime]);
+
+  const play = useCallback(() => {
+    setAnimState("playing");
+    setCurrentTime(0);
+    storePlay();
+    lastChunkRef.current = 0;
+    lastTimestampRef.current = null;
+    graphSamplerRef.current.reset();
+    fpsSamplerRef.current.reset();
+    setGraphData([]);
+    startLoop();
+  }, [setCurrentTime, storePlay, startLoop]);
+
+  const resume = useCallback(() => {
+    lastTimestampRef.current = null; // Reset to avoid large delta on first frame
+    storePlay();
+    startLoop();
+  }, [storePlay, startLoop]);
+
+  const pause = useCallback(() => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    storePause();
+  }, [storePause]);
 
   // Reset and reload when config changes (track source values directly)
   const configRef = useRef({ windowStartMs, speedup });
@@ -676,33 +697,50 @@ export const BikeMap = () => {
 
       {/* HUD - top bar */}
       <div className="absolute top-3 inset-x-0 z-10 flex items-start justify-between px-3 pointer-events-none">
-        {/* Controls - left */}
-        <div className="flex items-center gap-2 pointer-events-auto">
-          {animState === "idle" && (
+        {/* Controls - left (vertically stacked) */}
+        <div className="flex flex-col items-start gap-1 pointer-events-auto">
+          {/* Play/Pause button */}
+          {animState === "idle" ? (
             <button
               onClick={play}
-              className="bg-black/45 hover:bg-black/65 text-white/90 text-sm font-medium px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md transition-colors shadow-[0_0_20px_rgba(0,0,0,0.6)]"
+              className="flex items-center gap-1.5 bg-black/45 hover:bg-black/65 text-white/90 text-sm font-medium pl-2 pr-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md transition-colors shadow-[0_0_20px_rgba(0,0,0,0.6)]"
             >
+              <Play className="w-4 h-4" />
+              Play
+            </button>
+          ) : isPlaying ? (
+            <button
+              onClick={pause}
+              className="flex items-center gap-1.5 bg-black/45 hover:bg-black/65 text-white/90 text-sm font-medium pl-2 pr-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md transition-colors shadow-[0_0_20px_rgba(0,0,0,0.6)]"
+            >
+              <Pause className="w-4 h-4" />
+              Pause
+            </button>
+          ) : (
+            <button
+              onClick={resume}
+              className="flex items-center gap-1.5 bg-black/45 hover:bg-black/65 text-white/90 text-sm font-medium pl-2 pr-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md transition-colors shadow-[0_0_20px_rgba(0,0,0,0.6)]"
+            >
+              <Play className="w-4 h-4" />
               Play
             </button>
           )}
+          {/* Random button - only when animation has started */}
           {animState === "playing" && (
-            <>
-              <div className="bg-black/45 text-white/80 text-sm font-medium px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md">
-                Playing
-              </div>
-              <button
-                onClick={selectRandomBiker}
-                className="bg-black/45 hover:bg-black/65 text-white/90 text-sm font-medium px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md transition-colors"
-              >
-                Random
-              </button>
-            </>
+            <button
+              onClick={selectRandomBiker}
+              className="flex items-center gap-1.5 bg-black/45 hover:bg-black/65 text-white/90 text-sm font-medium pl-2 pr-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md transition-colors"
+            >
+              <Shuffle className="w-4 h-4" />
+              Random
+            </button>
           )}
         </div>
 
-        {/* Time - center */}
-        <TimeDisplay simulationTime={time} startDate={animationStartDate} />
+        {/* Time - absolutely centered */}
+        <div className="absolute left-1/2 -translate-x-1/2">
+          <TimeDisplay simulationTime={time} startDate={animationStartDate} />
+        </div>
 
         {/* Stats - right */}
         <div className="pointer-events-none">
