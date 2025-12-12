@@ -175,6 +175,13 @@ function prepareTripsForDeck(data: {
         currentPhaseProgress: 0,
         isVisible: false,
         isSelected: false,
+        // Metadata for UI display
+        memberCasual: trip.memberCasual,
+        startStationId: trip.startStationId,
+        endStationId: trip.endStationId,
+        startedAtMs: tripStartMs,
+        endedAtMs: tripEndMs,
+        routeDistance: trip.routeDistance,
       };
     })
     .filter((trip): trip is ProcessedTrip => trip !== null);

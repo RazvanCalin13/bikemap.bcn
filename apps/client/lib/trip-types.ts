@@ -53,6 +53,13 @@ export type ProcessedTrip = {
   currentPhaseProgress: number;
   isVisible: boolean;
   isSelected: boolean;
+  // Metadata for UI display
+  memberCasual: string;
+  startStationId: string;
+  endStationId: string;
+  startedAtMs: number;
+  endedAtMs: number;
+  routeDistance: number | null;
 };
 
 // ============================================================================

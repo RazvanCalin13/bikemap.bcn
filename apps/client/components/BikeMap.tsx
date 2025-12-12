@@ -1,5 +1,6 @@
 "use client";
 
+import { getStations } from "@/app/server/trips";
 import {
   CAMERA_POLLING_INTERVAL_MS,
   CHUNK_SIZE_SECONDS,
@@ -25,6 +26,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Map as MapboxMap, Marker } from "react-map-gl/mapbox";
 import ActiveBikesGraph from "./ActiveBikesGraph";
+import { SelectedTripPanel } from "./SelectedTripPanel";
 import { TimeDisplay } from "./TimeDisplay";
 
 import type { Color, MapViewState } from "@deck.gl/core";
@@ -266,6 +268,7 @@ export const BikeMap = () => {
   const advanceTime = useAnimationStore((s) => s.advanceTime);
   const setCurrentTime = useAnimationStore((s) => s.setCurrentTime);
   const selectedTripId = useAnimationStore((s) => s.selectedTripId);
+  const selectedTripInfo = useAnimationStore((s) => s.selectedTripInfo);
   const selectTrip = useAnimationStore((s) => s.selectTrip);
 
   // Derived values (computed at consumption time)
@@ -277,8 +280,27 @@ export const BikeMap = () => {
   const [animState, setAnimState] = useState<AnimationState>("idle");
   const [initialViewState, setInitialViewState] = useState<MapViewState>(INITIAL_VIEW_STATE);
   const [graphData, setGraphData] = useState<GraphDataPoint[]>([]);
+  const [stationMap, setStationMap] = useState<Map<string, string>>(new Map());
+  const [stationRegions, setStationRegions] = useState<Record<string, { region: string; neighborhood: string }>>({});
 
   const { isPickingLocation, setPickedLocation, pickedLocation } = usePickerStore();
+
+  // Load station data for name lookups
+  useEffect(() => {
+    getStations().then((stations) => {
+      const map = new Map<string, string>();
+      for (const station of stations) {
+        for (const id of station.ids) {
+          map.set(id, station.name);
+        }
+      }
+      setStationMap(map);
+    });
+    // Load station regions for neighborhood/borough lookups
+    fetch("/station-regions.json")
+      .then((res) => res.json())
+      .then(setStationRegions);
+  }, []);
 
   const rafRef = useRef<number | null>(null);
   const lastTimestampRef = useRef<number | null>(null);
@@ -564,13 +586,38 @@ export const BikeMap = () => {
     recreateService();
   }, [windowStartMs, speedup, fadeDurationSimSeconds, selectedTripId, play, animationStartDate]);
 
-  // Select a random visible biker
+  // Select a random visible biker with full trip info
   const selectRandomBiker = useCallback(() => {
     const visibleTrips = activeTrips.filter((t) => t.isVisible);
     if (visibleTrips.length === 0) return;
     const randomTrip = visibleTrips[Math.floor(Math.random() * visibleTrips.length)];
-    selectTrip(randomTrip.id);
-  }, [activeTrips, selectTrip]);
+
+    const startStation = stationMap.get(randomTrip.startStationId);
+    const endStation = stationMap.get(randomTrip.endStationId);
+
+    if (!startStation || !endStation) {
+      throw new Error(`Missing station data`);
+    }
+
+    const startRegion = stationRegions[randomTrip.startStationId].neighborhood;
+    const endRegion = stationRegions[randomTrip.endStationId].neighborhood;
+
+    selectTrip({
+      id: randomTrip.id,
+      info: {
+        id: randomTrip.id,
+        rideableType: randomTrip.bikeType,
+        memberCasual: randomTrip.memberCasual,
+        startStationName: startStation,
+        endStationName: endStation,
+        startNeighborhood: startRegion,
+        endNeighborhood: endRegion,
+        startedAt: new Date(randomTrip.startedAtMs),
+        endedAt: new Date(randomTrip.endedAtMs),
+        routeDistance: randomTrip.routeDistance,
+      },
+    });
+  }, [activeTrips, selectTrip, stationMap, stationRegions]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -810,6 +857,7 @@ export const BikeMap = () => {
               <ActiveBikesGraph data={graphData} currentTime={time} />
             </div>
           </div>
+          {selectedTripInfo && <SelectedTripPanel info={selectedTripInfo} />}
         </div>
       </div>
     </div>

@@ -1,5 +1,19 @@
 import { create } from "zustand"
 import { DEFAULT_ANIMATION_START_DATE, DEFAULT_SPEEDUP } from "../config"
+import { usePickerStore } from "./location-picker-store"
+
+export type SelectedTripInfo = {
+  id: string;
+  rideableType: string;
+  memberCasual: string;
+  startStationName: string;
+  endStationName: string;
+  startNeighborhood: string | null;
+  endNeighborhood: string | null;
+  startedAt: Date;
+  endedAt: Date;
+  routeDistance: number | null;
+};
 
 type AnimationStore = {
   // Source config only
@@ -12,6 +26,7 @@ type AnimationStore = {
 
   // Trip selection (shared between Search and BikeMap)
   selectedTripId: string | null
+  selectedTripInfo: SelectedTripInfo | null
 
   // Actions
   setSpeedup: (value: number) => void
@@ -21,7 +36,7 @@ type AnimationStore = {
   setCurrentTime: (time: number) => void
   advanceTime: (delta: number) => void
   resetPlayback: () => void
-  selectTrip: (id: string | null) => void
+  selectTrip: (data: { id: string; info?: SelectedTripInfo | null } | null) => void
 }
 
 export const useAnimationStore = create<AnimationStore>((set) => ({
@@ -35,6 +50,7 @@ export const useAnimationStore = create<AnimationStore>((set) => ({
 
   // Trip selection
   selectedTripId: null,
+  selectedTripInfo: null,
 
   // Config actions (reset playback when config changes)
   setSpeedup: (speedup) => set({ speedup, isPlaying: false, currentTime: 0 }),
@@ -48,5 +64,14 @@ export const useAnimationStore = create<AnimationStore>((set) => ({
   resetPlayback: () => set({ isPlaying: false, currentTime: 0 }),
 
   // Trip selection
-  selectTrip: (selectedTripId) => set({ selectedTripId }),
+  selectTrip: (data) => {
+    // Clear picked location when selecting a bike
+    if (data) {
+      usePickerStore.getState().clearPicking();
+    }
+    set({
+      selectedTripId: data?.id ?? null,
+      selectedTripInfo: data?.info ?? null,
+    });
+  },
 }))

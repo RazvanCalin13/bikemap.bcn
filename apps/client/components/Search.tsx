@@ -271,8 +271,29 @@ export function Search() {
     const startTime = new Date(new Date(trip.startedAt).getTime() - LOOKBACK_MINUTES * 60 * 1000)
     setAnimationStartDate(startTime)
 
-    // Select the trip for highlighting
-    selectTrip(trip.id)
+    const startRegion = getStationRegion(selectedStation!.ids)
+    const endStation = stationMap.get(trip.endStationId)
+    const endRegion = getStationRegion(endStation!.ids)
+    if (!endRegion || !startRegion || !selectedStation) {
+      throw new Error(`Missing data`)
+    }
+
+    // Select the trip for highlighting with full metadata
+    selectTrip({
+      id: trip.id,
+      info: {
+        id: trip.id,
+        rideableType: trip.rideableType,
+        memberCasual: trip.memberCasual,
+        startStationName: selectedStation.name,
+        endStationName: getStationName(trip.endStationId, stationMap),
+        startNeighborhood: startRegion.neighborhood,
+        endNeighborhood: endRegion.neighborhood,
+        startedAt: trip.startedAt,
+        endedAt: trip.endedAt,
+        routeDistance: trip.routeDistance,
+      },
+    })
 
     // Close dialog
     handleOpenChange(false)
