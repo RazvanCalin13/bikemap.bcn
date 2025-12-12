@@ -77,22 +77,13 @@ const getBikeHeadSize = () => 9;
 const getBikeHeadColor = (d: ProcessedTrip): Color4 => {
   const bikeColor = d.bikeType === "electric_bike" ? COLORS.electric : COLORS.classic;
 
-  // Selected trips use bike type color (still respect alpha for fading)
-  if (d.isSelected) {
-    const alpha =
-      d.currentPhase === "fading-in"
-        ? d.currentPhaseProgress * MAX_ALPHA
-        : d.currentPhase === "fading-out"
-          ? (1 - d.currentPhaseProgress) * MAX_ALPHA
-          : MAX_ALPHA;
-    return rgba(bikeColor, alpha);
-  }
-
+  // All bikes (selected or not) use the same color transitions
   switch (d.currentPhase) {
     case "fading-in":
-      // Simultaneous opacity fade-in + color transition
+      // Simultaneous opacity fade-in + color transition (green -> bike color)
       return lerpRgba(COLORS.fadeIn, bikeColor, d.currentPhaseProgress, d.currentPhaseProgress * MAX_ALPHA);
     case "fading-out":
+      // Fade out to red
       return rgba(COLORS.fadeOut, (1 - d.currentPhaseProgress) * MAX_ALPHA);
     default: // moving
       return rgba(bikeColor, MAX_ALPHA);
