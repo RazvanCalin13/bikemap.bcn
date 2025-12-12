@@ -18,7 +18,7 @@ import type { GraphDataPoint, Phase, ProcessedTrip } from "@/lib/trip-types";
 import { TripDataService } from "@/services/trip-data-service";
 import { DataFilterExtension } from "@deck.gl/extensions";
 import { TripsLayer } from "@deck.gl/geo-layers";
-import { IconLayer, PathLayer } from "@deck.gl/layers";
+import { IconLayer, PathLayer, SolidPolygonLayer } from "@deck.gl/layers";
 import { DeckGL } from "@deck.gl/react";
 import { Pause, Play, Shuffle } from "lucide-react";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -75,7 +75,9 @@ const getBikeHeadAngle = (d: ProcessedTrip) => -d.currentBearing;
 const getBikeHeadIcon = () => "arrow";
 const getBikeHeadSize = () => 9;
 const getBikeHeadColor = (d: ProcessedTrip): Color4 => {
-  // Selected trips are always orange (still respect alpha for fading)
+  const bikeColor = d.bikeType === "electric_bike" ? COLORS.electric : COLORS.classic;
+
+  // Selected trips use bike type color (still respect alpha for fading)
   if (d.isSelected) {
     const alpha =
       d.currentPhase === "fading-in"
@@ -83,10 +85,8 @@ const getBikeHeadColor = (d: ProcessedTrip): Color4 => {
         : d.currentPhase === "fading-out"
           ? (1 - d.currentPhaseProgress) * MAX_ALPHA
           : MAX_ALPHA;
-    return rgba(COLORS.selected, alpha);
+    return rgba(bikeColor, alpha);
   }
-
-  const bikeColor = d.bikeType === "electric_bike" ? COLORS.electric : COLORS.classic;
 
   switch (d.currentPhase) {
     case "fading-in":
@@ -598,30 +598,18 @@ export const BikeMap = () => {
     [activeTrips, selectedTripId]
   );
 
-  const layers = useMemo(
-    () => [
-      // Selected biker's full route (rendered underneath trails, only when selected)
-      ...(selectedTripData.length > 0
-        ? [
-            new PathLayer<ProcessedTrip>({
-              id: "selected-route",
-              data: selectedTripData,
-              getPath: (d) => d.path,
-              getColor: COLORS.selected,
-              getWidth: 4,
-              widthMinPixels: 2,
-              opacity: 0.4,
-              pickable: false,
-            }),
-          ]
-        : []),
+  const layers = useMemo(() => {
+    const hasSelection = selectedTripData.length > 0;
+
+    return [
+      // Trips layer - dimmed when selection active
       new TripsLayer<ProcessedTrip>({
         id: "trips",
         data: activeTrips,
         getPath,
         getTimestamps,
         getColor: getTripColor,
-        opacity: 0.2,
+        opacity: hasSelection ? 0.05 : 0.2,
         widthMinPixels: 3,
         jointRounded: true,
         capRounded: true,
@@ -636,7 +624,7 @@ export const BikeMap = () => {
         id: "bike-heads",
         data: activeTrips,
         billboard: false,
-        opacity: 0.8,
+        opacity: hasSelection ? 0.1 : 0.8,
         getPosition: getBikeHeadPosition,
         getAngle: getBikeHeadAngle,
         getIcon: getBikeHeadIcon,
@@ -649,17 +637,72 @@ export const BikeMap = () => {
         extensions: [dataFilter],
         getFilterValue,
         filterRange: [[-Infinity, time], [time, Infinity]],
-        // updateTriggers required - deck.gl caches accessor results and won't
-        // re-read mutated ProcessedTrip properties without this signal
         updateTriggers: {
           getPosition: [time],
           getAngle: [time],
           getColor: [time, selectedTripId],
         },
       }),
-    ],
-    [activeTrips, time, selectedTripId, selectedTripData]
-  );
+      // Dimming overlay - renders BEFORE selected route
+      ...(hasSelection
+        ? [
+            new SolidPolygonLayer({
+              id: "dim-overlay",
+              data: [
+                [
+                  [-180, -90],
+                  [-180, 90],
+                  [180, 90],
+                  [180, -90],
+                  [-180, -90],
+                ],
+              ],
+              getPolygon: (d) => d,
+              getFillColor: [0, 0, 0, 70], // 50% black
+              pickable: false,
+            }),
+          ]
+        : []),
+      // Selected route - rendered on TOP with bike type color
+      ...(hasSelection
+        ? [
+            new PathLayer<ProcessedTrip>({
+              id: "selected-route",
+              data: selectedTripData,
+              getPath: (d) => d.path,
+              getColor: (d) => (d.bikeType === "electric_bike" ? COLORS.electric : COLORS.classic),
+              getWidth: 4,
+              widthMinPixels: 2,
+              opacity: 0.3,
+              pickable: false,
+            }),
+            // Selected bike head - rendered on top at full opacity
+            new IconLayer({
+              id: "selected-bike-head",
+              data: selectedTripData,
+              billboard: false,
+              opacity: 1,
+              getPosition: getBikeHeadPosition,
+              getAngle: getBikeHeadAngle,
+              getIcon: getBikeHeadIcon,
+              getSize: getBikeHeadSize,
+              getColor: getBikeHeadColor,
+              iconAtlas: ARROW_SVG,
+              iconMapping: ICON_MAPPING,
+              pickable: false,
+              extensions: [dataFilter],
+              getFilterValue,
+              filterRange: [[-Infinity, time], [time, Infinity]],
+              updateTriggers: {
+                getPosition: [time],
+                getAngle: [time],
+                getColor: [time],
+              },
+            }),
+          ]
+        : []),
+    ];
+  }, [activeTrips, time, selectedTripId, selectedTripData]);
 
   const handleMapClick = useCallback(
     (info: { coordinate?: number[] }) => {
