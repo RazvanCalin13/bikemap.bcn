@@ -282,6 +282,7 @@ export const BikeMap = () => {
   const [graphData, setGraphData] = useState<GraphDataPoint[]>([]);
   const [stationMap, setStationMap] = useState<Map<string, string>>(new Map());
   const [stationRegions, setStationRegions] = useState<Record<string, { region: string; neighborhood: string }>>({});
+  const [bearing, setBearing] = useState(0);
 
   const { isPickingLocation, setPickedLocation, pickedLocation } = usePickerStore();
 
@@ -586,11 +587,16 @@ export const BikeMap = () => {
     recreateService();
   }, [windowStartMs, speedup, fadeDurationSimSeconds, selectedTripId, play, animationStartDate]);
 
-  // Select a random visible biker with full trip info
+  // Select a random visible biker with at least half their trip remaining
   const selectRandomBiker = useCallback(() => {
-    const visibleTrips = activeTrips.filter((t) => t.isVisible);
-    if (visibleTrips.length === 0) return;
-    const randomTrip = visibleTrips[Math.floor(Math.random() * visibleTrips.length)];
+    const eligibleTrips = activeTrips.filter((t) => {
+      if (!t.isVisible) return false;
+      // Only select trips that have at least half their duration remaining
+      const midpoint = (t.startTimeSeconds + t.endTimeSeconds) / 2;
+      return time < midpoint;
+    });
+    if (eligibleTrips.length === 0) return;
+    const randomTrip = eligibleTrips[Math.floor(Math.random() * eligibleTrips.length)];
 
     const startStation = stationMap.get(randomTrip.startStationId);
     const endStation = stationMap.get(randomTrip.endStationId);
@@ -617,7 +623,7 @@ export const BikeMap = () => {
         routeDistance: randomTrip.routeDistance,
       },
     });
-  }, [activeTrips, selectTrip, stationMap, stationRegions]);
+  }, [activeTrips, selectTrip, stationMap, stationRegions, time]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -781,6 +787,11 @@ export const BikeMap = () => {
         initialViewState={initialViewState}
         controller={true}
         onClick={handleMapClick}
+        onViewStateChange={({ viewState }) => {
+          if ("bearing" in viewState && typeof viewState.bearing === "number") {
+            setBearing(viewState.bearing);
+          }
+        }}
         getCursor={() => (isPickingLocation ? "crosshair" : "grab")}
       >
         <MapboxMap
@@ -849,7 +860,7 @@ export const BikeMap = () => {
 
         {/* Stats - right */}
         <div className="pointer-events-none">
-          <ActiveRidesPanel ref={fpsRef} tripCount={tripCount} graphData={graphData} currentTime={time} />
+          <ActiveRidesPanel ref={fpsRef} tripCount={tripCount} graphData={graphData} currentTime={time} bearing={bearing} />
           {selectedTripInfo && <SelectedTripPanel info={selectedTripInfo} />}
         </div>
       </div>

@@ -6,6 +6,7 @@ type ActiveRidesPanelProps = {
   tripCount: number;
   graphData: GraphDataPoint[];
   currentTime: number;
+  bearing: number;
 };
 
 const GRAPH_WIDTH = 176;
@@ -14,7 +15,7 @@ const PADDING = { top: 4, right: 4, bottom: 14, left: 4 };
 
 export const ActiveRidesPanel = memo(
   forwardRef<HTMLDivElement, ActiveRidesPanelProps>(function ActiveRidesPanel(
-    { tripCount, graphData, currentTime },
+    { tripCount, graphData, currentTime, bearing },
     fpsRef
   ) {
     const { linePath, areaPath, maxCount } = useMemo(() => {
@@ -60,10 +61,26 @@ export const ActiveRidesPanel = memo(
     const hasData = linePath.length > 0;
 
     return (
-      <div className="bg-black/45 backdrop-blur-md text-white/90 px-3 py-2 rounded-xl border border-white/10 shadow-[0_0_24px_rgba(0,0,0,0.6)] w-[200px]">
-        <div className="text-[10px] uppercase tracking-widest text-white/60 text-right">Active Rides</div>
-        <div className="mt-0.5 text-xl font-semibold tabular-nums text-right">{tripCount.toLocaleString()}</div>
-        <div ref={fpsRef} className="mt-0.5 text-[10px] tracking-wide text-white/50 text-right">-- FPS</div>
+      <div className="bg-black/45 backdrop-blur-md text-white/90 px-3 py-2 rounded-xl border border-white/10 shadow-[0_0_24px_rgba(0,0,0,0.6)] w-[200px] relative">
+        {/* Compass */}
+        <div
+          className="absolute top-2 right-2"
+          style={{ transform: `rotate(${-bearing}deg)` }}
+        >
+          <svg width="40" height="40" viewBox="0 0 40 40">
+            <circle cx="20" cy="20" r="14" fill="none" stroke="rgba(125, 207, 255, 0.2)" strokeWidth="1" />
+            <path d="M20 9 L22 20 L20 18 L18 20 Z" fill="rgba(125, 207, 255, 0.9)" />
+            <path d="M20 31 L22 20 L20 22 L18 20 Z" fill="rgba(125, 207, 255, 0.3)" />
+            <circle cx="20" cy="20" r="1.5" fill="rgba(125, 207, 255, 0.6)" />
+            <text x="20" y="7" textAnchor="middle" fontSize="8" fill="rgba(125, 207, 255, 0.7)" fontWeight="500">N</text>
+            <text x="20" y="39" textAnchor="middle" fontSize="8" fill="rgba(125, 207, 255, 0.4)" fontWeight="500">S</text>
+            <text x="4" y="22" textAnchor="middle" fontSize="8" fill="rgba(125, 207, 255, 0.4)" fontWeight="500">W</text>
+            <text x="36" y="22" textAnchor="middle" fontSize="8" fill="rgba(125, 207, 255, 0.4)" fontWeight="500">E</text>
+          </svg>
+        </div>
+        <div className="text-[10px] uppercase tracking-widest text-white/60 text-left">Active Rides</div>
+        <div className="mt-0.5 text-xl font-semibold tabular-nums text-left">{tripCount.toLocaleString()}</div>
+        <div ref={fpsRef} className="mt-0.5 text-[10px] tracking-wide text-white/50 text-left">-- FPS</div>
         <div className="mt-2">
           <svg
             width={GRAPH_WIDTH}
