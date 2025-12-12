@@ -94,6 +94,23 @@ const ICON_MAPPING = {
   arrow: { x: 0, y: 0, width: 24, height: 24, anchorX: 12, anchorY: 12, mask: true },
 };
 
+// Selected path color with fade in/out based on phase
+const PATH_OPACITY = 180;
+const getSelectedPathColor = (d: ProcessedTrip): Color4 => {
+  const bikeColor = d.bikeType === "electric_bike" ? COLORS.electric : COLORS.classic;
+
+  switch (d.currentPhase) {
+    case "fading-in":
+      // Green -> bike color transition with opacity fade
+      return lerpRgba(COLORS.fadeIn, bikeColor, d.currentPhaseProgress, d.currentPhaseProgress * PATH_OPACITY);
+    case "fading-out":
+      // Fade out to red
+      return rgba(COLORS.fadeOut, (1 - d.currentPhaseProgress) * PATH_OPACITY);
+    default: // moving
+      return rgba(bikeColor, PATH_OPACITY);
+  }
+};
+
 // DataFilterExtension for GPU-based visibility filtering
 // filterSize: 2 means we filter on 2 values [visibleStartSeconds, visibleEndSeconds]
 const dataFilter = new DataFilterExtension({ filterSize: 2 });
@@ -661,11 +678,14 @@ export const BikeMap = () => {
               id: "selected-route",
               data: selectedTripData,
               getPath: (d) => d.path,
-              getColor: (d) => (d.bikeType === "electric_bike" ? COLORS.electric : COLORS.classic),
+              getColor: getSelectedPathColor,
               getWidth: 4,
               widthMinPixels: 2,
-              opacity: 0.3,
+              opacity: 1, // Alpha handled by getSelectedPathColor
               pickable: false,
+              updateTriggers: {
+                getColor: [time],
+              },
             }),
             // Selected bike head - rendered on top at full opacity
             new IconLayer({
