@@ -9,6 +9,7 @@ import {
   FADE_DURATION_MS,
   GRAPH_WINDOW_SIZE_SECONDS,
   INITIAL_VIEW_STATE,
+  MAX_FRAME_DELTA_MS,
   PREFETCH_THRESHOLD_CHUNKS,
   TRAIL_LENGTH_SECONDS,
 } from "@/lib/config";
@@ -449,10 +450,12 @@ export const BikeMap = () => {
   const startLoop = useCallback(() => {
     const tick = (timestamp: number) => {
       if (lastTimestampRef.current !== null) {
-        const deltaMs = timestamp - lastTimestampRef.current;
+        const rawDeltaMs = timestamp - lastTimestampRef.current;
+        // Cap deltaMs to prevent time jumps when returning from background tab
+        const deltaMs = Math.min(rawDeltaMs, MAX_FRAME_DELTA_MS);
         const deltaSeconds = deltaMs / 1000;
         advanceTime(deltaSeconds * speedup);
-        const currentFps = 1000 / deltaMs;
+        const currentFps = 1000 / rawDeltaMs;
         smoothedFpsRef.current = smoothedFpsRef.current * 0.9 + currentFps * 0.1;
         fpsSamplerRef.current.sample(() => {
           if (fpsRef.current) {

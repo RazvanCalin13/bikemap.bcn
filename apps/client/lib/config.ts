@@ -35,6 +35,9 @@ export const EASE_DISTANCE_METERS = 300;
 // Fade duration in real-time milliseconds
 export const FADE_DURATION_MS = 700;
 
+// Max frame delta to prevent time jumps when returning from background tab (100ms = 10 FPS minimum)
+export const MAX_FRAME_DELTA_MS = 100;
+
 // =============================================================================
 // Map Configuration
 // =============================================================================
