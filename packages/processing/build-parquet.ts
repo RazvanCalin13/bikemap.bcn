@@ -17,13 +17,15 @@
  * - Duplicate ride_id
  */
 import { DuckDBConnection } from "@duckdb/node-api";
+import { execSync } from "child_process";
 import fs from "fs";
 import { globSync } from "glob";
 import path from "path";
 import { formatHumanReadableBytes } from "../../apps/client/lib/utils";
 
-const dataDir = path.join(process.cwd(), "../../data");
-const outputDir = path.join(process.cwd(), "output");
+const gitRoot = execSync("git rev-parse --show-toplevel", { encoding: "utf-8" }).trim();
+const dataDir = path.join(gitRoot, "data");
+const outputDir = path.join(gitRoot, "packages/processing/output");
 
 type ValidationResult = {
   total_rows: bigint;
