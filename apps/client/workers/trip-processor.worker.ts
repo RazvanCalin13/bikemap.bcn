@@ -7,6 +7,7 @@ import {
   CHUNK_SIZE_SECONDS,
   CHUNKS_PER_BATCH,
   EASE_DISTANCE_METERS,
+  EASE_TIME_MULTIPLIER,
   TRAIL_LENGTH_SECONDS,
 } from "../lib/config";
 import { filterTrips } from "../lib/trip-filters";
@@ -46,9 +47,9 @@ function getTimeFraction(dist: number, totalDist: number): number {
   const easeInEnd = easeDist;
   const easeOutStart = totalDist - easeDist;
   const linearDist = totalDist - 2 * easeDist;
-  const totalTime = 2 * easeDist + linearDist + 2 * easeDist;
-  const easeInTime = 2 * easeDist;
+  const easeInTime = EASE_TIME_MULTIPLIER * easeDist;
   const linearTime = linearDist;
+  const totalTime = easeInTime + linearTime + easeInTime;
 
   if (dist < easeInEnd) {
     const t = dist / easeDist;

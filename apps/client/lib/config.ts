@@ -31,6 +31,7 @@ export const PREFETCH_THRESHOLD_CHUNKS = Math.floor(CHUNKS_PER_BATCH * 0.8);
 
 export const TRAIL_LENGTH_SECONDS = 45;
 export const EASE_DISTANCE_METERS = 300;
+export const EASE_TIME_MULTIPLIER = 2; // How much longer ease zones take vs linear (2 = twice as slow)
 
 // Fade duration in real-time milliseconds
 export const FADE_DURATION_MS = 700;
