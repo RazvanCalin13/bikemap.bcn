@@ -3,7 +3,6 @@ import * as duckdb from "@duckdb/duckdb-wasm";
 
 // Use subdomain-style URL for CORS support
 const TRIPS_URL = "https://bikemap.storage.googleapis.com/2025.parquet";
-const ROUTES_URL = "https://bikemap.storage.googleapis.com/routes.parquet";
 
 /**
  * DuckDB WASM service for querying Parquet files from GCS.
@@ -84,25 +83,23 @@ class DuckDBService {
 
     const result = await conn.query(`
       SELECT
-        t.id,
-        t.startStationId,
-        t.endStationId,
-        t.startedAt,
-        t.endedAt,
-        t.bikeType,
-        t.memberCasual,
-        t.startLat,
-        t.startLng,
-        t.endLat,
-        t.endLng,
-        NULL as path,
-        NULL as timeFractions,
-        NULL as bearings,
-        NULL as routeDistance
-      FROM read_parquet('trips.parquet') t
-      WHERE t.startedAt >= epoch_ms(${from.getTime()})
-        AND t.startedAt < epoch_ms(${to.getTime()})
-      ORDER BY t.startedAt ASC
+        id,
+        startStationId,
+        endStationId,
+        startedAt,
+        endedAt,
+        bikeType,
+        memberCasual,
+        startLat,
+        startLng,
+        endLat,
+        endLng,
+        routeGeometry,
+        routeDistance
+      FROM read_parquet('trips.parquet')
+      WHERE startedAt >= epoch_ms(${from.getTime()})
+        AND startedAt < epoch_ms(${to.getTime()})
+      ORDER BY startedAt ASC
     `);
 
     const trips = this.transformResults(result);
@@ -127,25 +124,23 @@ class DuckDBService {
 
     const result = await conn.query(`
       SELECT
-        t.id,
-        t.startStationId,
-        t.endStationId,
-        t.startedAt,
-        t.endedAt,
-        t.bikeType,
-        t.memberCasual,
-        t.startLat,
-        t.startLng,
-        t.endLat,
-        t.endLng,
-        NULL as path,
-        NULL as timeFractions,
-        NULL as bearings,
-        NULL as routeDistance
-      FROM read_parquet('trips.parquet') t
-      WHERE t.startedAt < epoch_ms(${chunkEnd.getTime()})
-        AND t.endedAt > epoch_ms(${chunkStart.getTime()})
-      ORDER BY t.startedAt ASC
+        id,
+        startStationId,
+        endStationId,
+        startedAt,
+        endedAt,
+        bikeType,
+        memberCasual,
+        startLat,
+        startLng,
+        endLat,
+        endLng,
+        routeGeometry,
+        routeDistance
+      FROM read_parquet('trips.parquet')
+      WHERE startedAt < epoch_ms(${chunkEnd.getTime()})
+        AND endedAt > epoch_ms(${chunkStart.getTime()})
+      ORDER BY startedAt ASC
     `);
 
     const trips = this.transformResults(result);
@@ -172,26 +167,24 @@ class DuckDBService {
 
     const result = await conn.query(`
       SELECT
-        t.id,
-        t.startStationId,
-        t.endStationId,
-        t.startedAt,
-        t.endedAt,
-        t.bikeType,
-        t.memberCasual,
-        t.startLat,
-        t.startLng,
-        t.endLat,
-        t.endLng,
-        NULL as path,
-        NULL as timeFractions,
-        NULL as bearings,
-        NULL as routeDistance
-      FROM read_parquet('trips.parquet') t
-      WHERE t.startStationId IN (${idList})
-        AND t.startedAt >= epoch_ms(${windowStart.getTime()})
-        AND t.startedAt <= epoch_ms(${windowEnd.getTime()})
-      ORDER BY t.startedAt ASC
+        id,
+        startStationId,
+        endStationId,
+        startedAt,
+        endedAt,
+        bikeType,
+        memberCasual,
+        startLat,
+        startLng,
+        endLat,
+        endLng,
+        routeGeometry,
+        routeDistance
+      FROM read_parquet('trips.parquet')
+      WHERE startStationId IN (${idList})
+        AND startedAt >= epoch_ms(${windowStart.getTime()})
+        AND startedAt <= epoch_ms(${windowEnd.getTime()})
+      ORDER BY startedAt ASC
     `);
 
     return this.transformResults(result);
@@ -213,20 +206,11 @@ class DuckDBService {
       startLng: number;
       endLat: number | null;
       endLng: number | null;
-      path: string | null;
-      timeFractions: string | null;
-      bearings: string | null;
+      routeGeometry: string | null;
       routeDistance: number | null;
     }>;
 
     return rows.map((row) => {
-      // DuckDB returns JSON columns as strings, parse them
-      const path = row.path ? JSON.parse(row.path) : null;
-      const timeFractions = row.timeFractions
-        ? JSON.parse(row.timeFractions)
-        : null;
-      const bearings = row.bearings ? JSON.parse(row.bearings) : null;
-
       // DuckDB returns timestamps as BigInt microseconds, convert to Date
       const startedAt = new Date(Number(row.startedAt) / 1000);
       const endedAt = new Date(Number(row.endedAt) / 1000);
@@ -243,9 +227,7 @@ class DuckDBService {
         startLng: row.startLng,
         endLat: row.endLat,
         endLng: row.endLng,
-        path,
-        timeFractions,
-        bearings,
+        routeGeometry: row.routeGeometry,
         routeDistance: row.routeDistance,
       };
     });
