@@ -13,11 +13,12 @@ export type GraphDataPoint = {
 // Trip Types (from Parquet schema)
 // ============================================================================
 
-// Trip from 2025.parquet joined with routes.parquet
+// Trip from parquet joined with routes
+// Routes are keyed by station NAME (not ID) because IDs changed between years
 export type TripWithRoute = {
   id: string;
-  startStationId: string;
-  endStationId: string;
+  startStationName: string;
+  endStationName: string;
   startedAt: Date;
   endedAt: Date;
   bikeType: string;
@@ -26,7 +27,7 @@ export type TripWithRoute = {
   startLng: number;
   endLat: number | null;
   endLng: number | null;
-  // From routes.parquet (polyline6 encoded for network efficiency)
+  // From routes.db (polyline6 encoded for network efficiency)
   routeGeometry: string | null; // Polyline6 encoded path
   routeDistance: number | null; // Distance in meters
 };
@@ -65,8 +66,8 @@ export type ProcessedTrip = {
   currentPathColor: [number, number, number, number];
   // Metadata for UI display
   memberCasual: string;
-  startStationId: string;
-  endStationId: string;
+  startStationName: string;
+  endStationName: string;
   startedAtMs: number;
   endedAtMs: number;
   routeDistance: number | null;

@@ -597,8 +597,8 @@ export const BikeMap = () => {
     if (eligibleTrips.length === 0) return;
     const randomTrip = eligibleTrips[Math.floor(Math.random() * eligibleTrips.length)];
 
-    const startStation = getStation(randomTrip.startStationId);
-    const endStation = getStation(randomTrip.endStationId);
+    const startStation = getStation(randomTrip.startStationName);
+    const endStation = getStation(randomTrip.endStationName);
 
     selectTrip({
       id: randomTrip.id,

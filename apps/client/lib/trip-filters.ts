@@ -15,7 +15,7 @@ export function filterTrips<T extends TripWithRoute>(trips: T[]): T[] {
     if (!trip.routeGeometry) return false;
 
     // Can't be same-station trip
-    if (trip.startStationId === trip.endStationId) return false;
+    if (trip.startStationName === trip.endStationName) return false;
 
     // Speed must be 2-18 km/h
     if (!trip.routeDistance) return false;

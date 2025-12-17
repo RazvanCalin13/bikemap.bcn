@@ -19,8 +19,8 @@ type StationWithDistance = Station & { distance: number }
 
 type Trip = {
   id: string
-  startStationId: string
-  endStationId: string
+  startStationName: string
+  endStationName: string
   startedAt: Date
   endedAt: Date
   bikeType: string
@@ -111,16 +111,30 @@ export function Search() {
     [stations]
   )
 
+  // Alias search: expand stations into (station, alias) pairs for fuzzy matching
+  // This allows searching for historical station names while still returning the canonical station
+  const aliasEntries = React.useMemo(
+    () => stations.flatMap((s) => s.aliases.map((alias) => ({ station: s, alias }))),
+    [stations]
+  )
+  const aliasFzf = React.useMemo(
+    () => new Fzf(aliasEntries, { selector: (e) => e.alias }),
+    [aliasEntries]
+  )
+
   const filteredStations = React.useMemo((): (Station | StationWithDistance)[] => {
-    // Helper to merge results from both fzf instances
+    // Helper to merge results from name, neighborhood, and alias fzf instances
     const getMergedMatches = (query: string): Station[] => {
       const nameMatches = nameFzf.find(query).map((r) => r.item)
       const neighborhoodMatches = neighborhoodFzf.find(query).map((r) => r.item)
+      // Alias matches return the canonical station (not the alias text)
+      const aliasMatches = aliasFzf.find(query).map((r) => r.item.station)
 
       const seen = new Set<string>()
       const merged: Station[] = []
 
-      for (const station of [...nameMatches, ...neighborhoodMatches]) {
+      // Priority: name matches first, then neighborhood, then alias
+      for (const station of [...nameMatches, ...neighborhoodMatches, ...aliasMatches]) {
         if (!seen.has(station.name)) {
           seen.add(station.name)
           merged.push(station)
@@ -152,7 +166,7 @@ export function Search() {
     const query = search.trim()
     if (!query) return stations.slice(0, MAX_RESULTS)
     return getMergedMatches(query).slice(0, MAX_RESULTS)
-  }, [stations, search, nameFzf, neighborhoodFzf, pickedLocation])
+  }, [stations, search, nameFzf, neighborhoodFzf, aliasFzf, pickedLocation])
 
   // Filter trips by end station name + neighborhood
   const filteredTrips = React.useMemo(() => {
@@ -161,7 +175,7 @@ export function Search() {
 
     const tripFzf = new Fzf(trips, {
       selector: (trip) => {
-        const endStation = getStation(trip.endStationId)
+        const endStation = getStation(trip.endStationName)
         return `${endStation.name} ${endStation.neighborhood}`
       },
     })
@@ -202,7 +216,7 @@ export function Search() {
       await duckdbService.init()
 
       const rawTrips = await duckdbService.getTripsFromStation({
-        startStationIds: selectedStation.ids,
+        startStationName: selectedStation.name,
         datetime: parsedDate,
         intervalSeconds: 1800,
       })
@@ -222,7 +236,7 @@ export function Search() {
     const startTime = new Date(new Date(trip.startedAt).getTime() - FADE_DURATION_MS * speedup)
     setAnimationStartDate(startTime)
 
-    const endStation = getStation(trip.endStationId)
+    const endStation = getStation(trip.endStationName)
     if (!selectedStation) {
       throw new Error(`No station selected`)
     }
@@ -320,10 +334,10 @@ export function Search() {
                   </div>
                   <div className="ml-auto flex flex-col items-end">
                     <span className="text-zinc-100 font-normal truncate max-w-[30ch]">
-                      {getStation(trip.endStationId).name}
+                      {getStation(trip.endStationName).name}
                     </span>
                     <span className="text-sm text-muted-foreground">
-                      {getStation(trip.endStationId).neighborhood}
+                      {getStation(trip.endStationName).neighborhood}
                     </span>
                   </div>
                 </div>

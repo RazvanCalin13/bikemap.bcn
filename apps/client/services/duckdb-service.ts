@@ -113,8 +113,8 @@ class DuckDBService {
     const result = await conn.query(`
       SELECT
         id,
-        startStationId,
-        endStationId,
+        startStationName,
+        endStationName,
         startedAt,
         endedAt,
         bikeType,
@@ -157,8 +157,8 @@ class DuckDBService {
     const result = await conn.query(`
       SELECT
         id,
-        startStationId,
-        endStationId,
+        startStationName,
+        endStationName,
         startedAt,
         endedAt,
         bikeType,
@@ -181,15 +181,16 @@ class DuckDBService {
   }
 
   /**
-   * Get trips from specific station(s) within a time window (for search)
+   * Get trips from a specific station within a time window (for search)
+   * Now queries by station NAME since parquet is keyed by name
    */
   async getTripsFromStation(params: {
-    startStationIds: string[];
+    startStationName: string;
     datetime: Date;
     intervalSeconds: number;
   }): Promise<TripWithRoute[]> {
     const { conn } = this.ensureInitialized();
-    const { startStationIds, datetime, intervalSeconds } = params;
+    const { startStationName, datetime, intervalSeconds } = params;
 
     const windowStart = new Date(datetime.getTime() - intervalSeconds * 1000);
     const windowEnd = new Date(datetime.getTime() + intervalSeconds * 1000);
@@ -199,14 +200,14 @@ class DuckDBService {
 
     const files = months.map((m) => `'${m}.parquet'`).join(", ");
 
-    // Build IN clause with quoted strings
-    const idList = startStationIds.map((id) => `'${id}'`).join(",");
+    // Escape single quotes in station name
+    const escapedName = startStationName.replace(/'/g, "''");
 
     const result = await conn.query(`
       SELECT
         id,
-        startStationId,
-        endStationId,
+        startStationName,
+        endStationName,
         startedAt,
         endedAt,
         bikeType,
@@ -218,7 +219,7 @@ class DuckDBService {
         routeGeometry,
         routeDistance
       FROM read_parquet([${files}])
-      WHERE startStationId IN (${idList})
+      WHERE startStationName = '${escapedName}'
         AND startedAt >= epoch_ms(${windowStart.getTime()})
         AND startedAt <= epoch_ms(${windowEnd.getTime()})
       ORDER BY startedAt ASC
@@ -233,8 +234,8 @@ class DuckDBService {
   private transformResults(result: { toArray(): unknown[] }): TripWithRoute[] {
     const rows = result.toArray() as Array<{
       id: string;
-      startStationId: string;
-      endStationId: string;
+      startStationName: string;
+      endStationName: string;
       startedAt: bigint;
       endedAt: bigint;
       bikeType: string;
@@ -254,8 +255,8 @@ class DuckDBService {
 
       return {
         id: row.id,
-        startStationId: row.startStationId,
-        endStationId: row.endStationId,
+        startStationName: row.startStationName,
+        endStationName: row.endStationName,
         startedAt,
         endedAt,
         bikeType: row.bikeType,

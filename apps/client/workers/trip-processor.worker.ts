@@ -180,8 +180,8 @@ function prepareTripsForDeck(data: {
         currentPathColor: [0, 0, 0, 0] as [number, number, number, number],
         // Metadata for UI display
         memberCasual: trip.memberCasual,
-        startStationId: trip.startStationId,
-        endStationId: trip.endStationId,
+        startStationName: trip.startStationName,
+        endStationName: trip.endStationName,
         startedAtMs: tripStartMs,
         endedAtMs: tripEndMs,
         routeDistance: trip.routeDistance,
