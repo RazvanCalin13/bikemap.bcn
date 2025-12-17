@@ -32,7 +32,6 @@ const routesDbPath = path.join(outputDir, "routes.db");
 type StationFromFile = {
   name: string;
   aliases: string[];
-  ids: string[];
   latitude: number;
   longitude: number;
   borough: string;

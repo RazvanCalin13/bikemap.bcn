@@ -47,7 +47,6 @@ type StationRegion = {
 type StationForSearch = {
   name: string;
   aliases: string[]; // Historical names for search matching (excludes canonical name)
-  ids: string[];
   latitude: number;
   longitude: number;
   borough: string;
@@ -105,7 +104,6 @@ function getStationRegion(
 // Raw station data from CSV extraction (before clustering)
 type RawStation = {
   name: string;
-  ids: string[];
   latitude: number;
   longitude: number;
   year: number; // Year this name was observed (for canonical name selection)
@@ -119,14 +117,12 @@ function clusterStationsByCoordinates(data: {
 }): Array<{
   canonicalName: string;
   aliases: string[];
-  ids: string[];
   latitude: number;
   longitude: number;
 }> {
   const { stations, thresholdMeters } = data;
   const clusters: Array<{
     names: Map<string, number>; // name -> latest year seen
-    ids: Set<string>;
     latSum: number;
     lngSum: number;
     count: number;
@@ -156,9 +152,6 @@ function clusterStationsByCoordinates(data: {
       if (!existingYear || station.year > existingYear) {
         nearestCluster.names.set(station.name, station.year);
       }
-      for (const id of station.ids) {
-        nearestCluster.ids.add(id);
-      }
       nearestCluster.latSum += station.latitude;
       nearestCluster.lngSum += station.longitude;
       nearestCluster.count++;
@@ -168,7 +161,6 @@ function clusterStationsByCoordinates(data: {
       names.set(station.name, station.year);
       clusters.push({
         names,
-        ids: new Set(station.ids),
         latSum: station.latitude,
         lngSum: station.longitude,
         count: 1,
@@ -190,7 +182,6 @@ function clusterStationsByCoordinates(data: {
     return {
       canonicalName,
       aliases,
-      ids: Array.from(cluster.ids),
       latitude: cluster.latSum / cluster.count,
       longitude: cluster.lngSum / cluster.count,
     };
@@ -230,7 +221,6 @@ async function main() {
       -- Modern schema (2020+): start_station_name, start_lat, etc.
       SELECT
         start_station_name AS name,
-        start_station_id AS id,
         start_lat AS lat,
         start_lng AS lng,
         EXTRACT(YEAR FROM started_at) AS year
@@ -243,7 +233,6 @@ async function main() {
 
       SELECT
         end_station_name AS name,
-        end_station_id AS id,
         end_lat AS lat,
         end_lng AS lng,
         EXTRACT(YEAR FROM ended_at) AS year
@@ -257,7 +246,6 @@ async function main() {
       -- Legacy schema (2013-2019): "start station name", "start station latitude", etc.
       SELECT
         "start station name" AS name,
-        "start station id"::VARCHAR AS id,
         TRY_CAST("start station latitude" AS DOUBLE) AS lat,
         TRY_CAST("start station longitude" AS DOUBLE) AS lng,
         EXTRACT(YEAR FROM starttime) AS year
@@ -270,7 +258,6 @@ async function main() {
 
       SELECT
         "end station name" AS name,
-        "end station id"::VARCHAR AS id,
         TRY_CAST("end station latitude" AS DOUBLE) AS lat,
         TRY_CAST("end station longitude" AS DOUBLE) AS lng,
         EXTRACT(YEAR FROM stoptime) AS year
@@ -279,13 +266,12 @@ async function main() {
         AND TRY_CAST("end station latitude" AS DOUBLE) IS NOT NULL
         AND TRY_CAST("end station longitude" AS DOUBLE) IS NOT NULL
     ),
-    -- Deduplicate: for each name, get median coords and all IDs
+    -- Deduplicate: for each name, get median coords
     station_summary AS (
       SELECT
         name,
         MEDIAN(lat) AS latitude,
         MEDIAN(lng) AS longitude,
-        STRING_AGG(DISTINCT id, ',') AS ids_csv,
         MAX(year) AS max_year
       FROM all_stations
       WHERE lat IS NOT NULL AND lng IS NOT NULL
@@ -293,7 +279,6 @@ async function main() {
     )
     SELECT
       name,
-      ids_csv,
       latitude,
       longitude,
       max_year
@@ -303,7 +288,6 @@ async function main() {
 
   const rawRows = stationsReader.getRowObjectsJson() as unknown as Array<{
     name: string;
-    ids_csv: string | null;
     latitude: number;
     longitude: number;
     max_year: number;
@@ -326,7 +310,6 @@ async function main() {
     })
     .map((r) => ({
       name: r.name,
-      ids: (r.ids_csv ?? "").split(",").filter(Boolean),
       latitude: r.latitude,
       longitude: r.longitude,
       year: r.max_year,
@@ -361,7 +344,6 @@ async function main() {
     return {
       name: c.canonicalName,
       aliases: c.aliases,
-      ids: c.ids,
       latitude: c.latitude,
       longitude: c.longitude,
       borough: region.borough,

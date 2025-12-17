@@ -55,8 +55,6 @@ const routesDbPath = path.join(outputDir, "routes.db");
 type ValidationResult = {
   total_rows: bigint;
   null_ride_id: bigint;
-  null_start_station_id: bigint;
-  null_end_station_id: bigint;
   null_start_station_name: bigint;
   null_end_station_name: bigint;
   null_started_at: bigint;
@@ -89,8 +87,6 @@ function printValidationWarnings(v: ValidationResult): void {
 
   // NULL checks
   if (v.null_ride_id > 0) warnings.push(fmt(v.null_ride_id, "NULL ride_id"));
-  if (v.null_start_station_id > 0) warnings.push(fmt(v.null_start_station_id, "NULL start_station_id"));
-  if (v.null_end_station_id > 0) warnings.push(fmt(v.null_end_station_id, "NULL end_station_id"));
   if (v.null_start_station_name > 0) warnings.push(fmt(v.null_start_station_name, "NULL start_station_name"));
   if (v.null_end_station_name > 0) warnings.push(fmt(v.null_end_station_name, "NULL end_station_name"));
   if (v.null_started_at > 0) warnings.push(fmt(v.null_started_at, "NULL started_at"));
@@ -187,6 +183,7 @@ async function main() {
     `);
   } else {
     // Modern schema (2020+): use columns directly
+    // Station IDs are not used (we key everything by name), so we don't read them
     await connection.run(`
       CREATE TEMP TABLE raw AS
       SELECT
@@ -195,9 +192,7 @@ async function main() {
         started_at,
         ended_at,
         start_station_name,
-        start_station_id,
         end_station_name,
-        end_station_id,
         start_lat,
         start_lng,
         end_lat,
@@ -213,18 +208,10 @@ async function main() {
   // 2. Validate data
   console.log("\nValidating data...");
 
-  // Station ID checks only apply to modern schema (legacy doesn't have them)
-  const stationIdValidation =
-    schemaType === "legacy"
-      ? `0::BIGINT as null_start_station_id, 0::BIGINT as null_end_station_id,`
-      : `COUNT(*) FILTER (WHERE start_station_id IS NULL) as null_start_station_id,
-         COUNT(*) FILTER (WHERE end_station_id IS NULL) as null_end_station_id,`;
-
   const validationReader = await connection.runAndReadAll(`
     SELECT
       -- NULL checks
       COUNT(*) FILTER (WHERE ride_id IS NULL) as null_ride_id,
-      ${stationIdValidation}
       COUNT(*) FILTER (WHERE start_station_name IS NULL) as null_start_station_name,
       COUNT(*) FILTER (WHERE end_station_name IS NULL) as null_end_station_name,
       COUNT(*) FILTER (WHERE started_at IS NULL) as null_started_at,
@@ -349,15 +336,8 @@ async function main() {
     maxLng: -73.5,
   };
 
-  // Legacy data doesn't have station IDs (we get them from name lookup later)
-  const stationIdFilter =
-    schemaType === "legacy"
-      ? ""
-      : `AND start_station_id IS NOT NULL AND end_station_id IS NOT NULL`;
-
   const validRowFilter = `
     ride_id IS NOT NULL
-    ${stationIdFilter}
     AND start_station_name IS NOT NULL
     AND end_station_name IS NOT NULL
     AND started_at IS NOT NULL
