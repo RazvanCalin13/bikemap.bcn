@@ -1,8 +1,29 @@
 import type { TripWithRoute } from "@/lib/trip-types";
 import * as duckdb from "@duckdb/duckdb-wasm";
 
-// Use subdomain-style URL for CORS support
-const TRIPS_URL = "https://bikemap.storage.googleapis.com/2025.parquet";
+const TRIPS_BASE_URL = "https://bikemap.storage.googleapis.com";
+
+/**
+ * Get month key from a date (e.g., "2025-09")
+ */
+function getMonthKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * Get the list of months that overlap with a date range
+ */
+function getMonthsForRange(from: Date, to: Date): string[] {
+  const months: string[] = [];
+  const current = new Date(from.getFullYear(), from.getMonth(), 1);
+  const end = new Date(to.getFullYear(), to.getMonth(), 1);
+
+  while (current <= end) {
+    months.push(getMonthKey(current));
+    current.setMonth(current.getMonth() + 1);
+  }
+  return months;
+}
 
 /**
  * DuckDB WASM service for querying Parquet files from GCS.
@@ -53,32 +74,40 @@ class DuckDBService {
 
     this.conn = await this.db.connect();
 
-    // Register remote parquet files with HTTP protocol for range request support
-    await this.db.registerFileURL("trips.parquet", TRIPS_URL, duckdb.DuckDBDataProtocol.HTTP, false);
-    console.log(`[DuckDB] Registered trips.parquet`);
-
-    // No views - we query read_parquet() directly with filters for predicate pushdown
     console.log(`[DuckDB] Initialized in ${Date.now() - startTime}ms`);
   }
 
-  private ensureInitialized(): duckdb.AsyncDuckDBConnection {
-    if (!this.conn) {
+  private ensureInitialized(): { conn: duckdb.AsyncDuckDBConnection; db: duckdb.AsyncDuckDB } {
+    if (!this.conn || !this.db) {
       throw new Error("DuckDB not initialized. Call init() first.");
     }
-    return this.conn;
+    return { conn: this.conn, db: this.db };
+  }
+
+  /**
+   * Register monthly parquet files for a date range
+   */
+  private async registerMonthlyFiles(months: string[]): Promise<void> {
+    const { db } = this.ensureInitialized();
+    for (const month of months) {
+      const filename = `${month}.parquet`;
+      const url = `${TRIPS_BASE_URL}/${filename}`;
+      await db.registerFileURL(filename, url, duckdb.DuckDBDataProtocol.HTTP, false);
+    }
   }
 
   /**
    * Get trips that START within a time range (for progressive batch loading)
    */
-  async getTripsInRange(params: {
-    from: Date;
-    to: Date;
-  }): Promise<TripWithRoute[]> {
-    const conn = this.ensureInitialized();
+  async getTripsInRange(params: { from: Date; to: Date }): Promise<TripWithRoute[]> {
+    const { conn } = this.ensureInitialized();
     const { from, to } = params;
 
-    console.log(`[DuckDB] getTripsInRange: ${from.toISOString()} to ${to.toISOString()}`);
+    const months = getMonthsForRange(from, to);
+    await this.registerMonthlyFiles(months);
+
+    const files = months.map((m) => `'${m}.parquet'`).join(", ");
+    console.log(`[DuckDB] getTripsInRange: ${from.toISOString()} to ${to.toISOString()} (files: ${months.join(", ")})`);
     const startTime = Date.now();
 
     const result = await conn.query(`
@@ -96,7 +125,7 @@ class DuckDBService {
         endLng,
         routeGeometry,
         routeDistance
-      FROM read_parquet('trips.parquet')
+      FROM read_parquet([${files}])
       WHERE startedAt >= epoch_ms(${from.getTime()})
         AND startedAt < epoch_ms(${to.getTime()})
       ORDER BY startedAt ASC
@@ -104,7 +133,6 @@ class DuckDBService {
 
     const trips = this.transformResults(result);
     console.log(`[DuckDB] getTripsInRange completed in ${Date.now() - startTime}ms, ${trips.length} trips`);
-    console.log(`[DuckDB] Sample trips (${trips.length}):`, trips);
     return trips;
   }
 
@@ -112,14 +140,18 @@ class DuckDBService {
    * Get trips that OVERLAP with a time window (started before end, ended after start)
    * Used for loading trips already in progress at animation start
    */
-  async getTripsOverlap(params: {
-    chunkStart: Date;
-    chunkEnd: Date;
-  }): Promise<TripWithRoute[]> {
-    const conn = this.ensureInitialized();
+  async getTripsOverlap(params: { chunkStart: Date; chunkEnd: Date }): Promise<TripWithRoute[]> {
+    const { conn } = this.ensureInitialized();
     const { chunkStart, chunkEnd } = params;
 
-    console.log(`[DuckDB] getTripsOverlap: ${chunkStart.toISOString()} to ${chunkEnd.toISOString()}`);
+    // For overlap queries, we need files that could contain trips starting before chunkEnd
+    // Since trips can be long, we look back further (e.g., a trip could start in previous month)
+    const lookbackStart = new Date(chunkStart.getTime() - 24 * 60 * 60 * 1000); // 1 day lookback
+    const months = getMonthsForRange(lookbackStart, chunkEnd);
+    await this.registerMonthlyFiles(months);
+
+    const files = months.map((m) => `'${m}.parquet'`).join(", ");
+    console.log(`[DuckDB] getTripsOverlap: ${chunkStart.toISOString()} to ${chunkEnd.toISOString()} (files: ${months.join(", ")})`);
     const startTime = Date.now();
 
     const result = await conn.query(`
@@ -137,7 +169,7 @@ class DuckDBService {
         endLng,
         routeGeometry,
         routeDistance
-      FROM read_parquet('trips.parquet')
+      FROM read_parquet([${files}])
       WHERE startedAt < epoch_ms(${chunkEnd.getTime()})
         AND endedAt > epoch_ms(${chunkStart.getTime()})
       ORDER BY startedAt ASC
@@ -156,11 +188,16 @@ class DuckDBService {
     datetime: Date;
     intervalSeconds: number;
   }): Promise<TripWithRoute[]> {
-    const conn = this.ensureInitialized();
+    const { conn } = this.ensureInitialized();
     const { startStationIds, datetime, intervalSeconds } = params;
 
     const windowStart = new Date(datetime.getTime() - intervalSeconds * 1000);
     const windowEnd = new Date(datetime.getTime() + intervalSeconds * 1000);
+
+    const months = getMonthsForRange(windowStart, windowEnd);
+    await this.registerMonthlyFiles(months);
+
+    const files = months.map((m) => `'${m}.parquet'`).join(", ");
 
     // Build IN clause with quoted strings
     const idList = startStationIds.map((id) => `'${id}'`).join(",");
@@ -180,7 +217,7 @@ class DuckDBService {
         endLng,
         routeGeometry,
         routeDistance
-      FROM read_parquet('trips.parquet')
+      FROM read_parquet([${files}])
       WHERE startStationId IN (${idList})
         AND startedAt >= epoch_ms(${windowStart.getTime()})
         AND startedAt <= epoch_ms(${windowEnd.getTime()})

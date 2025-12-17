@@ -230,7 +230,6 @@ async function main() {
 
   // 4. Create trips table with routes via SQL JOIN (no JS iteration!)
   console.log("\nJoining trips with routes...");
-  const parquetPath = path.join(outputDir, "trips/2025.parquet");
 
   // NYC bounding box
   const NYC_BOUNDS = {
@@ -328,18 +327,52 @@ async function main() {
   const withoutRoute = tripCount - withRoute;
   console.log(`  ${tripCount} trips created (${withRoute} with routes, ${withoutRoute} without)`);
 
-  // 5. Export to parquet
-  console.log("\nExporting to Parquet...");
-  await connection.run(`
-    COPY trips TO '${parquetPath}' (FORMAT PARQUET, COMPRESSION ZSTD)
+  // 5. Export to monthly parquet files
+  console.log("\nExporting to monthly Parquet files...");
+
+  // Get distinct months in the data
+  const monthsResult = await connection.runAndReadAll(`
+    SELECT DISTINCT strftime(startedAt, '%Y-%m') as month
+    FROM trips
+    ORDER BY month
   `);
+
+  const months = monthsResult.getRowObjects() as Array<{ month: string }>;
+  console.log(`Found ${months.length} months of data: ${months.map((m) => m.month).join(", ")}`);
+
+  let totalParquetBytes = 0;
+
+  for (const { month } of months) {
+    const parts = month.split("-");
+    const year = parts[0];
+    const monthNum = parts[1];
+    if (!year || !monthNum) {
+      throw new Error(`Invalid month format: ${month}`);
+    }
+    const nextMonth =
+      monthNum === "12"
+        ? `${parseInt(year) + 1}-01`
+        : `${year}-${String(parseInt(monthNum) + 1).padStart(2, "0")}`;
+
+    const monthPath = path.join(outputDir, `trips/${month}.parquet`);
+    await connection.run(`
+      COPY (
+        SELECT * FROM trips
+        WHERE startedAt >= '${month}-01'::TIMESTAMP
+          AND startedAt < '${nextMonth}-01'::TIMESTAMP
+      ) TO '${monthPath}' (FORMAT PARQUET, COMPRESSION ZSTD)
+    `);
+
+    const monthStats = fs.statSync(monthPath);
+    totalParquetBytes += monthStats.size;
+    console.log(`  ${month}.parquet: ${(monthStats.size / 1024 / 1024).toFixed(1)} MB`);
+  }
 
   const droppedCount = Number(validation.total_rows) - tripCount;
   const droppedPct = ((droppedCount / Number(validation.total_rows)) * 100).toFixed(2);
   console.warn(`Total data loss: ${droppedCount} rows (${droppedPct}%) dropped`);
 
-  const parquetStats = fs.statSync(parquetPath);
-  console.log(`Parquet file written: ${parquetPath} (${(parquetStats.size / 1024 / 1024).toFixed(1)} MB)`);
+  console.log(`\nTotal Parquet output: ${(totalParquetBytes / 1024 / 1024).toFixed(1)} MB across ${months.length} files`);
   console.log(`  ${withRoute} trips with routes (${((withRoute / tripCount) * 100).toFixed(1)}%)`);
   console.log(`  ${withoutRoute} trips without routes`);
 
