@@ -167,30 +167,15 @@ async function getUniquePairsFromCSVs(): Promise<StationPair[]> {
 
   const connection = await DuckDBConnection.create();
   // Extract unique station NAME pairs (not IDs) from all years
-  // Names are unique and stable across years, unlike IDs which change
+  // normalize_names=true merges "start station name" and "Start Station Name" into start_station_name
   const reader = await connection.runAndReadAll(`
-    WITH all_pairs AS (
-      -- Modern schema (2020+)
-      SELECT DISTINCT
-        start_station_name AS startStationName,
-        end_station_name AS endStationName
-      FROM read_csv_auto('${csvGlob}', union_by_name=true)
-      WHERE start_station_name IS NOT NULL
-        AND end_station_name IS NOT NULL
-        AND start_station_name != end_station_name
-
-      UNION
-
-      -- Legacy schema (2013-2019)
-      SELECT DISTINCT
-        "start station name" AS startStationName,
-        "end station name" AS endStationName
-      FROM read_csv_auto('${csvGlob}', union_by_name=true)
-      WHERE "start station name" IS NOT NULL
-        AND "end station name" IS NOT NULL
-        AND "start station name" != "end station name"
-    )
-    SELECT DISTINCT startStationName, endStationName FROM all_pairs
+    SELECT DISTINCT
+      start_station_name AS startStationName,
+      end_station_name AS endStationName
+    FROM read_csv_auto('${csvGlob}', union_by_name=true, normalize_names=true, all_varchar=true, null_padding=true)
+    WHERE start_station_name IS NOT NULL
+      AND end_station_name IS NOT NULL
+      AND start_station_name != end_station_name
   `);
 
   const pairs = reader.getRowObjectsJson() as unknown as StationPair[];

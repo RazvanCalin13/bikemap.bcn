@@ -127,49 +127,54 @@ async function main() {
   const startTime = Date.now();
 
   // Unified schema handling:
-  // - Legacy (2013-2019): has tripduration, bikeid, starttime, stoptime, "start station name", usertype
-  // - Modern (2020+): has ride_id, rideable_type, started_at, ended_at, start_station_name, member_casual
-  // union_by_name=true merges all columns; we use COALESCE to pick the right one
+  // - normalize_names=true converts "Start Station Name" -> start_station_name (merges with legacy)
+  // - Legacy lowercase (2013-2018): starttime, start_station_name, usertype
+  // - Legacy Title Case (2015-2016): start_time (normalized), start_station_name (merged), user_type
+  // - Modern (2020+): started_at, start_station_name, member_casual
   console.log("Loading CSVs with unified schema...");
   await connection.run(`
     CREATE TEMP TABLE raw AS
     SELECT
       -- ID: use ride_id if present, else generate from legacy fields
-      COALESCE(ride_id, md5(bikeid::VARCHAR || starttime::VARCHAR)) as ride_id,
+      COALESCE(ride_id, md5(COALESCE(bikeid, bike_id)::VARCHAR || COALESCE(starttime, start_time::VARCHAR)::VARCHAR)) as ride_id,
 
       -- Bike type: use rideable_type if present, else 'classic_bike' for legacy
       COALESCE(rideable_type, 'classic_bike') as rideable_type,
 
-      -- Timestamps: use modern columns if present, else legacy
-      -- Legacy has two formats: ISO (YYYY-MM-DD) and US (M/D/YYYY)
+      -- Timestamps: all columns are VARCHAR with all_varchar=true
+      -- First COALESCE picks first non-null value, then parse
       COALESCE(
         TRY_CAST(started_at AS TIMESTAMP),
+        TRY_CAST(start_time AS TIMESTAMP),
         TRY_CAST(starttime AS TIMESTAMP),
-        strptime(starttime, '%m/%d/%Y %H:%M:%S')
+        TRY_STRPTIME(COALESCE(started_at, start_time, starttime), '%m/%d/%Y %H:%M:%S'),
+        TRY_STRPTIME(COALESCE(started_at, start_time, starttime), '%m/%d/%Y %H:%M')
       ) as started_at,
       COALESCE(
         TRY_CAST(ended_at AS TIMESTAMP),
+        TRY_CAST(stop_time AS TIMESTAMP),
         TRY_CAST(stoptime AS TIMESTAMP),
-        strptime(stoptime, '%m/%d/%Y %H:%M:%S')
+        TRY_STRPTIME(COALESCE(ended_at, stop_time, stoptime), '%m/%d/%Y %H:%M:%S'),
+        TRY_STRPTIME(COALESCE(ended_at, stop_time, stoptime), '%m/%d/%Y %H:%M')
       ) as ended_at,
 
-      -- Station names: modern uses underscores, legacy uses spaces
-      COALESCE(start_station_name, "start station name") as start_station_name,
-      COALESCE(end_station_name, "end station name") as end_station_name,
+      -- Station names: normalize_names merges Title Case into snake_case
+      start_station_name,
+      end_station_name,
 
-      -- Coordinates: modern are already DOUBLE, legacy need casting
-      COALESCE(TRY_CAST(start_lat AS DOUBLE), TRY_CAST("start station latitude" AS DOUBLE)) as start_lat,
-      COALESCE(TRY_CAST(start_lng AS DOUBLE), TRY_CAST("start station longitude" AS DOUBLE)) as start_lng,
-      COALESCE(TRY_CAST(end_lat AS DOUBLE), TRY_CAST("end station latitude" AS DOUBLE)) as end_lat,
-      COALESCE(TRY_CAST(end_lng AS DOUBLE), TRY_CAST("end station longitude" AS DOUBLE)) as end_lng,
+      -- Coordinates: all columns are VARCHAR with all_varchar=true
+      TRY_CAST(COALESCE(start_lat, start_station_latitude) AS DOUBLE) as start_lat,
+      TRY_CAST(COALESCE(start_lng, start_station_longitude) AS DOUBLE) as start_lng,
+      TRY_CAST(COALESCE(end_lat, end_station_latitude) AS DOUBLE) as end_lat,
+      TRY_CAST(COALESCE(end_lng, end_station_longitude) AS DOUBLE) as end_lng,
 
       -- Member type: normalize legacy 'Subscriber' -> 'member', 'Customer' -> 'casual'
       COALESCE(
         member_casual,
-        CASE WHEN usertype = 'Subscriber' THEN 'member' ELSE 'casual' END
+        CASE WHEN COALESCE(usertype, user_type) = 'Subscriber' THEN 'member' ELSE 'casual' END
       ) as member_casual
 
-    FROM read_csv_auto('${csvGlob}', union_by_name=true)
+    FROM read_csv_auto('${csvGlob}', union_by_name=true, normalize_names=true, all_varchar=true, null_padding=true)
   `);
 
   const loadTime = Date.now() - startTime;

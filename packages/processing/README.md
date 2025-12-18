@@ -103,6 +103,26 @@ Station names changed over time (e.g., "8 Ave & W 31 St" → "W 31 St & 8 Ave").
 
 **Legacy coordinate matching:** Trip coordinates are matched to the nearest current station within 200m, giving ~98% route coverage despite old station names/IDs.
 
+### DuckDB CSV Options
+
+All scripts use these options to handle the diverse CSV schemas:
+
+```sql
+read_csv_auto('path/**/*.csv',
+  union_by_name=true,     -- Merge columns by name across files
+  normalize_names=true,   -- "Start Station Name" → start_station_name
+  all_varchar=true,       -- Skip type detection, cast explicitly
+  null_padding=true       -- Handle rows with missing columns
+)
+```
+
+| Option | Purpose |
+|--------|---------|
+| `union_by_name` | Merge columns by name across files with different schemas |
+| `normalize_names` | Case-insensitive column matching (Title Case → snake_case) |
+| `all_varchar` | Avoid type mismatch errors in COALESCE by reading all as VARCHAR |
+| `null_padding` | Handle rows with missing columns gracefully |
+
 ## Parquet Schema
 
 | Column | Type | Description |

@@ -202,70 +202,56 @@ async function main() {
   const connection = await DuckDBConnection.create();
 
   // Extract all unique stations from ALL years
-  // Single CSV scan with union_by_name=true to merge both legacy and modern schemas
+  // normalize_names=true merges "start station name" and "Start Station Name" into start_station_name
   console.log("\nLoading all CSVs (single scan)...");
   await connection.run(`
     CREATE TEMP TABLE raw_trips AS
     SELECT
-      -- Modern columns
+      -- Station names (merged by normalize_names)
       start_station_name,
       end_station_name,
-      start_lat,
-      start_lng,
-      end_lat,
-      end_lng,
-      started_at,
-      ended_at,
-      -- Legacy columns (with spaces)
-      "start station name",
-      "end station name",
-      "start station latitude",
-      "start station longitude",
-      "end station latitude",
-      "end station longitude",
-      starttime,
-      stoptime
-    FROM read_csv_auto('${csvGlob}', union_by_name=true)
+      -- Coordinates: modern (start_lat) and legacy (start_station_latitude)
+      start_lat, start_lng, end_lat, end_lng,
+      start_station_latitude, start_station_longitude,
+      end_station_latitude, end_station_longitude,
+      -- Timestamps: modern (started_at), Title Case (start_time), legacy (starttime)
+      started_at, start_time, starttime,
+      ended_at, stop_time, stoptime
+    FROM read_csv_auto('${csvGlob}', union_by_name=true, normalize_names=true, all_varchar=true, null_padding=true)
   `);
 
   // Validate data quality before processing
+  // With all_varchar=true, all columns are VARCHAR - we COALESCE first, then cast
   console.log("Validating data...");
   const validationReader = await connection.runAndReadAll(`
     SELECT
       COUNT(*) as total_rows,
-
-      -- Modern schema issues (has station name but missing/bad coords or timestamp)
-      COUNT(*) FILTER (WHERE start_station_name IS NOT NULL AND TRY_CAST(start_lat AS DOUBLE) IS NULL) as null_modern_start_lat,
-      COUNT(*) FILTER (WHERE start_station_name IS NOT NULL AND TRY_CAST(start_lng AS DOUBLE) IS NULL) as null_modern_start_lng,
-      COUNT(*) FILTER (WHERE end_station_name IS NOT NULL AND TRY_CAST(end_lat AS DOUBLE) IS NULL) as null_modern_end_lat,
-      COUNT(*) FILTER (WHERE end_station_name IS NOT NULL AND TRY_CAST(end_lng AS DOUBLE) IS NULL) as null_modern_end_lng,
-      COUNT(*) FILTER (WHERE start_station_name IS NOT NULL AND TRY_CAST(started_at AS TIMESTAMP) IS NULL) as unparseable_started_at,
-      COUNT(*) FILTER (WHERE end_station_name IS NOT NULL AND TRY_CAST(ended_at AS TIMESTAMP) IS NULL) as unparseable_ended_at,
-
-      -- Legacy schema issues
-      COUNT(*) FILTER (WHERE "start station name" IS NOT NULL AND TRY_CAST("start station latitude" AS DOUBLE) IS NULL) as null_legacy_start_lat,
-      COUNT(*) FILTER (WHERE "start station name" IS NOT NULL AND TRY_CAST("start station longitude" AS DOUBLE) IS NULL) as null_legacy_start_lng,
-      COUNT(*) FILTER (WHERE "end station name" IS NOT NULL AND TRY_CAST("end station latitude" AS DOUBLE) IS NULL) as null_legacy_end_lat,
-      COUNT(*) FILTER (WHERE "end station name" IS NOT NULL AND TRY_CAST("end station longitude" AS DOUBLE) IS NULL) as null_legacy_end_lng,
-      COUNT(*) FILTER (WHERE "start station name" IS NOT NULL AND TRY_CAST(starttime AS TIMESTAMP) IS NULL) as unparseable_starttime,
-      COUNT(*) FILTER (WHERE "end station name" IS NOT NULL AND TRY_CAST(stoptime AS TIMESTAMP) IS NULL) as unparseable_stoptime
+      -- Station name issues
+      COUNT(*) FILTER (WHERE start_station_name IS NULL) as null_start_name,
+      COUNT(*) FILTER (WHERE end_station_name IS NULL) as null_end_name,
+      -- Coordinate issues (all VARCHAR now)
+      COUNT(*) FILTER (WHERE start_station_name IS NOT NULL
+        AND TRY_CAST(COALESCE(start_station_latitude, start_lat) AS DOUBLE) IS NULL) as null_start_lat,
+      COUNT(*) FILTER (WHERE end_station_name IS NOT NULL
+        AND TRY_CAST(COALESCE(end_station_latitude, end_lat) AS DOUBLE) IS NULL) as null_end_lat,
+      -- Timestamp issues (all VARCHAR now)
+      COUNT(*) FILTER (WHERE start_station_name IS NOT NULL AND COALESCE(
+        TRY_CAST(started_at AS TIMESTAMP),
+        TRY_CAST(start_time AS TIMESTAMP),
+        TRY_CAST(starttime AS TIMESTAMP),
+        TRY_STRPTIME(COALESCE(started_at, start_time, starttime), '%m/%d/%Y %H:%M:%S'),
+        TRY_STRPTIME(COALESCE(started_at, start_time, starttime), '%m/%d/%Y %H:%M')
+      ) IS NULL) as unparseable_timestamp
     FROM raw_trips
   `);
 
   type ValidationResult = {
     total_rows: bigint;
-    null_modern_start_lat: bigint;
-    null_modern_start_lng: bigint;
-    null_modern_end_lat: bigint;
-    null_modern_end_lng: bigint;
-    unparseable_started_at: bigint;
-    unparseable_ended_at: bigint;
-    null_legacy_start_lat: bigint;
-    null_legacy_start_lng: bigint;
-    null_legacy_end_lat: bigint;
-    null_legacy_end_lng: bigint;
-    unparseable_starttime: bigint;
-    unparseable_stoptime: bigint;
+    null_start_name: bigint;
+    null_end_name: bigint;
+    null_start_lat: bigint;
+    null_end_lat: bigint;
+    unparseable_timestamp: bigint;
   };
 
   const v = validationReader.getRowObjects()[0] as ValidationResult;
@@ -278,18 +264,11 @@ async function main() {
     return `${count} rows (${pct}%) with ${msg}`;
   };
 
-  if (v.null_modern_start_lat > 0) warnings.push(fmt(v.null_modern_start_lat, "NULL start_lat (modern)"));
-  if (v.null_modern_start_lng > 0) warnings.push(fmt(v.null_modern_start_lng, "NULL start_lng (modern)"));
-  if (v.null_modern_end_lat > 0) warnings.push(fmt(v.null_modern_end_lat, "NULL end_lat (modern)"));
-  if (v.null_modern_end_lng > 0) warnings.push(fmt(v.null_modern_end_lng, "NULL end_lng (modern)"));
-  if (v.unparseable_started_at > 0) warnings.push(fmt(v.unparseable_started_at, "unparseable started_at (modern)"));
-  if (v.unparseable_ended_at > 0) warnings.push(fmt(v.unparseable_ended_at, "unparseable ended_at (modern)"));
-  if (v.null_legacy_start_lat > 0) warnings.push(fmt(v.null_legacy_start_lat, "NULL start_lat (legacy)"));
-  if (v.null_legacy_start_lng > 0) warnings.push(fmt(v.null_legacy_start_lng, "NULL start_lng (legacy)"));
-  if (v.null_legacy_end_lat > 0) warnings.push(fmt(v.null_legacy_end_lat, "NULL end_lat (legacy)"));
-  if (v.null_legacy_end_lng > 0) warnings.push(fmt(v.null_legacy_end_lng, "NULL end_lng (legacy)"));
-  if (v.unparseable_starttime > 0) warnings.push(fmt(v.unparseable_starttime, "unparseable starttime (legacy)"));
-  if (v.unparseable_stoptime > 0) warnings.push(fmt(v.unparseable_stoptime, "unparseable stoptime (legacy)"));
+  if (v.null_start_name > 0) warnings.push(fmt(v.null_start_name, "NULL start_station_name"));
+  if (v.null_end_name > 0) warnings.push(fmt(v.null_end_name, "NULL end_station_name"));
+  if (v.null_start_lat > 0) warnings.push(fmt(v.null_start_lat, "NULL start coordinates"));
+  if (v.null_end_lat > 0) warnings.push(fmt(v.null_end_lat, "NULL end coordinates"));
+  if (v.unparseable_timestamp > 0) warnings.push(fmt(v.unparseable_timestamp, "unparseable timestamp"));
 
   if (warnings.length > 0) {
     console.warn(`\nValidation warnings (rows will be skipped):\n  - ${warnings.join("\n  - ")}`);
@@ -297,50 +276,41 @@ async function main() {
     console.log("No validation issues found.");
   }
 
+  // With all_varchar=true, all columns are VARCHAR - we COALESCE first, then cast
   console.log("\nExtracting stations from temp table...");
   const stationsReader = await connection.runAndReadAll(`
     WITH all_stations AS (
-      -- Start stations (modern)
+      -- Start stations (all VARCHAR - COALESCE first, then cast)
       SELECT
         start_station_name AS name,
-        start_lat AS lat,
-        start_lng AS lng,
-        EXTRACT(YEAR FROM TRY_CAST(started_at AS TIMESTAMP)) AS year
+        TRY_CAST(COALESCE(start_station_latitude, start_lat) AS DOUBLE) AS lat,
+        TRY_CAST(COALESCE(start_station_longitude, start_lng) AS DOUBLE) AS lng,
+        EXTRACT(YEAR FROM COALESCE(
+          TRY_CAST(started_at AS TIMESTAMP),
+          TRY_CAST(start_time AS TIMESTAMP),
+          TRY_CAST(starttime AS TIMESTAMP),
+          TRY_STRPTIME(COALESCE(started_at, start_time, starttime), '%m/%d/%Y %H:%M:%S'),
+          TRY_STRPTIME(COALESCE(started_at, start_time, starttime), '%m/%d/%Y %H:%M')
+        )) AS year
       FROM raw_trips
       WHERE start_station_name IS NOT NULL
 
       UNION ALL
 
-      -- End stations (modern)
+      -- End stations
       SELECT
         end_station_name AS name,
-        end_lat AS lat,
-        end_lng AS lng,
-        EXTRACT(YEAR FROM TRY_CAST(ended_at AS TIMESTAMP)) AS year
+        TRY_CAST(COALESCE(end_station_latitude, end_lat) AS DOUBLE) AS lat,
+        TRY_CAST(COALESCE(end_station_longitude, end_lng) AS DOUBLE) AS lng,
+        EXTRACT(YEAR FROM COALESCE(
+          TRY_CAST(ended_at AS TIMESTAMP),
+          TRY_CAST(stop_time AS TIMESTAMP),
+          TRY_CAST(stoptime AS TIMESTAMP),
+          TRY_STRPTIME(COALESCE(ended_at, stop_time, stoptime), '%m/%d/%Y %H:%M:%S'),
+          TRY_STRPTIME(COALESCE(ended_at, stop_time, stoptime), '%m/%d/%Y %H:%M')
+        )) AS year
       FROM raw_trips
       WHERE end_station_name IS NOT NULL
-
-      UNION ALL
-
-      -- Start stations (legacy)
-      SELECT
-        "start station name" AS name,
-        TRY_CAST("start station latitude" AS DOUBLE) AS lat,
-        TRY_CAST("start station longitude" AS DOUBLE) AS lng,
-        EXTRACT(YEAR FROM TRY_CAST(starttime AS TIMESTAMP)) AS year
-      FROM raw_trips
-      WHERE "start station name" IS NOT NULL
-
-      UNION ALL
-
-      -- End stations (legacy)
-      SELECT
-        "end station name" AS name,
-        TRY_CAST("end station latitude" AS DOUBLE) AS lat,
-        TRY_CAST("end station longitude" AS DOUBLE) AS lng,
-        EXTRACT(YEAR FROM TRY_CAST(stoptime AS TIMESTAMP)) AS year
-      FROM raw_trips
-      WHERE "end station name" IS NOT NULL
     ),
     station_summary AS (
       SELECT
@@ -424,7 +394,7 @@ async function main() {
 
   console.log(`Geocoded: ${matched} matched, ${unmatched} unmatched`);
 
-  fs.writeFileSync(stationsPath, JSON.stringify(stations, null, 2));
+  fs.writeFileSync(stationsPath, JSON.stringify(stations));
   console.log(`\nWrote ${stations.length} stations to ${stationsPath}`);
 
   connection.closeSync();
