@@ -103,7 +103,6 @@ async function main() {
   await mkdir(tempDir, { recursive: true });
   await connection.run(`SET temp_directory = '${tempDir}'`);
   await connection.run(`SET memory_limit = '32GB'`);
-  await connection.run(`SET preserve_insertion_order = false`);
 
   // 1. Load ALL data from all years using unified schema
   // Uses COALESCE to handle both legacy (2013-2019) and modern (2020+) schemas
