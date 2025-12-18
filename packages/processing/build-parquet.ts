@@ -406,6 +406,7 @@ async function main() {
     totalParquetBytes += monthStats.size;
     const elapsed = ((Date.now() - stepStart) / 1000).toFixed(1);
     console.log(`  ${monthTripCount} trips (${monthWithRoute} with routes) → ${(monthStats.size / 1024 / 1024).toFixed(1)} MB in ${elapsed}s`);
+    console.log(`  → ${monthPath}`);
 
     // Clean up month tables before next iteration
     await connection.run(`DROP TABLE filtered_month`);
