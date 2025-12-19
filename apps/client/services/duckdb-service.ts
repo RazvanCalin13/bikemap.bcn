@@ -5,22 +5,24 @@ const TRIPS_BASE_URL = "https://bikemap.storage.googleapis.com";
 
 /**
  * Get month key from a date (e.g., "2025-09")
+ * Uses UTC to match parquet file naming convention
  */
 function getMonthKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 /**
  * Get the list of months that overlap with a date range
+ * Uses UTC to match parquet file naming convention
  */
 function getMonthsForRange(from: Date, to: Date): string[] {
   const months: string[] = [];
-  const current = new Date(from.getFullYear(), from.getMonth(), 1);
-  const end = new Date(to.getFullYear(), to.getMonth(), 1);
+  const current = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1));
+  const end = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), 1));
 
   while (current <= end) {
     months.push(getMonthKey(current));
-    current.setMonth(current.getMonth() + 1);
+    current.setUTCMonth(current.getUTCMonth() + 1);
   }
   return months;
 }

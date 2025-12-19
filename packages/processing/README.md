@@ -155,6 +155,16 @@ read_csv_auto('path/**/*.csv',
 | `routeGeometry` | string | Polyline6-encoded route |
 | `routeDistance` | float | Route distance in meters |
 
+## Timezone Handling
+
+| Layer | Timezone | Notes |
+|-------|----------|-------|
+| CSV (raw) | NYC local (naive) | No timezone info in source data |
+| Parquet | UTC | Build converts NYC → UTC |
+| Parquet filenames | UTC month | `2025-09.parquet` uses UTC month boundaries |
+| Client internal | UTC | Use `getUTCMonth()`, `Date.UTC()`, etc. |
+| Client display | NYC | `timeZone: "America/New_York"` in formatters |
+
 ## Route Coverage
 
 Trips without routes (round trips, ferry crossings) are filtered out at build time, so the parquet files contain only trips with valid route geometry.
