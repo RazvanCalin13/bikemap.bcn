@@ -6,7 +6,6 @@ Converts raw Citi Bike CSV data into optimized formats for the visualization cli
 
 - [Bun](https://bun.sh/) v1.2.9+
 - [Docker](https://www.docker.com/) (for OSRM routing server)
-- [AWS CLI](https://aws.amazon.com/cli/) (for downloading data from S3)
 
 ## Setup
 
@@ -16,7 +15,7 @@ Download all historical trip data from the public S3 bucket (no credentials requ
 
 ```bash
 mkdir -p data
-aws s3 sync s3://tripdata/ data/ --no-sign-request --exclude "*" --include "*.zip"
+s5cmd --no-sign-request cp 's3://tripdata/*.zip' data/
 ```
 
 This downloads ~30GB of zip files covering 2013-present.
