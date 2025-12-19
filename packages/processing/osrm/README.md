@@ -26,8 +26,8 @@ docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend \
   osrm-customize /data/NewYork.osrm
 
 # 3. Start server (runs on localhost:5000)
-docker run -t -i -p 5000:5000 -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend \
-  osrm-routed --algorithm mld /data/NewYork.osrm
+docker run --rm -p 5000:5000 -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend \
+  osrm-routed --algorithm mld /data/NewYork.osrm 2>/dev/null
 ```
 
 Steps 1-2 only need to run once. After that, just run step 3 to start the server.
@@ -36,8 +36,8 @@ Steps 1-2 only need to run once. After that, just run step 3 to start the server
 >
 > ```bash
 > # Example: 12-core machine
-> docker run -t -i -p 5000:5000 -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend \
->   osrm-routed --algorithm mld --threads 12 /data/NewYork.osrm
+> docker run --rm -p 5000:5000 -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend \
+>   osrm-routed --algorithm mld --threads 12 /data/NewYork.osrm 2>/dev/null
 > ```
 
 ## Usage

@@ -14,15 +14,27 @@
 // - Name-based keying gives fewer unique pairs to fetch from OSRM
 //
 // Resumable: If interrupted, re-run to continue from where it left off.
+//
+// Usage: bun run build-routes.ts [--concurrency N]
+//   --concurrency N  Number of parallel OSRM requests (default: 50)
+//                    Match this to OSRM's --threads for best performance.
 import { DuckDBConnection } from "@duckdb/node-api";
 import { Database } from "bun:sqlite";
 import { mkdirSync, statSync } from "fs";
 import path from "path";
+import { parseArgs } from "util";
 import { z } from "zod";
 import { csvGlob, gitRoot, outputDir } from "./utils";
 
+const { values } = parseArgs({
+  args: Bun.argv.slice(2),
+  options: {
+    concurrency: { type: "string", short: "c", default: "50" },
+  },
+});
+
 const OSRM_URL = "http://localhost:5000";
-const CONCURRENCY = 50;
+const CONCURRENCY = parseInt(values.concurrency!, 10);
 const WRITE_BATCH_SIZE = 5000;
 
 const routesDbPath = path.join(outputDir, "routes.db");
@@ -187,6 +199,7 @@ async function getUniquePairsFromCSVs(): Promise<StationPair[]> {
 
 async function main() {
   console.log("=== Build Routes (SQLite) ===\n");
+  console.log(`Concurrency: ${CONCURRENCY}`);
 
   // 1. Load stations (keyed by name)
   console.log("Loading stations.json...");
