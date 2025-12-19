@@ -29,7 +29,7 @@ import { csvGlob, gitRoot, outputDir } from "./utils";
 const { values } = parseArgs({
   args: Bun.argv.slice(2),
   options: {
-    concurrency: { type: "string", short: "c", default: "50" },
+    concurrency: { type: "string", short: "c", default: "5000" },
   },
 });
 
