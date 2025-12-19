@@ -289,7 +289,7 @@ async function main() {
     return;
   }
 
-  // 7. Fetch routes from OSRM
+  // 7. Fetch routes from OSRM using worker pool
   console.log("Fetching routes from OSRM...");
 
   const insertStmt = db.query(`
@@ -299,6 +299,8 @@ async function main() {
 
   let success = 0;
   let failed = 0;
+  let index = 0;
+  let processed = 0;
   const startTime = Date.now();
   const pendingWrites: Route[] = [];
 
@@ -317,24 +319,8 @@ async function main() {
     pendingWrites.length = 0;
   };
 
-  for (let i = 0; i < pairs.length; i += CONCURRENCY) {
-    const batch = pairs.slice(i, i + CONCURRENCY);
-    const results = await Promise.all(batch.map(fetchRoute));
-
-    const validRoutes = results.filter((r): r is Route => r !== null);
-    pendingWrites.push(...validRoutes);
-
-    // Flush to SQLite when batch size reached
-    if (pendingWrites.length >= WRITE_BATCH_SIZE) {
-      flushWrites();
-    }
-
-    success += validRoutes.length;
-    failed += results.length - validRoutes.length;
-
-    // Progress
+  const updateProgress = () => {
     const elapsed = (Date.now() - startTime) / 1000;
-    const processed = i + batch.length;
     const rate = processed / elapsed;
     const remaining = pairs.length - processed;
     const eta = remaining / rate;
@@ -343,10 +329,39 @@ async function main() {
     process.stdout.write(
       `\r  [${pct}%] ${success} ok, ${failed} failed | ${rate.toFixed(0)}/s | ETA: ${(eta / 60).toFixed(1)}min   `
     );
+  };
+
+  async function worker(): Promise<void> {
+    while (index < pairs.length) {
+      const currentIndex = index++;
+      const pair = pairs[currentIndex]!;
+      const route = await fetchRoute(pair);
+
+      processed++;
+      if (route) {
+        success++;
+        pendingWrites.push(route);
+
+        // Flush to SQLite when batch size reached
+        if (pendingWrites.length >= WRITE_BATCH_SIZE) {
+          flushWrites();
+        }
+      } else {
+        failed++;
+      }
+
+      // Update progress every 100 requests
+      if (processed % 100 === 0) {
+        updateProgress();
+      }
+    }
   }
+
+  await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
 
   // Flush remaining writes
   flushWrites();
+  updateProgress();
 
   console.log();
 
