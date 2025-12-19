@@ -83,6 +83,15 @@ bun run build-parquet.ts
 | `output/routes.db` | SQLite cache of routes keyed by station NAME |
 | `output/parquets/<year>-<month>.parquet` | Monthly trip data with embedded route geometry |
 
+## Upload to Cloud Storage
+
+Upload the parquet files to a bucket:
+
+```bash
+# eg. using Google Cloud Storage
+gcloud storage cp -r output/parquets/* gs://YOUR_BUCKET/parquets/
+```
+
 ## How It Works
 
 ### Station Names as Universal Key
