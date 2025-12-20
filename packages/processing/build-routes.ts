@@ -1,48 +1,92 @@
-import { Database } from 'bun:sqlite';
-import path from 'path';
-import { z } from 'zod';
+// Builds routes.db (SQLite) with route geometries from OSRM.
+//
+// Prerequisites:
+// - CSV files in data/**/*.csv (all years)
+// - apps/client/public/stations.json (from build-stations.ts)
+// - OSRM server running on localhost:5000
+//
+// Output:
+// - output/routes.db (SQLite) with: start_station_name, end_station_name, geometry (polyline6), distance
+//
+// Routes are keyed by station NAME (not ID) because:
+// - Station names are unique
+// - Same physical route can have 6+ different ID combinations across years
+// - Name-based keying gives fewer unique pairs to fetch from OSRM
+//
+// Resumable: If interrupted, re-run to continue from where it left off.
+//
+// Usage: bun run build-routes.ts [--concurrency N]
+//   --concurrency N  Number of parallel OSRM requests (default: 50)
+//                    Match this to OSRM's --threads for best performance.
+import { DuckDBConnection } from "@duckdb/node-api";
+import { Database } from "bun:sqlite";
+import { mkdirSync, statSync } from "fs";
+import path from "path";
+import { parseArgs } from "util";
+import { z } from "zod";
+import { csvGlob, gitRoot, outputDir } from "./utils";
 
-const OSRM_URL = 'http://localhost:5000';
-const CONCURRENCY = 50;
-
-// Station pair from DB query
-const StationPairSchema = z.object({
-  startStationId: z.string(),
-  endStationId: z.string(),
-  startLat: z.number(),
-  startLng: z.number(),
-  endLat: z.number(),
-  endLng: z.number(),
-  tripCount: z.number(),
-});
-type StationPair = z.infer<typeof StationPairSchema>;
-
-// OSRM route from response
-const RouteSchema = z.object({
-  geometry: z.string(),
-  distance: z.number(),
-  duration: z.number(),
-  legs: z.array(
-    z.object({
-      steps: z.array(z.unknown()),
-      weight: z.number(),
-      summary: z.string(),
-      duration: z.number(),
-      distance: z.number(),
-    })
-  ),
-  weight: z.number(),
-  weight_name: z.string(),
+const { values } = parseArgs({
+  args: Bun.argv.slice(2),
+  options: {
+    concurrency: { type: "string", short: "c", default: "5000" },
+  },
 });
 
-// OSRM success response
+const OSRM_URL = "http://localhost:5000";
+const CONCURRENCY = parseInt(values.concurrency!, 10);
+const WRITE_BATCH_SIZE = 5000;
+
+const routesDbPath = path.join(outputDir, "routes.db");
+
+// Station format from build-stations.ts
+type StationFromFile = {
+  name: string;
+  aliases: string[];
+  latitude: number;
+  longitude: number;
+  borough: string;
+  neighborhood: string;
+};
+
+type Station = {
+  name: string;
+  latitude: number;
+  longitude: number;
+};
+
+type StationPair = {
+  startStationName: string;
+  endStationName: string;
+};
+
+type StationPairWithCoords = StationPair & {
+  startLat: number;
+  startLng: number;
+  endLat: number;
+  endLng: number;
+};
+
+type Route = {
+  startStationName: string;
+  endStationName: string;
+  geometry: string; // polyline6-encoded
+  distance: number;
+};
+
+// OSRM response schemas
 const OSRMSuccessResponseSchema = z.object({
-  code: z.literal('Ok'),
-  routes: z.array(RouteSchema).min(1),
-  waypoints: z.array(z.unknown()),
+  code: z.literal("Ok"),
+  routes: z
+    .array(
+      z.object({
+        geometry: z.string(),
+        distance: z.number(),
+      })
+    )
+    .min(1),
 });
 
-// OSRM error response
 const OSRMErrorResponseSchema = z.object({
   code: z.string(),
   message: z.string().optional(),
@@ -52,167 +96,289 @@ const OSRMResponseSchema = z.union([OSRMSuccessResponseSchema, OSRMErrorResponse
 type OSRMResponse = z.infer<typeof OSRMResponseSchema>;
 type OSRMSuccessResponse = z.infer<typeof OSRMSuccessResponseSchema>;
 
-function isSuccessResponse(response: OSRMResponse): response is OSRMSuccessResponse {
-  return response.code === 'Ok';
+function isOSRMSuccess(response: OSRMResponse): response is OSRMSuccessResponse {
+  return response.code === "Ok";
 }
 
-// What we store per route
-const RouteDataSchema = z.object({
-  geometry: z.string(),
-  distance: z.number(),
-  duration: z.number(),
-});
-type RouteData = z.infer<typeof RouteDataSchema>;
+function fail(msg: string): never {
+  console.error(`\n❌ FATAL: ${msg}`);
+  process.exit(1);
+}
 
-async function fetchRoute(data: {
-  startLng: number;
-  startLat: number;
-  endLng: number;
-  endLat: number;
-}): Promise<RouteData | null> {
-  const url = `${OSRM_URL}/route/v1/bicycle/${data.startLng},${data.startLat};${data.endLng},${data.endLat}?geometries=polyline6&overview=full`;
+async function loadStations(): Promise<Map<string, Station>> {
+  const stationsPath = path.join(gitRoot, "apps/client/public/stations.json");
+  const file = Bun.file(stationsPath);
+  if (!(await file.exists())) {
+    fail(`stations.json not found at ${stationsPath}. Run build-stations.ts first.`);
+  }
+  const stationsFromFile: StationFromFile[] = await file.json();
+
+  // Map station name -> coordinates
+  // Include both canonical names AND aliases so we can look up historical names from CSVs
+  const stationMap = new Map<string, Station>();
+  for (const station of stationsFromFile) {
+    // Canonical name
+    stationMap.set(station.name, {
+      name: station.name,
+      latitude: station.latitude,
+      longitude: station.longitude,
+    });
+    // Also map aliases to same coordinates (for historical station names in CSVs)
+    for (const alias of station.aliases ?? []) {
+      stationMap.set(alias, {
+        name: station.name, // Use canonical name for route key
+        latitude: station.latitude,
+        longitude: station.longitude,
+      });
+    }
+  }
+  return stationMap;
+}
+
+async function checkOSRM(): Promise<void> {
+  try {
+    const res = await fetch(`${OSRM_URL}/route/v1/bicycle/-73.99,40.73;-73.98,40.74`);
+    if (!res.ok) fail(`OSRM test request failed: ${res.status}`);
+    const json: unknown = await res.json();
+    const parsed = OSRMResponseSchema.safeParse(json);
+    if (!parsed.success) fail(`Invalid OSRM response: ${parsed.error.message}`);
+    if (!isOSRMSuccess(parsed.data)) fail(`OSRM test failed: ${parsed.data.code}`);
+  } catch {
+    fail(`OSRM not reachable at ${OSRM_URL}. Start it first.`);
+  }
+}
+
+async function fetchRoute(pair: StationPairWithCoords): Promise<Route | null> {
+  const url = `${OSRM_URL}/route/v1/bicycle/${pair.startLng},${pair.startLat};${pair.endLng},${pair.endLat}?geometries=polyline6&overview=full`;
 
   try {
-    const response = await fetch(url);
-    const json = await response.json();
+    const res = await fetch(url);
+    const json: unknown = await res.json();
 
     const parsed = OSRMResponseSchema.safeParse(json);
-    if (!parsed.success) {
-      console.error('Invalid OSRM response:', parsed.error.message);
-      return null;
-    }
+    if (!parsed.success) return null;
+    if (!isOSRMSuccess(parsed.data)) return null;
 
-    if (!isSuccessResponse(parsed.data)) {
-      console.error(`OSRM error: ${parsed.data.code} - ${parsed.data.message ?? 'no message'}`);
-      return null;
-    }
+    const route = parsed.data.routes[0]!;
+    // OSRM returns polyline6-encoded geometry directly - store as-is
+    // Client will decode to get [lat, lng] pairs
+    if (!route.geometry) return null;
 
-    const route = parsed.data.routes[0]!; // min(1) guarantees at least one
     return {
+      startStationName: pair.startStationName,
+      endStationName: pair.endStationName,
       geometry: route.geometry,
       distance: route.distance,
-      duration: route.duration,
     };
-  } catch (error) {
-    console.error('Route fetch error:', error);
+  } catch {
     return null;
   }
 }
 
-async function main(): Promise<void> {
-  const dbPath = path.join(import.meta.dir, '../db/mydb.db');
-  const db = new Database(dbPath);
+async function getUniquePairsFromCSVs(): Promise<StationPair[]> {
+  console.log(`Reading unique station NAME pairs from CSVs using DuckDB...`);
 
-  // Prepare insert statement
-  const insertRoute = db.prepare(`
-    INSERT OR REPLACE INTO Route (startStationId, endStationId, geometry, distance, duration)
-    VALUES (?, ?, ?, ?, ?)
+  const connection = await DuckDBConnection.create();
+  // Extract unique station NAME pairs (not IDs) from all years
+  // normalize_names=true merges "start station name" and "Start Station Name" into start_station_name
+  const reader = await connection.runAndReadAll(`
+    SELECT DISTINCT
+      start_station_name AS startStationName,
+      end_station_name AS endStationName
+    FROM read_csv_auto('${csvGlob}', union_by_name=true, normalize_names=true, all_varchar=true, null_padding=true, quote='"')
+    WHERE start_station_name IS NOT NULL
+      AND end_station_name IS NOT NULL
+      AND start_station_name != end_station_name
   `);
 
-  // Get existing routes to skip
-  const existingRoutes = new Set(
-    db
-      .query<{ key: string }, []>(`SELECT startStationId || '->' || endStationId as key FROM Route`)
-      .all()
-      .map((r) => r.key)
-  );
-  console.log(`Found ${existingRoutes.size} existing routes in DB`);
+  const pairs = reader.getRowObjectsJson() as unknown as StationPair[];
+  connection.closeSync();
 
-  // Get unique station pairs with coordinates, ordered by trip count (most popular first)
-  console.log('Fetching unique station pairs...');
-  const pairs = db
-    .query<StationPair, []>(
-      `
-    SELECT
-      t.startStationId,
-      t.endStationId,
-      s1.latitude as startLat,
-      s1.longitude as startLng,
-      s2.latitude as endLat,
-      s2.longitude as endLng,
-      COUNT(*) as tripCount
-    FROM Trip t
-    JOIN Station s1 ON t.startStationId = s1.id
-    JOIN Station s2 ON t.endStationId = s2.id
-    GROUP BY t.startStationId, t.endStationId
-    ORDER BY tripCount DESC
-  `
+  return pairs;
+}
+
+async function main() {
+  console.log("=== Build Routes (SQLite) ===\n");
+  console.log(`Concurrency: ${CONCURRENCY}`);
+
+  // 1. Load stations (keyed by name)
+  console.log("Loading stations.json...");
+  const stationMap = await loadStations();
+  console.log(`  ${stationMap.size} station names loaded`);
+
+  // 2. Check OSRM
+  console.log("Checking OSRM...");
+  await checkOSRM();
+  console.log("  OSRM OK");
+
+  // 3. Open/create SQLite database
+  console.log("Opening routes.db...");
+  mkdirSync(outputDir, { recursive: true });
+  const db = new Database(routesDbPath);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS routes (
+      start_station_name TEXT NOT NULL,
+      end_station_name TEXT NOT NULL,
+      geometry TEXT NOT NULL,
+      distance REAL NOT NULL,
+      PRIMARY KEY (start_station_name, end_station_name)
     )
-    .all();
+  `);
 
-  console.log(`Found ${pairs.length} unique station pairs`);
+  // 4. Load existing routes for resume support
+  const existingRoutes = new Set<string>();
+  const existingRows = db.query("SELECT start_station_name || '->' || end_station_name as key FROM routes").all();
+  for (const row of existingRows) {
+    existingRoutes.add((row as { key: string }).key);
+  }
+  console.log(`  ${existingRoutes.size} routes already cached`);
 
-  // Filter out already processed pairs
-  const remainingPairs = pairs.filter((p) => {
-    const key = `${p.startStationId}->${p.endStationId}`;
-    return !existingRoutes.has(key);
-  });
+  // 5. Get unique station pairs from CSVs
+  const allPairs = await getUniquePairsFromCSVs();
+  console.log(`  ${allPairs.length} unique pairs total`);
 
-  console.log(`${remainingPairs.length} pairs remaining to process`);
+  // 6. Filter to pairs that need fetching
+  // CSV names may be aliases - we normalize to canonical names for route keys
+  const pairs: StationPairWithCoords[] = [];
+  const seenKeys = new Set<string>(); // Dedupe after canonical normalization
+  let missingStations = 0;
 
-  if (remainingPairs.length === 0) {
-    console.log('All routes already cached!');
+  for (const p of allPairs) {
+    const start = stationMap.get(p.startStationName);
+    const end = stationMap.get(p.endStationName);
+
+    if (!start || !end) {
+      missingStations++;
+      continue;
+    }
+
+    // Use canonical names (from station lookup) for route key
+    // This normalizes aliases like "8 Ave & W 31 St" -> "W 31 St & 8 Ave"
+    const canonicalStartName = start.name;
+    const canonicalEndName = end.name;
+    const key = `${canonicalStartName}->${canonicalEndName}`;
+
+    // Skip if we've already seen this canonical pair or it exists in DB
+    if (seenKeys.has(key) || existingRoutes.has(key)) continue;
+    seenKeys.add(key);
+
+    pairs.push({
+      startStationName: canonicalStartName,
+      endStationName: canonicalEndName,
+      startLat: start.latitude,
+      startLng: start.longitude,
+      endLat: end.latitude,
+      endLng: end.longitude,
+    });
+  }
+
+  if (missingStations > 0) {
+    console.warn(`  ${missingStations} pairs skipped (station name not in stations.json)`);
+  }
+  console.log(`  ${pairs.length} pairs to fetch`);
+
+  // Print total data loss summary
+  const totalPairs = allPairs.length;
+  const skippedPct = ((missingStations / totalPairs) * 100).toFixed(2);
+  console.log(`\nTotal data loss: ${missingStations} pairs (${skippedPct}%) skipped due to missing stations`);
+
+  if (pairs.length === 0) {
+    console.log("\n✅ All routes already cached!");
     db.close();
     return;
   }
 
-  const startTime = Date.now();
-  let processed = 0;
+  // 7. Fetch routes from OSRM using worker pool
+  console.log("Fetching routes from OSRM...");
+
+  const insertStmt = db.query(`
+    INSERT OR REPLACE INTO routes (start_station_name, end_station_name, geometry, distance)
+    VALUES ($startStationName, $endStationName, $geometry, $distance)
+  `);
+
+  let success = 0;
   let failed = 0;
+  let index = 0;
+  let processed = 0;
+  const startTime = Date.now();
+  const pendingWrites: Route[] = [];
 
-  for (let i = 0; i < remainingPairs.length; i += CONCURRENCY) {
-    const batch = remainingPairs.slice(i, i + CONCURRENCY);
-
-    const results = await Promise.all(
-      batch.map(async (pair) => {
-        const routeData = await fetchRoute({
-          startLng: pair.startLng,
-          startLat: pair.startLat,
-          endLng: pair.endLng,
-          endLat: pair.endLat,
-        });
-        return { pair, routeData };
-      })
-    );
-
-    // Insert batch into DB
+  const flushWrites = () => {
+    if (pendingWrites.length === 0) return;
     db.transaction(() => {
-      for (const { pair, routeData } of results) {
-        if (routeData) {
-          insertRoute.run(
-            pair.startStationId,
-            pair.endStationId,
-            routeData.geometry,
-            routeData.distance,
-            routeData.duration
-          );
-          processed++;
-        } else {
-          failed++;
-        }
+      for (const route of pendingWrites) {
+        insertStmt.run({
+          $startStationName: route.startStationName,
+          $endStationName: route.endStationName,
+          $geometry: route.geometry,
+          $distance: route.distance,
+        });
       }
     })();
+    pendingWrites.length = 0;
+  };
 
-    // Progress update
-    const total = processed + failed;
+  const updateProgress = () => {
     const elapsed = (Date.now() - startTime) / 1000;
-    const rate = total / elapsed;
-    const remaining = remainingPairs.length - total;
+    const rate = processed / elapsed;
+    const remaining = pairs.length - processed;
     const eta = remaining / rate;
+    const pct = (((existingRoutes.size + processed) / (existingRoutes.size + pairs.length)) * 100).toFixed(1);
 
     process.stdout.write(
-      `\r[${total}/${remainingPairs.length}] ${processed} success, ${failed} failed | ${rate.toFixed(0)}/s | ETA: ${(eta / 60).toFixed(1)}min`
+      `\r  [${pct}%] ${success} ok, ${failed} failed | ${rate.toFixed(0)}/s | ETA: ${(eta / 60).toFixed(1)}min   `
     );
+  };
+
+  async function worker(): Promise<void> {
+    while (index < pairs.length) {
+      const currentIndex = index++;
+      const pair = pairs[currentIndex]!;
+      const route = await fetchRoute(pair);
+
+      processed++;
+      if (route) {
+        success++;
+        pendingWrites.push(route);
+
+        // Flush to SQLite when batch size reached
+        if (pendingWrites.length >= WRITE_BATCH_SIZE) {
+          flushWrites();
+        }
+      } else {
+        failed++;
+      }
+
+      // Update progress every 100 requests
+      if (processed % 100 === 0) {
+        updateProgress();
+      }
+    }
   }
 
-  console.log('\n');
-  console.log('='.repeat(50));
-  console.log(`Routes cached: ${processed}`);
-  console.log(`Routes failed: ${failed}`);
-  console.log(`Total time: ${((Date.now() - startTime) / 1000 / 60).toFixed(1)} minutes`);
-  console.log('='.repeat(50));
+  await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+
+  // Flush remaining writes
+  flushWrites();
+  updateProgress();
+
+  console.log();
+
+  if (failed > 0) {
+    console.warn(`⚠️  ${failed} routes failed (no OSRM path)`);
+  }
+
+  // 8. Report final stats
+  const countResult = db.query("SELECT COUNT(*) as count FROM routes").get() as { count: number };
+  const dbStats = statSync(routesDbPath);
 
   db.close();
+
+  console.log(`\n✅ Done: ${countResult.count} routes (${(dbStats.size / 1024 / 1024).toFixed(1)} MB)`);
 }
 
-main();
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

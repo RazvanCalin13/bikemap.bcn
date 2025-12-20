@@ -1,4 +1,11 @@
 // =============================================================================
+// Timezone Convention
+// =============================================================================
+// All timestamps are stored and processed in UTC internally.
+// Display functions convert to America/New_York for user-facing output.
+// See packages/processing/README.md for full documentation.
+
+// =============================================================================
 // Distance Formatting
 // =============================================================================
 
@@ -27,23 +34,21 @@ export function formatDurationMinutes(startedAt: Date, endedAt: Date): string {
 // Date/Time Formatting
 // =============================================================================
 
-// Format date for display (omits year if current year)
+// Format date for display (NYC timezone)
 export function formatDateTime(date: Date): string {
-  const currentYear = new Date().getFullYear();
-  const dateYear = date.getFullYear();
-
   return date.toLocaleString("en-US", {
     weekday: "long",
     day: "numeric",
     month: "long",
-    year: dateYear !== currentYear ? "numeric" : undefined,
+    year: "numeric",
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
+    timeZone: "America/New_York",
   });
 }
 
-// Format date with year always included
+// Format date with year always included (NYC timezone)
 export function formatDateTimeFull(date: Date): string {
   return date.toLocaleString("en-US", {
     month: "short",
@@ -52,6 +57,7 @@ export function formatDateTimeFull(date: Date): string {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
+    timeZone: "America/New_York",
   });
 }
 

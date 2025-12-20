@@ -7,6 +7,7 @@ import {
   CHUNK_SIZE_SECONDS,
   CHUNKS_PER_BATCH,
   EASE_DISTANCE_METERS,
+  EASE_TIME_MULTIPLIER,
   TRAIL_LENGTH_SECONDS,
 } from "../lib/config";
 import { filterTrips } from "../lib/trip-filters";
@@ -46,9 +47,9 @@ function getTimeFraction(dist: number, totalDist: number): number {
   const easeInEnd = easeDist;
   const easeOutStart = totalDist - easeDist;
   const linearDist = totalDist - 2 * easeDist;
-  const totalTime = 2 * easeDist + linearDist + 2 * easeDist;
-  const easeInTime = 2 * easeDist;
+  const easeInTime = EASE_TIME_MULTIPLIER * easeDist;
   const linearTime = linearDist;
+  const totalTime = easeInTime + linearTime + easeInTime;
 
   if (dist < easeInEnd) {
     const t = dist / easeDist;
@@ -74,10 +75,10 @@ function prepareTripsForDeck(data: {
 }): ProcessedTrip[] {
   const { trips, windowStartMs: winStart, fadeDurationSimSeconds: fadeDur } = data;
 
-  // Filter trips
-  const validTrips = filterTrips(trips) as (TripWithRoute & {
-    routeGeometry: string;
-  })[];
+  // Filter trips (must have routeGeometry)
+  const validTrips = filterTrips(trips) as Array<
+    TripWithRoute & { routeGeometry: string }
+  >;
 
   const prepared = validTrips
     .map((trip) => {
@@ -157,7 +158,7 @@ function prepareTripsForDeck(data: {
         id: trip.id,
         path: coordinates,
         timestamps,
-        bikeType: trip.rideableType,
+        bikeType: trip.bikeType,
         startTimeSeconds: tripStartSeconds,
         endTimeSeconds: tripEndSeconds,
         visibleStartSeconds,
@@ -179,8 +180,8 @@ function prepareTripsForDeck(data: {
         currentPathColor: [0, 0, 0, 0] as [number, number, number, number],
         // Metadata for UI display
         memberCasual: trip.memberCasual,
-        startStationId: trip.startStationId,
-        endStationId: trip.endStationId,
+        startStationName: trip.startStationName,
+        endStationName: trip.endStationName,
         startedAtMs: tripStartMs,
         endedAtMs: tripEndMs,
         routeDistance: trip.routeDistance,

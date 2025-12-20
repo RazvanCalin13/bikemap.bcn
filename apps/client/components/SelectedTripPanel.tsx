@@ -8,7 +8,7 @@ type SelectedTripPanelProps = {
 };
 
 export function SelectedTripPanel({ info }: SelectedTripPanelProps) {
-  const isElectric = info.rideableType === "electric_bike";
+  const isElectric = info.bikeType === "electric_bike";
 
   return (
     <div className="bg-black/45 backdrop-blur-md text-white/90 px-3 py-2 rounded-xl border border-white/10 shadow-[0_0_24px_rgba(0,0,0,0.6)] w-[200px] mt-2">
@@ -41,6 +41,7 @@ export function SelectedTripPanel({ info }: SelectedTripPanelProps) {
             hour: "numeric",
             minute: "2-digit",
             hour12: true,
+            timeZone: "America/New_York",
           })}
         </span>
         <span>{formatDurationMinutes(info.startedAt, info.endedAt)}</span>
