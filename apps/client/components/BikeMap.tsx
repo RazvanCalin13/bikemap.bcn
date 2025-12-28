@@ -485,14 +485,14 @@ export const BikeMap = () => {
 
           const trip = tripMapRef.current.get(selectedId);
 
-          // Clear selection if trip ended (but not if trip hasn't loaded yet)
-          if (trip && state.currentTime > trip.visibleEndSeconds) {
+          // Clear selection if trip ended OR if trip no longer exists in map
+          if (!trip || state.currentTime > trip.visibleEndSeconds) {
             state.selectTrip(null);
             return;
           }
 
           // Follow if visible
-          if (trip?.isVisible) {
+          if (trip.isVisible) {
             setInitialViewState((prev) => ({
               ...prev,
               longitude: trip.currentPosition[0],
