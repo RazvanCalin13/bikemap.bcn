@@ -268,7 +268,7 @@ export function Search() {
       throw new Error(`No station selected`)
     }
 
-    // Select the trip for highlighting with full metadata
+    // Select the trip - BikeMap will render it once trips load
     selectTrip({
       id: trip.id,
       info: {

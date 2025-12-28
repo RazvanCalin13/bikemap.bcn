@@ -724,11 +724,12 @@ export const BikeMap = () => {
   }, [activeTrips, time, selectedTripId, fadeDurationSimSeconds]);
 
   // Memoize selected trip data - O(1) map lookup instead of O(n) filter
+  // Depends on activeTrips to recalculate when trips load after config change
   const selectedTripData = useMemo(() => {
     if (!selectedTripId) return [];
     const trip = tripMapRef.current.get(selectedTripId);
     return trip ? [trip] : [];
-  }, [selectedTripId]);
+  }, [selectedTripId, activeTrips]);
 
   const layers = useMemo(() => {
     // Show station dots when picking a location (GPU-accelerated)
