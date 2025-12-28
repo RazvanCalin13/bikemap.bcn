@@ -1,6 +1,6 @@
-import { forwardRef, memo, useMemo } from "react";
-import type { GraphDataPoint } from "@/lib/trip-types";
 import { GRAPH_MIN_SCALE, GRAPH_WINDOW_SIZE_SECONDS } from "@/lib/config";
+import type { GraphDataPoint } from "@/lib/trip-types";
+import { forwardRef, memo, useMemo } from "react";
 
 type ActiveRidesPanelProps = {
   tripCount: number;
@@ -78,8 +78,10 @@ export const ActiveRidesPanel = memo(
             <text x="36" y="22" textAnchor="middle" fontSize="8" fill="rgba(125, 207, 255, 0.4)" fontWeight="500">E</text>
           </svg>
         </div>
-        <div className="text-[10px] uppercase tracking-widest text-white/60 text-left">Active Rides</div>
-        <div className="mt-0.5 text-xl font-semibold tabular-nums text-left">{tripCount.toLocaleString()}</div>
+        <div className="mt-0.5 flex items-baseline gap-1.5 text-left">
+          <span className="text-xl font-semibold tabular-nums">{tripCount.toLocaleString()}</span>
+          <span className="text-[10px] tracking-wide text-white/70">RIDES</span>
+        </div>
         <div ref={fpsRef} className="mt-0.5 text-[10px] tracking-wide text-white/50 text-left">-- FPS</div>
         <div className="mt-2">
           <svg
