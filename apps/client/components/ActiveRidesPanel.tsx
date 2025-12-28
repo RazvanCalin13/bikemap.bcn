@@ -61,7 +61,7 @@ export const ActiveRidesPanel = memo(
     const hasData = linePath.length > 0;
 
     return (
-      <div className="bg-black/45 backdrop-blur-md text-white/90 px-3 py-2 rounded-xl border border-white/10 shadow-[0_0_24px_rgba(0,0,0,0.6)] w-[200px] relative">
+      <div className="hidden sm:block bg-black/45 backdrop-blur-md text-white/90 px-3 py-2 rounded-xl border border-white/10 shadow-[0_0_24px_rgba(0,0,0,0.6)] w-[200px] relative">
         {/* Compass */}
         <div
           className="absolute top-2 right-2"

@@ -820,8 +820,8 @@ export const BikeMap = () => {
 
       {/* HUD - top bar */}
       <div className="absolute top-3 inset-x-0 z-10 flex items-start justify-between px-3 pointer-events-none">
-        {/* Controls - left (vertically stacked) */}
-        <div className="flex flex-col items-start gap-1 pointer-events-auto">
+        {/* Controls - bottom-right on mobile, top-left on desktop */}
+        <div className="fixed bottom-8 right-3 z-20 sm:static sm:z-auto flex flex-col items-end sm:items-start gap-1 pointer-events-auto">
           {/* Play/Pause button */}
           {animState === "idle" ? (
             <button
