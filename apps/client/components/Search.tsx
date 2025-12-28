@@ -297,6 +297,9 @@ export function Search() {
           onValueChange={setDatetimeInput}
           icon={<CalendarSearch className="size-4 shrink-0 text-muted-foreground" />}
         />
+        <div className="px-3 py-2 text-xs text-muted-foreground">
+          Search any <a href="https://citibikenyc.com/" target="_blank" rel="noopener" className="underline hover:text-foreground">{"Citi Bike"}</a> ride from 2013 to 2025.
+        </div>
         <CommandList>
           {parsedDate && (
             <CommandGroup>
