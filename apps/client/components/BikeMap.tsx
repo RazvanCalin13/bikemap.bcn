@@ -76,6 +76,17 @@ const ICON_MAPPING = {
   arrow: { x: 0, y: 0, width: 24, height: 24, anchorX: 12, anchorY: 12, mask: true },
 };
 
+// Static polygon for dim overlay (full world bounds)
+const DIM_OVERLAY_POLYGON = [
+  [
+    [-180, -90],
+    [-180, 90],
+    [180, 90],
+    [180, -90],
+    [-180, -90],
+  ],
+];
+
 // Selected path color with fade in/out based on phase
 const PATH_OPACITY = 180;
 const getSelectedPathColor = (d: ProcessedTrip): Color4 => d.currentPathColor;
@@ -705,11 +716,12 @@ export const BikeMap = () => {
     visibleCountRef.current = count;
   }, [activeTrips, time, selectedTripId, fadeDurationSimSeconds]);
 
-  // Memoize selected trip data separately to avoid filtering every frame
-  const selectedTripData = useMemo(
-    () => (selectedTripId ? activeTrips.filter((t) => t.id === selectedTripId) : []),
-    [activeTrips, selectedTripId]
-  );
+  // Memoize selected trip data - O(1) map lookup instead of O(n) filter
+  const selectedTripData = useMemo(() => {
+    if (!selectedTripId) return [];
+    const trip = tripMapRef.current.get(selectedTripId);
+    return trip ? [trip] : [];
+  }, [selectedTripId]);
 
   const layers = useMemo(() => {
     const hasSelection = selectedTripData.length > 0;
@@ -761,17 +773,9 @@ export const BikeMap = () => {
         ? [
             new SolidPolygonLayer({
               id: "dim-overlay",
-              data: [
-                [
-                  [-180, -90],
-                  [-180, 90],
-                  [180, 90],
-                  [180, -90],
-                  [-180, -90],
-                ],
-              ],
+              data: DIM_OVERLAY_POLYGON,
               getPolygon: (d) => d,
-              getFillColor: [0, 0, 0, 180], 
+              getFillColor: [0, 0, 0, 180],
               pickable: false,
             }),
           ]
