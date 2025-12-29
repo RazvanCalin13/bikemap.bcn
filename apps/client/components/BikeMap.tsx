@@ -913,38 +913,48 @@ export const BikeMap = () => {
       {/* HUD - top bar */}
       <div className="absolute top-3 inset-x-0 z-10 flex items-start justify-between px-3 pointer-events-none">
         {/* Controls - bottom-right on mobile, top-left on desktop */}
-        <div className="fixed bottom-8 right-3 z-20 sm:static sm:z-auto flex flex-col items-end sm:items-start gap-1 pointer-events-auto">
+        <div className="fixed bottom-8 right-3 z-20 sm:static sm:z-auto flex flex-col items-end sm:items-stretch gap-1 pointer-events-auto">
           {/* Search button */}
           <MapControlButton onClick={openSearch}>
-            <Search className="w-4 h-4" />
-            Search
-            <Kbd className="ml-1 bg-white/20 text-white/70">{isMac ? "⌘" : "Ctrl+"}K</Kbd>
+            <span className="flex items-center gap-1.5">
+              <Search className="w-4 h-4" />
+              Search
+            </span>
+            <Kbd className="bg-white/20 text-white/70">{isMac ? "⌘" : "Ctrl+"}K</Kbd>
           </MapControlButton>
           {/* Play/Pause button */}
           {animState === "idle" ? (
             <MapControlButton onClick={play}>
-              <Play className="w-4 h-4" />
-              Play
-              <Kbd className="ml-1 bg-white/20 text-white/70">P</Kbd>
+              <span className="flex items-center gap-1.5">
+                <Play className="w-4 h-4" />
+                Play
+              </span>
+              <Kbd className="bg-white/20 text-white/70">P</Kbd>
             </MapControlButton>
           ) : isPlaying ? (
             <MapControlButton onClick={pause}>
-              <Pause className="w-4 h-4" />
-              Pause
-              <Kbd className="ml-1 bg-white/20 text-white/70">P</Kbd>
+              <span className="flex items-center gap-1.5">
+                <Pause className="w-4 h-4" />
+                Pause
+              </span>
+              <Kbd className="bg-white/20 text-white/70">P</Kbd>
             </MapControlButton>
           ) : (
             <MapControlButton onClick={resume}>
-              <Play className="w-4 h-4" />
-              Play
-              <Kbd className="ml-1 bg-white/20 text-white/70">P</Kbd>
+              <span className="flex items-center gap-1.5">
+                <Play className="w-4 h-4" />
+                Play
+              </span>
+              <Kbd className="bg-white/20 text-white/70">P</Kbd>
             </MapControlButton>
           )}
           {/* Random button */}
           <MapControlButton onClick={selectRandomBiker}>
-            <Shuffle className="w-4 h-4" />
-            Random
-            <Kbd className="ml-1 bg-white/20 text-white/70">R</Kbd>
+            <span className="flex items-center gap-1.5">
+              <Shuffle className="w-4 h-4" />
+              Random
+            </span>
+            <Kbd className="bg-white/20 text-white/70">R</Kbd>
           </MapControlButton>
         </div>
 
