@@ -23,6 +23,7 @@ type AnimationStore = {
   // Playback
   isPlaying: boolean
   currentTime: number // simulation seconds from windowStart
+  pendingAutoPlay: boolean // flag to auto-play after trips load
 
   // Trip selection (shared between Search and BikeMap)
   selectedTripId: string | null
@@ -31,6 +32,8 @@ type AnimationStore = {
   // Actions
   setSpeedup: (value: number) => void
   setAnimationStartDate: (date: Date) => void
+  setAnimationStartDateAndPlay: (date: Date) => void
+  clearPendingAutoPlay: () => void
   play: () => void
   pause: () => void
   setCurrentTime: (time: number) => void
@@ -47,6 +50,7 @@ export const useAnimationStore = create<AnimationStore>((set) => ({
   // Playback
   isPlaying: false,
   currentTime: 0,
+  pendingAutoPlay: false,
 
   // Trip selection
   selectedTripId: null,
@@ -55,6 +59,8 @@ export const useAnimationStore = create<AnimationStore>((set) => ({
   // Config actions (reset playback when config changes)
   setSpeedup: (speedup) => set({ speedup, isPlaying: false, currentTime: 0 }),
   setAnimationStartDate: (animationStartDate) => set({ animationStartDate, isPlaying: false, currentTime: 0 }),
+  setAnimationStartDateAndPlay: (animationStartDate) => set({ animationStartDate, isPlaying: false, currentTime: 0, pendingAutoPlay: true }),
+  clearPendingAutoPlay: () => set({ pendingAutoPlay: false }),
 
   // Playback actions
   play: () => set({ isPlaying: true }),

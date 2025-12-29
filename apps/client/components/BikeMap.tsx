@@ -28,7 +28,6 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Map as MapboxMap, Marker } from "react-map-gl/mapbox";
 import { ActiveRidesPanel } from "./ActiveRidesPanel";
-import { FollowModeBorder } from "./FollowModeBorder";
 import { MapControlButton } from "./MapControlButton";
 import { SelectedTripPanel } from "./SelectedTripPanel";
 import { TimeDisplay } from "./TimeDisplay";
@@ -637,8 +636,11 @@ export const BikeMap = () => {
 
       setActiveTrips(Array.from(tripMapRef.current.values()));
 
-      if (selectedTripId) {
+      // Auto-play if requested (from TimeDisplay or trip selection)
+      const { pendingAutoPlay, clearPendingAutoPlay } = useAnimationStore.getState();
+      if (selectedTripId || pendingAutoPlay) {
         play();
+        clearPendingAutoPlay();
       }
     };
 
@@ -878,7 +880,6 @@ export const BikeMap = () => {
 
   return (
     <div className="relative w-full h-full">
-      <FollowModeBorder />
       <DeckGL
         layers={layers}
         initialViewState={initialViewState}
@@ -959,7 +960,7 @@ export const BikeMap = () => {
         </div>
 
         {/* Time - absolutely centered */}
-        <div className="absolute left-1/2 -translate-x-1/2">
+        <div className="absolute left-1/2 -translate-x-1/2 pointer-events-auto">
           <TimeDisplay simulationTime={time} startDate={animationStartDate} />
         </div>
 

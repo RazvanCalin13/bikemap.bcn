@@ -1,6 +1,8 @@
 "use client"
 import { EBike } from "@/components/icons/Ebike"
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command"
+import { Kbd } from "@/components/ui/kbd"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { FADE_DURATION_MS } from "@/lib/config"
 import { formatDateTime, formatDateTimeFull, formatDistance, formatDurationMinutes } from "@/lib/format"
 import { useAnimationStore } from "@/lib/stores/animation-store"
@@ -13,8 +15,10 @@ import distance from "@turf/distance"
 import { point } from "@turf/helpers"
 import * as chrono from "chrono-node"
 import { Fzf } from "fzf"
-import { ArrowLeft, ArrowRight, Bike, CalendarSearch, Loader2, MapPin, X } from "lucide-react"
+import { ArrowLeft, ArrowRight, Bike, CalendarSearch, Loader2, MapPin, Search as SearchIcon, X } from "lucide-react"
 import React from "react"
+
+type SearchMode = "ride" | "time"
 
 /** ± 30 minutes search window around the selected time */
 const SEARCH_WINDOW_MS = 30 * 60 * 1000
@@ -40,6 +44,9 @@ export function Search() {
   const { isOpen, open: openSearch, toggle, close } = useSearchStore()
   const [search, setSearch] = React.useState("")
 
+  // Mode switching (ride search vs time jump)
+  const [mode, setMode] = React.useState<SearchMode>("ride")
+
   // Multi-step flow state
   const [step, setStep] = React.useState<SearchStep>("datetime")
   const [selectedStation, setSelectedStation] = React.useState<Station | null>(null)
@@ -64,10 +71,20 @@ export function Search() {
         e.preventDefault()
         toggle()
       }
+      // Tab to switch modes (only when dialog is open and on datetime step)
+      if (e.key === "Tab" && isOpen && step === "datetime") {
+        e.preventDefault()
+        setMode((m) => (m === "ride" ? "time" : "ride"))
+        // Re-focus the input after mode switch
+        setTimeout(() => {
+          const input = document.querySelector<HTMLInputElement>('[cmdk-input]')
+          input?.focus()
+        }, 0)
+      }
     }
     document.addEventListener("keydown", down)
     return () => document.removeEventListener("keydown", down)
-  }, [toggle])
+  }, [toggle, isOpen, step])
 
   React.useEffect(() => {
     loadStations()
@@ -99,7 +116,7 @@ export function Search() {
       close()
       setStep("datetime")
       setSelectedStation(null)
-      setDatetimeInput("")
+      // setDatetimeInput("")
       setSearch("")
       setTrips([])
     }
@@ -256,6 +273,12 @@ export function Search() {
     }
   }
 
+  const handleJumpToTime = () => {
+    if (!parsedDate) return
+    useAnimationStore.getState().setAnimationStartDateAndPlay(parsedDate)
+    handleOpenChange(false)
+  }
+
   const handleSelectTrip = (trip: Trip) => {
     const { setAnimationStartDate, selectTrip, speedup } = useAnimationStore.getState()
 
@@ -293,20 +316,41 @@ export function Search() {
   if (step === "datetime") {
     return (
       <CommandDialog open={isOpen} onOpenChange={handleOpenChange} shouldFilter={false} className="sm:max-w-xl">
+        <div className="flex items-center px-3 py-2 border-b">
+          <Tabs value={mode} onValueChange={(v) => setMode(v as SearchMode)} >
+            <TabsList className="bg-[#1c1c1f]">
+              <TabsTrigger value="ride" className="data-[state=active]:bg-zinc-800">
+                <SearchIcon className="size-3.5" />
+                Find ride
+              </TabsTrigger>
+              <TabsTrigger value="time" className="data-[state=active]:bg-zinc-800">
+                <CalendarSearch className="size-3.5" />
+                Time travel
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <span className="text-xs text-muted-foreground flex items-center gap-1 ml-3">
+              <Kbd>Tab</Kbd> to switch
+          </span>
+        </div>
         <CommandInput
           autoFocus
-          placeholder="When did this ride start?"
+          placeholder={mode === "ride" ? "When did this ride start?" : "What date and time are you looking for?"}
           value={datetimeInput}
           onValueChange={setDatetimeInput}
-          icon={<CalendarSearch className="size-4 shrink-0 text-muted-foreground" />}
+          icon={mode === "ride" ? <SearchIcon className="size-4 shrink-0 text-muted-foreground" /> : <CalendarSearch className="size-4 shrink-0 text-muted-foreground" />}
         />
-        <div className="px-3 py-2 text-xs text-muted-foreground">
-          Search any <a href="https://citibikenyc.com/" target="_blank" rel="noopener" className="underline hover:text-foreground">{"Citi Bike"}</a> ride from 2013 to 2025.
+        <div className="px-3 py-2 text-xs text-zinc-500 flex flex-col gap-0.5">
+          <span>Current processed <a href="https://citibikenyc.com/" target="_blank" className="underline hover:text-zinc-50 text-zinc-300 font-medium">Citi Bike</a> data spans June 2013 – December 2025.</span>
+          <span>{'Try "July 4th 2019 at 8pm" or "Fri 4pm"'}</span>
         </div>
         <CommandList>
           {parsedDate && (
             <CommandGroup>
-              <CommandItem onSelect={handleConfirmDatetime} className="bg-accent">
+              <CommandItem
+                onSelect={mode === "ride" ? handleConfirmDatetime : handleJumpToTime}
+                className="bg-accent"
+              >
                 <ArrowRight className="size-4" />
                 {formatDateTime(parsedDate)}
               </CommandItem>
