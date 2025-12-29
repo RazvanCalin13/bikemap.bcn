@@ -136,7 +136,7 @@ export function Search() {
       close()
       setStep("datetime")
       setSelectedStation(null)
-      // setDatetimeInput("")
+      setDatetimeInput("")
       setSearch("")
       setTrips([])
     }
