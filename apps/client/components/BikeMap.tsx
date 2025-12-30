@@ -833,18 +833,17 @@ export const BikeMap = () => {
           getColor: [time, selectedTripId],
         },
       }),
-      // Dimming overlay - renders BEFORE selected route
-      ...(hasSelection
-        ? [
-            new SolidPolygonLayer({
-              id: "dim-overlay",
-              data: DIM_OVERLAY_POLYGON,
-              getPolygon: (d) => d,
-              getFillColor: [0, 0, 0, 180],
-              pickable: false,
-            }),
-          ]
-        : []),
+      // Dimming overlay - always present, fades via GPU transitions
+      new SolidPolygonLayer({
+        id: "dim-overlay",
+        data: DIM_OVERLAY_POLYGON,
+        getPolygon: (d) => d,
+        getFillColor: hasSelection ? [0, 0, 0, 180] : [0, 0, 0, 0],
+        transitions: {
+          getFillColor: 200,
+        },
+        pickable: false,
+      }),
       // Selected route - rendered on TOP with bike type color
       ...(hasSelection
         ? [
