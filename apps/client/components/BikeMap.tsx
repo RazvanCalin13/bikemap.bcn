@@ -709,7 +709,7 @@ export const BikeMap = () => {
         e.preventDefault();
         selectRandomBiker();
         triggerButtonAnimation(randomButtonRef);
-      } else if (e.key.toLowerCase() === "j" && (e.metaKey || e.ctrlKey)) {
+      } else if (e.key.toLowerCase() === "i" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         toggleSettings();
         triggerButtonAnimation(settingsButtonRef);
@@ -985,7 +985,7 @@ export const BikeMap = () => {
               <Settings className="w-4 h-4" />
               Settings
             </span>
-            <Kbd className="bg-zinc-800 text-white/70">{isMac ? "⌘" : "Ctrl+"}J</Kbd>
+            <Kbd className="bg-zinc-800 text-white/70">{isMac ? "⌘" : "Ctrl+"}I</Kbd>
           </MapControlButton>
         </div>
 
