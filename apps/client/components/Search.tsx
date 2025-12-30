@@ -17,7 +17,7 @@ import { point } from "@turf/helpers"
 import * as chrono from "chrono-node"
 import { Fzf } from "fzf"
 import { ArrowLeft, ArrowRight, Bike, CalendarSearch, Loader2, MapPin, Search as SearchIcon, X } from "lucide-react"
-import { AnimatePresence, motion, Variants } from "motion/react"
+import { AnimatePresence, motion } from "motion/react"
 import React from "react"
 
 type SearchMode = "ride" | "time"
@@ -42,17 +42,6 @@ type SearchStep = "datetime" | "station" | "results"
 
 const MAX_RESULTS = 10
 
-// Animation variants for staggered list items (initial load only)
-const listVariants: Variants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.03 } },
-}
-
-const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 4 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.15, ease: "easeOut" } },
-}
-
 export function Search() {
   const { isOpen, open: openSearch, toggle, close } = useSearchStore()
   const [search, setSearch] = React.useState("")
@@ -67,10 +56,6 @@ export function Search() {
   const [trips, setTrips] = React.useState<Trip[]>([])
   const [resultsSearch, setResultsSearch] = React.useState("")
   const [isLoadingTrips, setIsLoadingTrips] = React.useState(false)
-
-  // Track if we've already shown the initial animation for each step
-  const hasAnimatedStations = React.useRef(false)
-  const hasAnimatedResults = React.useRef(false)
 
   const { pickedLocation, startPicking, clearPicking } = usePickerStore()
   const { animationStartDate } = useAnimationStore()
@@ -248,6 +233,11 @@ export function Search() {
     setResultsSearch("") // Clear results search for fresh input
     setStep("results")
     setIsLoadingTrips(true)
+    // Focus will be called after component updates
+    setTimeout(() => {
+      const input = document.querySelector<HTMLInputElement>('[cmdk-input]')
+      input?.focus()
+    }, 0)
 
     try {
       // Initialize DuckDB if not already done
@@ -271,11 +261,19 @@ export function Search() {
     }
   }
 
+  // Focus the command input after step transitions
+  const focusInput = () => {
+    setTimeout(() => {
+      const input = document.querySelector<HTMLInputElement>('[cmdk-input]')
+      input?.focus()
+    }, 0)
+  }
+
   // From station step, go back to datetime step
   const handleBackToDatetime = () => {
     setStep("datetime")
     setSearch("")
-    hasAnimatedStations.current = false // Reset so it animates again next time
+    focusInput()
   }
 
   // From results step, go back to station step
@@ -285,13 +283,14 @@ export function Search() {
     setTrips([])
     setResultsSearch("")
     setSearch("") // Clear station search for fresh input
-    hasAnimatedResults.current = false // Reset so it animates again next time
+    focusInput()
   }
 
   const handleConfirmDatetime = () => {
     if (parsedDate) {
       setSearch("") // Clear station search for fresh input
       setStep("station")
+      focusInput()
     }
   }
 
@@ -445,14 +444,13 @@ export function Search() {
           )}
           {filteredStations.length > 0 && (
             <CommandGroup heading={pickedLocation ? "Nearest Stations" : "Citibike Stations"}>
-              <motion.div
-                variants={listVariants}
-                initial={hasAnimatedStations.current ? false : "hidden"}
-                animate="visible"
-                onAnimationComplete={() => { hasAnimatedStations.current = true }}
-              >
-                {filteredStations.map((station) => (
-                  <motion.div key={station.name} variants={itemVariants}>
+                {filteredStations.map((station, index) => (
+                  <motion.div
+                    key={station.name}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25, ease: "easeOut", delay: index * 0.05 }}
+                  >
                     <CommandItem
                       value={station.name}
                       onSelect={() => handleSelectStation(station)}
@@ -472,7 +470,6 @@ export function Search() {
                     </CommandItem>
                   </motion.div>
                 ))}
-              </motion.div>
             </CommandGroup>
           )}
         </CommandList>
@@ -539,19 +536,18 @@ export function Search() {
             {!isLoadingTrips && filteredTrips.length > 0 && (
               <motion.div
                 key="results-list"
-                initial={hasAnimatedResults.current ? false : { opacity: 0, filter: "blur(4px)" }}
+                initial={{ opacity: 0, filter: "blur(4px)" }}
                 animate={{ opacity: 1, filter: "blur(0px)" }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
-                onAnimationComplete={() => { hasAnimatedResults.current = true }}
               >
                 <CommandGroup>
-                  <motion.div
-                    variants={listVariants}
-                    initial={hasAnimatedResults.current ? false : "hidden"}
-                    animate="visible"
-                  >
-                    {filteredTrips.map((trip) => (
-                      <motion.div key={trip.id} variants={itemVariants}>
+                    {filteredTrips.map((trip, index) => (
+                      <motion.div
+                        key={trip.id}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.25, ease: "easeOut", delay: index * 0.05 }}
+                      >
                         <CommandItem value={trip.id} onSelect={() => handleSelectTrip(trip)}>
                           <div className="flex items-center gap-3 w-full">
                             {trip.bikeType === "electric_bike" ? (
@@ -579,7 +575,6 @@ export function Search() {
                         </CommandItem>
                       </motion.div>
                     ))}
-                  </motion.div>
                 </CommandGroup>
               </motion.div>
             )}
