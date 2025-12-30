@@ -840,7 +840,7 @@ export const BikeMap = () => {
         getPolygon: (d) => d,
         getFillColor: hasSelection ? [0, 0, 0, 180] : [0, 0, 0, 0],
         transitions: {
-          getFillColor: 200,
+          getFillColor: 250,
         },
         pickable: false,
       }),
