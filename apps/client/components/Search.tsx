@@ -40,7 +40,7 @@ type Trip = {
 
 type SearchStep = "datetime" | "station" | "results"
 
-const MAX_RESULTS = 10
+const MAX_RESULTS = 15
 
 export function Search() {
   const { isOpen, open: openSearch, toggle, close } = useSearchStore()
@@ -571,7 +571,7 @@ export function Search() {
                 transition={{ duration: 0.2, ease: "easeOut" }}
               >
                 <CommandGroup>
-                    {filteredTrips.map((trip, index) => (
+                    {filteredTrips.slice(0, MAX_RESULTS).map((trip, index) => (
                       <motion.div
                         key={trip.id}
                         initial={{ opacity: 0, y: 8 }}
