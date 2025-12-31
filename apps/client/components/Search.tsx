@@ -58,14 +58,19 @@ export function Search() {
   const [isLoadingTrips, setIsLoadingTrips] = React.useState(false)
 
   const { pickedLocation, startPicking, clearPicking } = usePickerStore()
-  const { animationStartDate } = useAnimationStore()
+  const { animationStartDate, currentTime } = useAnimationStore()
   const { stations, getStation, load: loadStations } = useStationsStore()
 
-  // Parse datetime with chrono
+  // Compute current simulation time for chrono reference
+  const currentSimulationTime = React.useMemo(() => {
+    return new Date(animationStartDate.getTime() + currentTime * 1000)
+  }, [animationStartDate, currentTime])
+
+  // Parse datetime with chrono - uses current simulation time as reference for relative dates like "now"
   const parsedDate = React.useMemo(() => {
     if (!datetimeInput.trim()) return null
-    return chrono.parseDate(datetimeInput, animationStartDate)
-  }, [datetimeInput, animationStartDate])
+    return chrono.parseDate(datetimeInput, currentSimulationTime)
+  }, [datetimeInput, currentSimulationTime])
 
   // Check if parsed date is outside available data range
   const isDateOutOfRange = !!parsedDate && (parsedDate < DATA_START_DATE || parsedDate > DATA_END_DATE)
@@ -401,6 +406,7 @@ export function Search() {
               >
                 <CommandGroup>
                   <CommandItem
+                    value="parsed-datetime"
                     onSelect={isDateOutOfRange ? undefined : (mode === "ride" ? handleConfirmDatetime : handleJumpToTime)}
                     className={cn("bg-accent", isDateOutOfRange && "cursor-not-allowed")}
                     disabled={isDateOutOfRange}
