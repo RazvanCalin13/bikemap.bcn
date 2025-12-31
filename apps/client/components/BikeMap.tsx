@@ -402,7 +402,7 @@ export const BikeMap = () => {
         // Request pre-processed trips from service
         const trips = await serviceRef.current.requestChunk(chunkIndex);
 
-        console.log(`Chunk ${chunkIndex}: ${trips.length} rides from worker`);
+        // console.log(`Chunk ${chunkIndex}: ${trips.length} rides from worker`);
 
         // Add to ref (dedupes by ID)
         for (const trip of trips) {
@@ -425,7 +425,7 @@ export const BikeMap = () => {
     if (animState !== "playing") return;
     if (currentChunk === lastChunkRef.current) return;
 
-    console.log(`Entered chunk ${currentChunk}`);
+    // console.log(`Entered chunk ${currentChunk}`);
     lastChunkRef.current = currentChunk;
 
     // Load this chunk and next chunk from worker
