@@ -285,17 +285,18 @@ export class TripDataService {
 
     console.log(`Fetching batch ${batchId} from DuckDB...`);
 
-    const trips = await duckdbService.getTripsInRange({
-      from: new Date(realBatchStartMs),
-      to: new Date(realBatchEndMs),
-    });
-
-    // For batch 0, also fetch trips already in progress at animation start
+    // For batch 0, fetch both range and overlap trips in parallel
     if (batchId === 0) {
-      const overlapTrips = await duckdbService.getTripsOverlap({
-        chunkStart: animationStartDate,
-        chunkEnd: new Date(realWindowStartMs + SIM_CHUNK_SIZE_MS),
-      });
+      const [trips, overlapTrips] = await Promise.all([
+        duckdbService.getTripsInRange({
+          from: new Date(realBatchStartMs),
+          to: new Date(realBatchEndMs),
+        }),
+        duckdbService.getTripsOverlap({
+          chunkStart: animationStartDate,
+          chunkEnd: new Date(realWindowStartMs + SIM_CHUNK_SIZE_MS),
+        }),
+      ]);
 
       // Merge and dedupe by id
       const tripMap = new Map<string, TripWithRoute>();
@@ -312,6 +313,9 @@ export class TripDataService {
       return Array.from(tripMap.values());
     }
 
-    return trips;
+    return duckdbService.getTripsInRange({
+      from: new Date(realBatchStartMs),
+      to: new Date(realBatchEndMs),
+    });
   }
 }
