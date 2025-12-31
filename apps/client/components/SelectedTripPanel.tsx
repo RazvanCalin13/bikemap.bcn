@@ -2,6 +2,7 @@ import { EBike } from "@/components/icons/Ebike";
 import { formatDistance, formatDurationMinutes } from "@/lib/format";
 import type { SelectedTripInfo } from "@/lib/stores/animation-store";
 import { Bike } from "lucide-react";
+import { motion } from "motion/react";
 import { Kbd } from "./ui/kbd";
 
 type SelectedTripPanelProps = {
@@ -12,7 +13,13 @@ export function SelectedTripPanel({ info }: SelectedTripPanelProps) {
   const isElectric = info.bikeType === "electric_bike";
 
   return (
-    <div className="bg-black/45 backdrop-blur-md text-white/90 px-3 py-2 rounded-xl border border-white/10 shadow-[0_0_24px_rgba(0,0,0,0.6)] w-[200px] mt-2">
+    <motion.div
+      initial={{ opacity: 0, filter: "blur(4px)" }}
+      animate={{ opacity: 1, filter: "blur(0px)" }}
+      exit={{ opacity: 0, filter: "blur(4px)" }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+      className="bg-black/45 backdrop-blur-md text-white/90 px-3 py-2 rounded-xl border border-white/10 shadow-[0_0_24px_rgba(0,0,0,0.6)] w-[200px] mt-2"
+    >
       {/* Header with bike icon */}
       <div className="flex items-center gap-2">
         {isElectric ? (
@@ -54,6 +61,6 @@ export function SelectedTripPanel({ info }: SelectedTripPanelProps) {
         <Kbd>Esc</Kbd>
         <span>to deselect</span>
       </div>
-    </div>
+    </motion.div>
   );
 }
