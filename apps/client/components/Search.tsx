@@ -315,6 +315,11 @@ export function Search() {
 
   const handleJumpToTime = () => {
     if (!parsedDate) return
+    // Skip if jumping to the same time (e.g., "now" when already at that time)
+    if (parsedDate.getTime() === animationStartDate.getTime()) {
+      handleOpenChange(false)
+      return
+    }
     useAnimationStore.getState().setAnimationStartDateAndPlay(parsedDate)
     handleOpenChange(false)
   }
