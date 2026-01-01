@@ -16,7 +16,7 @@ import distance from "@turf/distance"
 import { point } from "@turf/helpers"
 import * as chrono from "chrono-node"
 import { Fzf } from "fzf"
-import { ArrowLeft, ArrowRight, Bike, CalendarSearch, Loader2, MapPin, Search as SearchIcon, X } from "lucide-react"
+import { ArrowLeft, ArrowRight, Bike, CalendarSearch, Loader2, MapPin, Search as SearchIcon } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
 import React from "react"
 
@@ -54,7 +54,7 @@ export function Search() {
   const [resultsSearch, setResultsSearch] = React.useState("")
   const [isLoadingTrips, setIsLoadingTrips] = React.useState(false)
 
-  const { pickedLocation, startPicking, clearPicking } = usePickerStore()
+  const { pickedLocation, startPicking } = usePickerStore()
   const { animationStartDate, simCurrentTimeMs } = useAnimationStore()
   const { stations, getStation, load: loadStations } = useStationsStore()
 
@@ -238,9 +238,6 @@ export function Search() {
     startPicking()
   }
 
-  const handleClearLocation = () => {
-    clearPicking()
-  }
 
   const handleSelectStation = async (station: Station | StationWithDistance) => {
     if (!parsedDate) {
@@ -454,17 +451,10 @@ export function Search() {
           {!search.trim() && (
             <>
               <CommandGroup heading="Actions">
-                {pickedLocation ? (
-                  <CommandItem onSelect={handleClearLocation}>
-                    <X className="size-4" />
-                    Clear picked location
-                  </CommandItem>
-                ) : (
-                  <CommandItem onSelect={handlePickFromMap}>
-                    <MapPin className="size-4" />
-                    Pick location from map
-                  </CommandItem>
-                )}
+                <CommandItem onSelect={handlePickFromMap}>
+                  <MapPin className="size-4" />
+                  Pick location from map
+                </CommandItem>
               </CommandGroup>
               <CommandSeparator />
             </>
