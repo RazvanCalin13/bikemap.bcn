@@ -4,5 +4,8 @@
   "workspaces": ["packages/*", "apps/*"],
   "scripts": {
     "dev": "bun run --cwd apps/client dev"
+  },
+  "devDependencies": {
+    "@types/mapbox__polyline": "^1.0.5"
   }
 }
