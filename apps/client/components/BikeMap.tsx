@@ -369,6 +369,9 @@ export const BikeMap = () => {
   const playPauseButtonRef = useRef<HTMLButtonElement>(null);
   const randomButtonRef = useRef<HTMLButtonElement>(null);
 
+  // Track if animation was playing before entering station view
+  const wasPlayingBeforeStationViewRef = useRef<boolean>(false);
+
   // Helper to trigger button press animation
   const triggerButtonAnimation = useCallback((ref: React.RefObject<HTMLButtonElement | null>) => {
     const button = ref.current;
@@ -548,13 +551,20 @@ export const BikeMap = () => {
     storePause();
   }, [storePause]);
 
-  // Pause animation when showing stations, resume when back to bikes
+  // Pause animation when showing stations, resume when back to bikes (only if was playing before)
   useEffect(() => {
     const showStations = searchStep === "station" || searchStep === "results";
-    if (showStations && rafRef.current) {
-      pause();
-    } else if (searchStep === "datetime" && !rafRef.current && animStateRef.current !== "init") {
-      resume();
+    if (showStations) {
+      // Save current playing state before pausing
+      wasPlayingBeforeStationViewRef.current = rafRef.current !== null;
+      if (rafRef.current) {
+        pause();
+      }
+    } else if (searchStep === "datetime" && animStateRef.current !== "init") {
+      // Only resume if animation was playing before entering station view
+      if (wasPlayingBeforeStationViewRef.current && !rafRef.current) {
+        resume();
+      }
     }
   }, [searchStep, pause, resume]);
 
