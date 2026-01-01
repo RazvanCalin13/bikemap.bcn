@@ -4,13 +4,12 @@
 
 import { Color } from "@deck.gl/core";
 
-// Default animation start date for trip data timeframe
-// Sept 11, 2025 4:50pm EDT = 1 hour before peak (4,913 concurrent at 5:50pm)
-export const DEFAULT_ANIMATION_START_DATE = new Date("2025-09-11T20:50:00.000Z");
+// Default animation start date for trip data timeframe (NYC time)
+export const DEFAULT_ANIMATION_START_DATE = new Date("2025-02-02T09:41:00-05:00"); // EST
 
-// Valid data range for Citi Bike data
-export const DATA_START_DATE = new Date("2013-06-01T00:00:00Z");
-export const DATA_END_DATE = new Date("2025-12-31T23:59:59Z");
+// Valid data range for Citi Bike data (NYC time)
+export const DATA_START_DATE = new Date("2013-06-01T00:00:00-04:00"); // EDT
+export const DATA_END_DATE = new Date("2025-12-31T23:59:59-05:00");   // EST
 
 // Default speedup multiplier for animation
 export const DEFAULT_SPEEDUP = 150;
