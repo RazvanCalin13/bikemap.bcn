@@ -24,9 +24,10 @@ import { DataFilterExtension, DataFilterExtensionProps } from "@deck.gl/extensio
 import { TripsLayer } from "@deck.gl/geo-layers";
 import { IconLayer, PathLayer, ScatterplotLayer, SolidPolygonLayer } from "@deck.gl/layers";
 import { DeckGL } from "@deck.gl/react";
-import { Pause, Play, Search, Shuffle } from "lucide-react";
+import { Info, Pause, Play, Search, Shuffle } from "lucide-react";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { AnimatePresence } from "motion/react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Map as MapboxMap } from "react-map-gl/mapbox";
 import { ActiveRidesPanel } from "./ActiveRidesPanel";
@@ -710,6 +711,9 @@ export const BikeMap = () => {
         e.preventDefault();
         selectRandomBiker();
         triggerButtonAnimation(randomButtonRef);
+      } else if (e.key.toLowerCase() === "a" && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        window.location.href = "/about";
       }
     };
 
@@ -968,6 +972,17 @@ export const BikeMap = () => {
             </span>
             <Kbd className="bg-zinc-800 text-white/70">R</Kbd>
           </MapControlButton>
+          {/* About button */}
+          <Link
+            href="/about"
+            className="flex items-center justify-between gap-3 bg-black/45 hover:bg-black/55 hover:scale-[1.02] active:scale-95 text-white/90 text-sm font-medium pl-2 pr-2 py-1.5 rounded-full border border-white/10 backdrop-blur-md transition-all duration-200 ease-out shadow-[0_0_20px_rgba(0,0,0,0.6)] hover:duration-100 active:duration-200 outline-none"
+          >
+            <span className="flex items-center gap-1.5 min-w-20">
+              <Info className="w-4 h-4" />
+              About
+            </span>
+            <Kbd className="bg-zinc-800 text-white/70">A</Kbd>
+          </Link>
         </div>
 
         {/* Time - absolutely centered */}
