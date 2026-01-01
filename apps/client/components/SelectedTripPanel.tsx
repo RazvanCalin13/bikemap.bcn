@@ -1,9 +1,21 @@
 import { EBike } from "@/components/icons/Ebike";
-import { formatDistance, formatDurationMinutes } from "@/lib/format";
+import { formatDistance, formatDurationMinutes, formatSpeedMph } from "@/lib/format";
 import type { SelectedTripInfo } from "@/lib/stores/animation-store";
 import { Bike } from "lucide-react";
 import { motion } from "motion/react";
 import { Kbd } from "./ui/kbd";
+
+function formatTimeRange(startedAt: Date, endedAt: Date): string {
+  const options: Intl.DateTimeFormatOptions = {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "America/New_York",
+  };
+  const start = startedAt.toLocaleTimeString("en-US", options);
+  const end = endedAt.toLocaleTimeString("en-US", options);
+  return `${start} – ${end}`;
+}
 
 type SelectedTripPanelProps = {
   info: SelectedTripInfo;
@@ -43,17 +55,23 @@ export function SelectedTripPanel({ info }: SelectedTripPanelProps) {
       </div>
 
       {/* Stats */}
-      <div className="mt-2 flex items-center gap-3 text-xs text-white/90 font-medium">
-        <span>
-          {info.startedAt.toLocaleTimeString("en-US", {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-            timeZone: "America/New_York",
-          })}
-        </span>
-        <span>{formatDurationMinutes(info.startedAt, info.endedAt)}</span>
-        {info.routeDistance && <span>{formatDistance(info.routeDistance)}</span>}
+      <div className="mt-2 text-xs">
+        <div className="text-white/90 font-medium">
+          {formatTimeRange(info.startedAt, info.endedAt)}
+        </div>
+        <div className="flex items-center gap-3 text-white/70 mt-0.5">
+          <span>{formatDurationMinutes(info.startedAt, info.endedAt)}</span>
+          {info.routeDistance && <span>{formatDistance(info.routeDistance)}</span>}
+          {info.routeDistance && (
+            <span>
+              {formatSpeedMph({
+                distanceMeters: info.routeDistance,
+                startedAt: info.startedAt,
+                endedAt: info.endedAt,
+              })}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Footer hint - hidden on mobile */}

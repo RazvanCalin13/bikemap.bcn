@@ -94,3 +94,18 @@ export function formatDateShort(ms: number): string {
     timeZone: "America/New_York",
   });
 }
+
+// =============================================================================
+// Speed Formatting
+// =============================================================================
+
+export function formatSpeedMph(data: {
+  distanceMeters: number;
+  startedAt: Date;
+  endedAt: Date;
+}): string {
+  const miles = convertLength(data.distanceMeters, "meters", "miles");
+  const hours = (data.endedAt.getTime() - data.startedAt.getTime()) / 3600000;
+  const mph = miles / hours;
+  return `${mph.toFixed(1)} mph`;
+}
