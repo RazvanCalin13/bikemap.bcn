@@ -450,7 +450,7 @@ export function Search() {
                     className={cn("group bg-accent", isDateOutOfRange && "cursor-not-allowed")}
                     disabled={isDateOutOfRange}
                   >
-                    <ArrowRight className="size-4" />
+                    <ArrowRight  />
                     {formatDateTime(parsedDate)}
                     <EnterHint className="ml-auto" />
                   </CommandItem>
