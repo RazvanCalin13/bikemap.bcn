@@ -140,9 +140,9 @@ export default function AboutPage() {
             <a
               href="https://github.com/freeman-jiang/bikemap.nyc"
              
-              className="inline-flex items-center gap-1 text-zinc-300 font-medium hover:text-zinc-100 border-b border-current pb-0.5"
+              className="inline-flex items-baseline gap-1 text-zinc-300 font-medium hover:text-zinc-100 border-b border-current pb-px"
             >
-              <Github className="size-4" />
+              <Github className="size-4 self-center" />
               freeman-jiang/bikemap.nyc
             </a>.
           </p>
@@ -152,9 +152,9 @@ export default function AboutPage() {
             <a
               href="https://buymeacoffee.com/freemanjiang"
              
-              className="inline-flex items-center gap-1 text-zinc-300 font-medium hover:text-zinc-100 border-b border-current pb-0.5"
+              className="inline-flex items-baseline gap-1 text-zinc-300 font-medium hover:text-zinc-100 border-b border-current pb-px"
             >
-              <Coffee className="size-4" />
+              <Coffee className="size-4 self-center" />
               buying me a coffee
             </a>
             !
