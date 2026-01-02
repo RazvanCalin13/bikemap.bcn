@@ -30,7 +30,7 @@ This is what you see when you visit [bikemap.nyc](https://bikemap.nyc).
 - **Data loading**: DuckDB WASM queries parquet files from the CDN using HTTP range requests. Trips load in 30-minute batches with lookahead prefetching.
 - **Processing**: A Web Worker decodes the polyline6 geometry and pre-computes timestamps with easing so that bikes slow down at station endpoints.
 - **Rendering**: Heavy lifting is done with deck.gl layers on top of Mapbox.
-- **Search**: Natural language date parsing (chrono-node) lets you jump to any point in time or find a specific ride by querying the parquets directly.
+- **Search**: Natural language date parsing via chrono-node lets you jump to any point in time or find a specific ride by querying the parquets directly.
 
 
 ## Quickstart
