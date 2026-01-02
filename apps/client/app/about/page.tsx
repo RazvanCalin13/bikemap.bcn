@@ -1,7 +1,7 @@
 "use client";
 
 import { Kbd } from "@/components/ui/kbd";
-import { DEFAULT_SPEEDUP } from "@/lib/config";
+import { DEFAULT_SPEEDUP, SIM_BATCH_SIZE_MS } from "@/lib/config";
 import { ArrowLeft, Coffee, Github } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -73,7 +73,7 @@ export default function AboutPage() {
             >
               historical system data
             </a>{" "}
-            {`that Lyft publicly provides. The animation plays at ${DEFAULT_SPEEDUP}x normal speed and covers 200M+ trips in New York City since 2013.`}
+            {`published by Lyft. The animation plays at ${DEFAULT_SPEEDUP}x normal speed and covers 200M+ trips in New York City since 2013.`}
           </p>
 
           <p>
@@ -106,10 +106,33 @@ export default function AboutPage() {
 
           <hr className="border-white/10" />
 
+          <h2 className="text-lg font-medium text-white">Technical Details</h2>
+
+          <ul className="list-disc list-inside space-y-3">
+            <li>
+              <span className="font-medium text-zinc-300">No backend</span> —
+              Processed data is stored in Apache Parquet files and queried by DuckDB WASM directly in the browser.
+            </li>
+            <li>
+              <span className="font-medium text-zinc-300">GPU rendering</span> —
+              Deck.gl is cracked and makes it possible to render thousands of concurrent bikes with the GPU.
+            </li>
+            <li>
+              <span className="font-medium text-zinc-300">Worker threads</span> —
+              Heavy precomputation is done on Web Workers to move the CPU load from the JS main thread.
+            </li>
+            <li>
+              <span className="font-medium text-zinc-300">Continuous streaming</span> —
+              Trip data loads incrementally and invisibly in {SIM_BATCH_SIZE_MS / 60000}-minute batches.
+            </li>
+          </ul>
+
+          <hr className="border-white/10" />
+
           <h2 className="text-lg font-medium text-white">Why</h2>
 
           <p>
-            {"There is no economic use for this project except that I think it is cool and beautiful :)"}
+            {"There is no economic value for this project except that I think it is cool and beautiful :)"}
           </p>
 
           <p>
@@ -125,7 +148,7 @@ export default function AboutPage() {
           </p>
 
           <p>
-             {"I want to keep this project free to use, but I am paying for Mapbox and hosting costs out of pocket. If you'd like to support me, please consider "}
+             {"I hope to keep this project free to use, but I am paying for Mapbox and hosting costs out of pocket. If you'd like to support me, please consider "}
             <a
               href="https://buymeacoffee.com/freemanjiang"
              
