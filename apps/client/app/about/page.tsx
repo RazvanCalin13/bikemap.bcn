@@ -55,7 +55,7 @@ export default function AboutPage() {
 
         <div className="space-y-6 text-zinc-400">
           <p>
-            bikemap.nyc is a GPU-powered visualization of{" "}
+            bikemap.nyc is a GPU-powered data visualization of{" "}
             <a
               href="https://citibikenyc.com"
               className="text-zinc-300 font-medium hover:text-zinc-100 underline underline-offset-4"
@@ -73,7 +73,7 @@ export default function AboutPage() {
             >
               historical system data
             </a>{" "}
-            {`that Lyft publicly provides. The animation plays at ${DEFAULT_SPEEDUP}x normal speed and covers 180M+ trips in New York City since 2013.`}
+            {`that Lyft publicly provides. The animation plays at ${DEFAULT_SPEEDUP}x normal speed and covers 200M+ trips in New York City since 2013.`}
           </p>
 
           <p>
@@ -113,7 +113,7 @@ export default function AboutPage() {
           </p>
 
           <p>
-            I&apos;m open-sourcing the entire processing pipeline and rendering code at {" "}
+            I&apos;m open-sourcing the entire data processing pipeline and rendering code at {" "}
             <a
               href="https://github.com/freeman-jiang/bikemap.nyc"
              
