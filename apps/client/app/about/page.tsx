@@ -33,7 +33,7 @@ export default function AboutPage() {
 
   return (
     <div className="min-h-dvh bg-background font-mono">
-      <main className="max-w-2xl mx-auto px-6 py-12 md:py-24">
+      <main className="max-w-152 mx-auto px-6 py-12 md:py-24">
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a
           href="/"
@@ -55,7 +55,7 @@ export default function AboutPage() {
 
         <div className="space-y-6 text-zinc-400">
           <p>
-            bikemap.nyc is a GPU-powered data visualization of{" "}
+            bikemap.nyc is a visualization of the entire history of{" "}
             <a
               href="https://citibikenyc.com"
               className="text-zinc-300 font-medium hover:text-zinc-100 underline underline-offset-4"
@@ -77,7 +77,7 @@ export default function AboutPage() {
           </p>
 
           <p>
-            If you have ever used Citi Bike, your ride is likely here. Use your Citi Bike receipt to search for and find your ride.
+            If you have ever used Citi Bike, your ride is likely here. Use your Citi Bike receipt to search for your ride.
           </p>
 
           <hr className="border-white/10" />

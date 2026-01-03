@@ -1,6 +1,6 @@
 # bikemap.nyc
 
-[bikemap.nyc](https://bikemap.nyc) is a GPU-accelerated visualization of [Citi Bike](https://citibikenyc.com), the largest bike-sharing system in the US.
+[bikemap.nyc](https://bikemap.nyc) is a visualization of the entire history of [Citi Bike](https://citibikenyc.com), the largest bike-sharing system in the US.
 
 [vid]
 

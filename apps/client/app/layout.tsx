@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "bikemap.nyc",
   description:
-    "bikemap.nyc is a GPU-powered data visualization of 12 years of Citi Bike, New York City's biggest bike-sharing system.",
+    "Visualization of the entire history of Citi Bike, the largest bike-sharing system in the US.",
   keywords: [
     "Citi Bike",
     "NYC bike visualization",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "bikemap.nyc",
     description:
-      "bikemap.nyc is a GPU-powered data visualization of 12 years of Citi Bike, New York City's biggest bike-sharing system.",
+      "Visualization of the entire history of Citi Bike, the largest bike-sharing system in the US.",
     creator: "@freemanjiangg",
   },
 };
