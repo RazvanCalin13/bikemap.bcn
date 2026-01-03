@@ -366,6 +366,7 @@ export const BikeMap = () => {
   const graphSamplerRef = useRef(createThrottledSampler({ intervalMs: 100 }));
   const fpsSamplerRef = useRef(createThrottledSampler({ intervalMs: 100 }));
   const cameraSamplerRef = useRef(createThrottledSampler({ intervalMs: CAMERA_POLLING_INTERVAL_MS }));
+  const currentZoomRef = useRef(INITIAL_VIEW_STATE.zoom);
 
   // Button refs for keyboard shortcut animations
   const playPauseButtonRef = useRef<HTMLButtonElement>(null);
@@ -520,6 +521,7 @@ export const BikeMap = () => {
               ...prev,
               longitude: trip.currentPosition[0],
               latitude: trip.currentPosition[1],
+              zoom: currentZoomRef.current,
               transitionDuration: CAMERA_POLLING_INTERVAL_MS,
               transitionInterpolator: cameraInterpolator,
             }));
@@ -928,6 +930,10 @@ export const BikeMap = () => {
           const bearing = "bearing" in viewState ? viewState.bearing : undefined;
           if (typeof bearing === "number") {
             queueMicrotask(() => setBearing(bearing));
+          }
+          // Track zoom for camera follow (preserves user zoom while following a bike)
+          if ("zoom" in viewState && typeof viewState.zoom === "number") {
+            currentZoomRef.current = viewState.zoom;
           }
         }}
         getCursor={() => (isPickingLocation ? "crosshair" : "grab")}
