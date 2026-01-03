@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 
@@ -34,6 +34,10 @@ export const metadata: Metadata = {
       "Visualization of the entire history of Citi Bike, the largest bike-sharing system in the US.",
     creator: "@freemanjiangg",
   },
+  };
+
+export const viewport: Viewport = {
+  themeColor: "#09090b",
 };
 
 export default function RootLayout({
