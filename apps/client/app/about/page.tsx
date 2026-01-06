@@ -74,11 +74,11 @@ export default function AboutPage() {
             >
               historical system data
             </a>{" "}
-            {`published by Lyft. The animation plays at ${DEFAULT_SPEEDUP}x normal speed and covers 200M+ trips in New York City since 2013.`}
+            {`published by Lyft. The animation plays at ${DEFAULT_SPEEDUP}x normal speed and covers 291.2 million trips in New York City since 2013.`}
           </p>
 
           <p>
-            If you have ever used Citi Bike, your ride is likely here. Use your Citi Bike receipt to search for your ride.
+            If you have ever used Citi Bike, your ride is on the map. Use your Citi Bike receipt to find your trip.
           </p>
 
           <hr className="border-white/10" />
