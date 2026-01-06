@@ -307,7 +307,7 @@ function computeTripColors(trip: ProcessedTrip, viewerFadeProgress: number, movi
 }
 
 // Cached interpolator for camera follow (avoid allocating new object every frame)
-const cameraInterpolator = new LinearInterpolator(["longitude", "latitude"]);
+const cameraInterpolator = new LinearInterpolator(["longitude", "latitude", "bearing"]);
 
 export const BikeMap = () => {
   // Animation store
@@ -386,6 +386,7 @@ export const BikeMap = () => {
   const fpsSamplerRef = useRef(createThrottledSampler({ intervalMs: 100 }));
   const cameraSamplerRef = useRef(createThrottledSampler({ intervalMs: CAMERA_POLLING_INTERVAL_MS }));
   const currentZoomRef = useRef(INITIAL_VIEW_STATE.zoom);
+  const currentBearingRef = useRef(INITIAL_VIEW_STATE.bearing);
 
   // Button refs for keyboard shortcut animations
   const playPauseButtonRef = useRef<HTMLButtonElement>(null);
@@ -541,6 +542,7 @@ export const BikeMap = () => {
               longitude: trip.currentPosition[0],
               latitude: trip.currentPosition[1],
               zoom: currentZoomRef.current,
+              bearing: currentBearingRef.current,
               transitionDuration: CAMERA_POLLING_INTERVAL_MS,
               transitionInterpolator: cameraInterpolator,
             }));
@@ -948,9 +950,10 @@ export const BikeMap = () => {
         controller={{ touchRotate: true }}
         onClick={handleMapClick}
         onViewStateChange={({ viewState }) => {
-          // Capture bearing before the microtask so TS keeps the narrowing.
+          // Track bearing for camera follow (preserves user bearing while following a bike)
           const bearing = "bearing" in viewState ? viewState.bearing : undefined;
           if (typeof bearing === "number") {
+            currentBearingRef.current = bearing;
             queueMicrotask(() => setBearing(bearing));
           }
           // Track zoom for camera follow (preserves user zoom while following a bike)
