@@ -2,7 +2,7 @@
 
 [bikemap.nyc](https://bikemap.nyc) is a visualization of the entire history of [Citi Bike](https://citibikenyc.com), the largest bike-sharing system in the US.
 
-[vid]
+https://github.com/user-attachments/assets/1c28daaf-f6eb-4121-9e92-a59daa53e73c
 
 Each moving arrow represents a real bike ride, based on anonymized [historical system data](https://citibikenyc.com/system-data) published by Lyft.
 
