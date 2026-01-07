@@ -14,7 +14,7 @@
 // - output/parquets/<year>-<month>-<day>.parquet for each day with data
 import { DuckDBConnection } from "@duckdb/node-api";
 import { globSync } from "glob";
-import { mkdir, rm, stat } from "node:fs/promises";
+import { mkdir, readdir, rename, rm, rmdir, stat } from "node:fs/promises";
 import path from "path";
 import { csvGlob, dataDir, formatHumanReadableBytes, gitRoot, NYC_BOUNDS, outputDir } from "./utils";
 
@@ -303,7 +303,7 @@ async function main() {
     console.log(`  ${lookupCount} name mappings loaded (canonical + aliases)`);
   }
 
-  // 4. Process year by year to avoid OOM
+  // 4. Create deduped table with all valid rows (single pass instead of per-day)
   const validRowFilter = `
     ride_id IS NOT NULL
     AND start_station_name IS NOT NULL
@@ -323,42 +323,29 @@ async function main() {
     AND end_lng BETWEEN ${NYC_BOUNDS.minLng} AND ${NYC_BOUNDS.maxLng}
   `;
 
-  // Get distinct output days (uses pre-computed column)
-  const daysResult = await connection.runAndReadAll(`
-    SELECT DISTINCT output_day as day
+  console.log("\nCreating deduplicated table...");
+  const dedupeStart = Date.now();
+  await connection.run(`
+    CREATE TABLE deduped AS
+    SELECT DISTINCT ON (ride_id) *
     FROM raw
-    WHERE output_day IS NOT NULL
-    ORDER BY day
+    WHERE ${validRowFilter}
+      AND output_day IS NOT NULL
   `);
-  const days = daysResult.getRowObjects() as Array<{ day: string }>;
-  console.log(`\nFound ${days.length} days to process: ${days[0]?.day} to ${days[days.length - 1]?.day}`);
+  const dedupeTime = Date.now() - dedupeStart;
 
-  let totalTripCount = 0;
-  let totalWithRoute = 0;
-  let totalParquetBytes = 0;
+  const dedupedCountReader = await connection.runAndReadAll(`SELECT COUNT(*) as count FROM deduped`);
+  const dedupedCount = Number((dedupedCountReader.getRowObjects()[0] as { count: bigint }).count);
+  console.log(`Created deduped table with ${dedupedCount} rows in ${(dedupeTime / 1000).toFixed(1)}s`);
 
-  for (let i = 0; i < days.length; i++) {
-    const day = days[i]!.day;
-    console.log(`\n[${i + 1}/${days.length}] Processing ${day}...`);
-    const stepStart = Date.now();
+  // 5. Export all days in parallel using PARTITION_BY
+  // DuckDB will parallelize internally and write one file per partition per thread
+  console.log("\nExporting parquet files with PARTITION_BY (parallel)...");
+  const parquetsDir = path.join(outputDir, "parquets");
+  const exportStart = Date.now();
 
-    // Filter valid rows for this output day (uses pre-computed index)
-    await connection.run(`
-      CREATE TABLE filtered_day AS
-      SELECT * FROM raw
-      WHERE ${validRowFilter}
-        AND output_day = '${day}'
-    `);
-
-    // Deduplicate by ride_id
-    await connection.run(`
-      CREATE TABLE deduped_day AS
-      SELECT DISTINCT ON (ride_id) * FROM filtered_day
-    `);
-
-    // JOIN with routes
-    await connection.run(`
-      CREATE TABLE joined_day AS
+  await connection.run(`
+    COPY (
       SELECT
         t.ride_id as id,
         COALESCE(snl_start.canonical_name, t.start_station_name) as startStationName,
@@ -372,8 +359,9 @@ async function main() {
         t.end_lat as endLat,
         t.end_lng as endLng,
         r.geometry as routeGeometry,
-        r.distance as routeDistance
-      FROM deduped_day t
+        r.distance as routeDistance,
+        t.output_day
+      FROM deduped t
       LEFT JOIN station_name_lookup snl_start
         ON t.start_station_name = snl_start.any_name
       LEFT JOIN station_name_lookup snl_end
@@ -381,38 +369,73 @@ async function main() {
       LEFT JOIN routes r
         ON r.start_station_name = COALESCE(snl_start.canonical_name, t.start_station_name)
         AND r.end_station_name = COALESCE(snl_end.canonical_name, t.end_station_name)
-    `);
+      WHERE r.geometry IS NOT NULL
+      ORDER BY t.output_day, startedAt
+    )
+    TO '${parquetsDir}' (FORMAT PARQUET, PARTITION_BY (output_day), COMPRESSION ZSTD, ROW_GROUP_SIZE 2048)
+  `);
 
-    // Get stats for this day
-    const statsReader = await connection.runAndReadAll(`
-      SELECT COUNT(*) as total, COUNT(routeGeometry) as with_route FROM joined_day
-    `);
-    const stats = statsReader.getRowObjects()[0] as { total: bigint; with_route: bigint };
-    const dayTripCount = Number(stats.total);
-    const dayWithRoute = Number(stats.with_route);
-    totalTripCount += dayTripCount;
-    totalWithRoute += dayWithRoute;
+  const exportTime = Date.now() - exportStart;
+  console.log(`Partitioned export completed in ${(exportTime / 1000).toFixed(1)}s`);
 
-    // Export to parquet (only trips with routes - round trips and ferry crossings are excluded)
-    // ROW_GROUP_SIZE 2048 (DuckDB minimum) enables efficient time-range queries via predicate pushdown.
-    // Very important to not use the default of 122,880 rows (this means we have to fetch the row group for 122k trips just to get our 30m chunk!)
-    const dayPath = path.join(outputDir, `parquets/${day}.parquet`);
-    await connection.run(`
-      COPY (SELECT * FROM joined_day WHERE routeGeometry IS NOT NULL ORDER BY startedAt)
-      TO '${dayPath}' (FORMAT PARQUET, COMPRESSION ZSTD, ROW_GROUP_SIZE 2048)
-    `);
+  // 6. Rename partitioned files from output_day=YYYY-MM-DD/data_0.parquet to YYYY-MM-DD.parquet
+  console.log("\nRenaming partitioned files...");
+  const partitionDirs = await readdir(parquetsDir);
+  let fileCount = 0;
 
-    const dayStats = await stat(dayPath);
-    totalParquetBytes += dayStats.size;
-    const elapsed = ((Date.now() - stepStart) / 1000).toFixed(1);
-    console.log(`  ${dayTripCount} trips (${dayWithRoute} with routes) → ${(dayStats.size / 1024 / 1024).toFixed(1)} MB in ${elapsed}s`);
-    console.log(`  → ${dayPath}`);
+  for (const dir of partitionDirs) {
+    if (!dir.startsWith("output_day=")) continue;
+    const day = dir.replace("output_day=", "");
+    const partitionDir = path.join(parquetsDir, dir);
 
-    // Clean up day tables before next iteration
-    await connection.run(`DROP TABLE filtered_day`);
-    await connection.run(`DROP TABLE deduped_day`);
-    await connection.run(`DROP TABLE joined_day`);
+    // DuckDB may create multiple files per partition (data_0.parquet, data_1.parquet, etc.)
+    // We need to find and merge them if multiple exist
+    const files = await readdir(partitionDir);
+    const parquetFiles = files.filter(f => f.endsWith(".parquet"));
+
+    if (parquetFiles.length === 1) {
+      // Single file - just rename
+      const srcPath = path.join(partitionDir, parquetFiles[0]!);
+      const destPath = path.join(parquetsDir, `${day}.parquet`);
+      await rename(srcPath, destPath);
+    } else if (parquetFiles.length > 1) {
+      // Multiple files - need to merge them
+      // This shouldn't happen often with our data volume per day
+      console.warn(`  Warning: ${day} has ${parquetFiles.length} files, merging...`);
+      const srcGlob = path.join(partitionDir, "*.parquet");
+      const destPath = path.join(parquetsDir, `${day}.parquet`);
+      await connection.run(`
+        COPY (SELECT * FROM read_parquet('${srcGlob}') ORDER BY startedAt)
+        TO '${destPath}' (FORMAT PARQUET, COMPRESSION ZSTD, ROW_GROUP_SIZE 2048)
+      `);
+    }
+
+    // Remove the partition directory
+    await rm(partitionDir, { recursive: true });
+    fileCount++;
   }
+  console.log(`Renamed ${fileCount} partition directories`);
+
+  // 7. Compute final stats
+  console.log("\nComputing final statistics...");
+  const statsReader = await connection.runAndReadAll(`
+    SELECT COUNT(*) as total_with_route
+    FROM read_parquet('${parquetsDir}/*.parquet')
+  `);
+  const totalWithRoute = Number((statsReader.getRowObjects()[0] as { total_with_route: bigint }).total_with_route);
+
+  // Get total parquet size
+  let totalParquetBytes = 0;
+  const parquetFiles = await readdir(parquetsDir);
+  for (const file of parquetFiles) {
+    if (file.endsWith(".parquet")) {
+      const fileStat = await stat(path.join(parquetsDir, file));
+      totalParquetBytes += fileStat.size;
+    }
+  }
+
+  // Count trips before route join (from deduped table)
+  const totalTripCount = dedupedCount;
 
   // Final summary
   const totalWithoutRoute = totalTripCount - totalWithRoute;
