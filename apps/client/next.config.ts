@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "export",
+  output: process.env.NODE_ENV === "development" ? undefined : "export",
   webpack: (config, { webpack }) => {
     // Suppress the "Critical dependency" warning from duckdb-node.cjs
     config.ignoreWarnings = [
