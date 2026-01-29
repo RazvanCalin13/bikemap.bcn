@@ -54,6 +54,11 @@ export const BikeMap = () => {
   const dateSelectionKey = useAnimationStore((s) => s.dateSelectionKey);
 
 
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const [viewState, setViewState] = useState<MapViewState>(INITIAL_VIEW_STATE);
   const [stationStatuses, setStationStatuses] = useState<StationStatus[]>([]);
   const [revealedCount, setRevealedCount] = useState(0);
@@ -446,6 +451,11 @@ export const BikeMap = () => {
 
   if (!process.env.NEXT_PUBLIC_MAPBOX_TOKEN) return <div>Missing Token</div>;
 
+  // Prevent SSR to avoid hydration mismatches from browser extensions (e.g. Dark Reader) modifying SVGs
+  if (!isMounted) {
+    return <div className="relative w-full h-full bg-slate-950" />;
+  }
+
   return (
     <div ref={containerRef} className="relative w-full h-full bg-slate-950">
       <DeckGL
@@ -473,8 +483,8 @@ export const BikeMap = () => {
         {/* MapControlButton handles children, not icon prop */}
         <MapControlButton onClick={togglePlayPause} >
           <div className="flex items-center gap-2">
-            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-            <span>{isPlaying ? "Pause" : "Play"}</span>
+            {isMounted && isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+            <span>{isMounted && isPlaying ? "Pause" : "Play"}</span>
           </div>
           <Kbd>Space</Kbd>
         </MapControlButton>

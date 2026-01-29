@@ -50,6 +50,15 @@ bun install
 bun dev
 ```
 
+> [!NOTE]
+> If you encounter a `TurbopackInternalError` or exit code 58 (common on Windows), run the dev server using Webpack instead:
+>
+> ```bash
+> bun run --cwd apps/client dev -- --webpack
+> # OR from the apps/client directory:
+> bun run dev -- --webpack
+> ```
+
 **3. Update Stations (Optional)**
 
 If you want to update the Bicing station list from the latest live data:

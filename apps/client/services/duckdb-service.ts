@@ -27,8 +27,14 @@ export interface StationStatus {
 
 const BASE_URL = "/occupancy"; // Local public folder
 
+const MONTH_NAMES = [
+  "Gener", "Febrer", "Marc", "Abril", "Maig", "Juny",
+  "Juliol", "Agost", "Setembre", "Octubre", "Novembre", "Desembre"
+];
+
 class DuckDBService {
   private registeredFiles = new Set<string>();
+  private missingFiles = new Set<string>();
   private db: duckdb.AsyncDuckDB | null = null;
   private conn: duckdb.AsyncDuckDBConnection | null = null;
   private initPromise: Promise<void> | null = null;
@@ -69,29 +75,33 @@ class DuckDBService {
   }
 
   /**
-   * Register monthly CSV file for a given date
+   * Register the main JSON data file from the Open Data API
    */
-  private async registerMonthlyFile(date: Date): Promise<string> {
+  private async registerDataFile(): Promise<string> {
     const { db } = this.ensureInitialized();
-    // Convention: 2025_01_Gener_BicingNou_ESTACIONS.csv
-    // Hardcoded for now based on user download. Ideally use lookup.
-    // We assume the file is in public/occupancy/
-    const filename = "2025_01_Gener_BicingNou_ESTACIONS.csv";
-    if (this.registeredFiles.has(filename)) return filename;
-    const url = `${BASE_URL}/${filename}`;
+    const filename = "recurs.json";
 
-    // Explicitly fetch the file first to avoid DuckDB-WASM internal fetch state issues
+    if (this.registeredFiles.has(filename)) return filename;
+
+    // Use local proxy to avoid CORS and hide token
+    const url = "/api/proxy";
+
     console.log(`[DuckDB] Fetching ${url}...`);
+
+    // No need to send token to client-side proxy, cookie/session (if any) or just open access
     const response = await fetch(url);
+
     if (!response.ok) {
-      throw new Error(`Failed to fetch ${url}: ${response.statusText}`);
+      throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
     }
+
     const arrayBuffer = await response.arrayBuffer();
 
     // Register as buffer
     await db.registerFileBuffer(filename, new Uint8Array(arrayBuffer));
     this.registeredFiles.add(filename);
     console.log(`[DuckDB] Registered ${filename} (${(arrayBuffer.byteLength / 1024 / 1024).toFixed(2)} MB)`);
+
     return filename;
   }
 
@@ -103,7 +113,7 @@ class DuckDBService {
     // Ensure initialized (wait for it if currently loading)
     await this.init();
     const { conn } = this.ensureInitialized();
-    const filename = await this.registerMonthlyFile(datetime); // Ensure file is loaded
+    const filename = await this.registerDataFile(); // Ensure file is loaded
 
     // Timestamp in CSV is unix seconds (based on sample: 1735685985)
     // We query for the latest status per station <= datetime
@@ -112,17 +122,34 @@ class DuckDBService {
     const startTime = Date.now();
 
     // arg_max(column, sort_column) finds the value of 'column' where 'sort_column' is max
+    // JSON structure: { last_updated: int, ttl: int, data: { stations: [ ... ] } }
+    // We need to read the JSON, extracting the list of stations.
+    // read_json_auto returns one row with structs.
     const result = await conn.query(`
+      WITH raw_data AS (
+        SELECT unnest(data.stations) as s
+        FROM read_json_auto('${filename}', ignore_errors=true)
+      ),
+      stations AS (
+        SELECT 
+          s.station_id::INTEGER as station_id,
+          s.num_bikes_available::INTEGER as bikes,
+          s.num_docks_available::INTEGER as docks,
+          s.is_charging_station::BOOLEAN as is_charging,
+          s.status::VARCHAR as status,
+          s.last_reported::BIGINT as last_reported
+        FROM raw_data
+      )
       SELECT 
         station_id,
-        arg_max(num_bikes_available, last_reported) as bikes,
-        arg_max(num_docks_available, last_reported) as docks,
-        arg_max(is_charging_station, last_reported) as is_charging,
+        arg_max(bikes, last_reported) as bikes,
+        arg_max(docks, last_reported) as docks,
+        arg_max(is_charging, last_reported) as is_charging,
         arg_max(status, last_reported) as status
-      FROM read_csv_auto('${filename}', nullstr='NA', ignore_errors=true)
+      FROM stations
       WHERE station_id IS NOT NULL 
-        AND last_reported <= ${targetTs}
-        AND last_reported > ${targetTs - 3600} -- Optimization: Look back only 1 hour to prune data
+        -- API returns current state, so time filtering might be redundant but keeping it for safety if schema changes
+        -- AND last_reported <= ${targetTs} 
       GROUP BY station_id
     `);
 
@@ -170,20 +197,22 @@ class DuckDBService {
   async getSystemStats(datetime: Date): Promise<{ parked: number, docks: number }> {
     await this.init();
     const { conn } = this.ensureInitialized();
-    const filename = await this.registerMonthlyFile(datetime);
+    const filename = await this.registerDataFile();
 
     const targetTs = Math.floor(datetime.getTime() / 1000);
 
     const result = await conn.query(`
-      WITH latest_status AS (
+      WITH raw_data AS (
+        SELECT unnest(data.stations) as s
+        FROM read_json_auto('${filename}', ignore_errors=true)
+      ),
+      latest_status AS (
         SELECT
-          arg_max(num_bikes_available, last_reported) as bikes,
-          arg_max(num_docks_available, last_reported) as docks
-        FROM read_csv_auto('${filename}', nullstr='NA', ignore_errors=true)
-        WHERE station_id IS NOT NULL 
-          AND last_reported <= ${targetTs}
-          AND last_reported > ${targetTs - 3600} 
-        GROUP BY station_id
+          arg_max(s.num_bikes_available, s.last_reported) as bikes,
+          arg_max(s.num_docks_available, s.last_reported) as docks
+        FROM raw_data
+        WHERE s.station_id IS NOT NULL 
+        GROUP BY s.station_id
       )
       SELECT sum(bikes) as parked, sum(docks) as docks FROM latest_status
     `);
