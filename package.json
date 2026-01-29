@@ -1,13 +1,17 @@
 {
   "name": "bikemap",
   "private": true,
-  "workspaces": ["packages/*", "apps/*"],
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
     "dev": "bun run --cwd apps/client dev",
     "build": "bun run --cwd apps/client build",
     "start": "bun run --cwd apps/client start"
   },
   "devDependencies": {
-    "@types/mapbox__polyline": "^1.0.5"
+    "@types/mapbox__polyline": "^1.0.5",
+    "baseline-browser-mapping": "^2.9.19"
   }
 }

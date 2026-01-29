@@ -17,7 +17,7 @@ Each moving arrow represents a real bike ride, based on anonymized [historical s
 
 There is no backend. The client uses [DuckDB WASM](https://duckdb.org/docs/api/wasm/overview.html) to query parquet files using SQL directly from a CDN, downloading only the rows it needs via HTTP range requests.
 
-### 1) Data processing pipeline
+### 1. Data processing pipeline
 
 The raw system data spans 12 years and has significant inconsistencies, making it difficult to use directly. The processing pipeline cleans and normalizes the data into optimized parquet files.
 
@@ -25,7 +25,7 @@ The raw system data spans 12 years and has significant inconsistencies, making i
 2. **Route generation**: Queries [OSRM](https://project-osrm.org/) for bike routes between all station pairs. Geometries are cached per pair and stored as polyline6 in an intermediate SQLite database.
 3. **Parquet export**: Generates a parquet file for each day by joining each trip with its corresponding route geometry.
 
-### 2) Client application
+### 2. Client application
 
 This is what you see when you visit [bikemap.nyc](https://bikemap.nyc).
 
