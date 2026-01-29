@@ -10,11 +10,12 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@duckdb/node-api": "^1.4.3-r.1",
+    "@duckdb/duckdb-wasm": "^1.29.0",
     "@mapbox/polyline": "^1.2.1",
     "@turf/boolean-point-in-polygon": "^7.3.1",
     "@turf/distance": "^7.3.1",
     "@turf/helpers": "^7.3.1",
+    "apache-arrow": "^18.0.0",
     "betterknown": "^1.1.1",
     "csv-parse": "^6.1.0",
     "glob": "^13.0.0",

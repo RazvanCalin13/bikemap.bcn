@@ -122,8 +122,8 @@ export default function AboutPage() {
         <h1 className="text-3xl font-semibold text-zinc-100 mb-8">
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a href="/" className="inline-flex items-center gap-2.5 hover:text-white transition-colors">
-            <img src="/icon.svg" alt="" width={30} height={30} />
-            <span>bikemap.nyc</span>
+            <img src="/logo.png" alt="" width={30} height={30} />
+            <span>bikemap.bcn</span>
           </a>
         </h1>
 
@@ -131,7 +131,7 @@ export default function AboutPage() {
 
         <div className="space-y-6 text-zinc-400">
           <p>
-            bikemap.nyc is a visualization of the entire history of{" "}
+            bikemap.bcn is a visualization of the entire history of{" "}
             <a
               href="https://citibikenyc.com"
               className="text-zinc-300 font-medium hover:text-zinc-100 underline underline-offset-4"
@@ -172,7 +172,7 @@ export default function AboutPage() {
             does not contain the full path. Route geometries are computed for each (start station, end station) pair using the shortest path from{" "}
             <a
               href="https://project-osrm.org/"
-             
+
               className="text-zinc-300 font-medium hover:text-zinc-100 underline underline-offset-4"
             >
               OSRM
@@ -228,7 +228,7 @@ export default function AboutPage() {
             I&apos;m open-sourcing the entire data processing pipeline and visualization code at {" "}
             <a
               href="https://github.com/freeman-jiang/bikemap.nyc"
-             
+
               className="inline-flex items-baseline gap-1 text-zinc-300 font-medium hover:text-zinc-100 border-b border-current pb-px"
             >
               <Github className="size-4 self-center" />
@@ -237,10 +237,10 @@ export default function AboutPage() {
           </p>
 
           <p>
-             {"I hope to keep this project running indefinitely, but I'm paying for Mapbox and hosting costs out of pocket. If you'd like to support me, please consider "}
+            {"I hope to keep this project running indefinitely, but I'm paying for Mapbox and hosting costs out of pocket. If you'd like to support me, please consider "}
             <a
               href="https://buymeacoffee.com/freemanjiang"
-             
+
               className="inline-flex items-baseline gap-1 text-zinc-300 font-medium hover:text-zinc-100 border-b border-current pb-px"
             >
               <Coffee className="size-4 self-center" />
@@ -254,7 +254,7 @@ export default function AboutPage() {
           <p className="flex items-center gap-2">
             <a
               href="https://github.com/freeman-jiang"
-             
+
               className="inline-flex items-center gap-1.5 text-white/70 hover:text-white transition-colors border-b border-current pb-0.5"
             >
               <Github className="size-4" />
@@ -263,7 +263,7 @@ export default function AboutPage() {
             <span className="text-white/30">·</span>
             <a
               href="https://x.com/freemanjiangg"
-             
+
               className="inline-flex items-center gap-1.5 text-white/70 hover:text-white transition-colors border-b border-current pb-0.5"
             >
               <XIcon className="size-3.5" />

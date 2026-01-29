@@ -1,6 +1,6 @@
-# NYC Bike Routing with OSRM
+# Barcelona Bike Routing with OSRM
 
-Bike-only routing for New York City using OSRM, with ferries excluded.
+Bike-only routing for Barcelona using OSRM, with ferries excluded.
 
 ## Prerequisites
 
@@ -12,22 +12,18 @@ Bike-only routing for New York City using OSRM, with ferries excluded.
 ```bash
 cd packages/processing/osrm
 
-# 1. Download NYC OSM data (~142MB)
-wget https://download.bbbike.org/osm/bbbike/NewYork/NewYork.osm.pbf
+# 1. Download Barcelona OSM data (~20MB)
+curl -O https://download.bbbike.org/osm/bbbike/Barcelona/Barcelona.osm.pbf
 
-# 2. Build routing graph (one-time, ~2-3 min)
-docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend \
-  osrm-extract -p /data/bicycle-no-ferry.lua /data/NewYork.osm.pbf
+# 2. Build routing graph (one-time, ~1 min)
+docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-extract -p /data/bicycle-no-ferry.lua /data/Barcelona.osm.pbf
 
-docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend \
-  osrm-partition /data/NewYork.osrm
+docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-partition /data/Barcelona.osrm
 
-docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend \
-  osrm-customize /data/NewYork.osrm
+docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-customize /data/Barcelona.osrm
 
 # 3. Start server (runs on localhost:5000)
-docker run --rm -p 5000:5000 -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend \
-  osrm-routed --algorithm mld /data/NewYork.osrm 2>/dev/null
+docker run --rm -p 5000:5000 -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-routed --algorithm mld /data/Barcelona.osrm
 ```
 
 Steps 1-2 only need to run once. After that, just run step 3 to start the server.
@@ -37,7 +33,7 @@ Steps 1-2 only need to run once. After that, just run step 3 to start the server
 > ```bash
 > # Example: 12-core machine
 > docker run --rm -p 5000:5000 -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend \
->   osrm-routed --algorithm mld --threads 12 /data/NewYork.osrm 2>/dev/null
+>   osrm-routed --algorithm mld --threads 12 /data/Barcelona.osrm 2>/dev/null
 > ```
 
 ## Usage
@@ -47,15 +43,15 @@ The API runs on `http://localhost:5000`.
 ### Route Request
 
 ```
-GET /route/v1/bike/{lon1},{lat1};{lon2},{lat2}
+GET /route/v1/bicycle/{lon1},{lat1};{lon2},{lat2}
 ```
 
 ### Example
 
-Brooklyn to Central Park:
+Sagrada Família to Plaça de Catalunya:
 
 ```bash
-curl "http://127.0.0.1:5000/route/v1/bike/-73.9857,40.6892;-73.9712,40.7831?overview=full"
+curl "http://127.0.0.1:5000/route/v1/bicycle/2.1744,41.4036;2.1694,41.3870?overview=full"
 ```
 
 ### Query Parameters
@@ -69,4 +65,4 @@ curl "http://127.0.0.1:5000/route/v1/bike/-73.9857,40.6892;-73.9712,40.7831?over
 
 ## Custom Profile
 
-`bicycle-no-ferry.lua` is a modified OSRM bicycle profile with ferry routes disabled. This ensures all routes use bridges/tunnels only.
+`bicycle-no-ferry.lua` is a modified OSRM bicycle profile with ferry routes disabled. This ensures all routes use streets and cycle paths only.

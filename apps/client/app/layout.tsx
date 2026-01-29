@@ -13,17 +13,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://bikemap.nyc"),
-  title: "bikemap.nyc",
+  metadataBase: new URL("https://bikemap.bcn"), // Placeholder
+  title: "bikemap.bcn",
   description:
-    "Visualization of the entire history of Citi Bike, the largest bike-sharing system in the US.",
+    "Visualization of the Smou/Bicing bike-sharing system in Barcelona.",
   keywords: [
-    "Citi Bike",
-    "NYC bike visualization",
+    "Bicing",
+    "Barcelona bike visualization",
     "bike share",
     "data visualization",
-    "New York City",
-    "bikemap.nyc",
+    "Barcelona",
+    "bikemap.bcn",
   ],
   authors: [{ name: "Freeman Jiang", url: "https://freemanjiang.com" }],
   creator: "Freeman Jiang",
@@ -38,13 +38,13 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "bikemap.nyc",
+    title: "bikemap.bcn",
     description:
-      "Visualization of the entire history of Citi Bike, the largest bike-sharing system in the US.",
+      "Visualization of the Smou/Bicing bike-sharing system in Barcelona.",
     creator: "@freemanjiangg",
     images: ["/opengraph-image.png"],
   },
-  };
+};
 
 export const viewport: Viewport = {
   themeColor: "#09090b",

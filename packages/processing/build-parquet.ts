@@ -16,7 +16,7 @@ import { DuckDBConnection } from "@duckdb/node-api";
 import { globSync } from "glob";
 import { mkdir, readdir, rename, rm, rmdir, stat } from "node:fs/promises";
 import path from "path";
-import { csvGlob, dataDir, formatHumanReadableBytes, gitRoot, NYC_BOUNDS, outputDir } from "./utils";
+import { csvGlob, dataDir, formatHumanReadableBytes, gitRoot, MAP_BOUNDS, outputDir } from "./utils";
 
 const routesDbPath = path.join(outputDir, "routes.db");
 
@@ -141,24 +141,33 @@ async function main() {
 
       -- Timestamps: all columns are VARCHAR with all_varchar=true
       -- First COALESCE picks first non-null value, then parse
+      -- Timestamps: all columns are VARCHAR with all_varchar=true
+      -- First COALESCE picks first non-null value, then parse
       COALESCE(
         TRY_CAST(started_at AS TIMESTAMP),
         TRY_CAST(start_time AS TIMESTAMP),
         TRY_CAST(starttime AS TIMESTAMP),
-        TRY_STRPTIME(COALESCE(started_at, start_time, starttime), '%m/%d/%Y %H:%M:%S'),
-        TRY_STRPTIME(COALESCE(started_at, start_time, starttime), '%m/%d/%Y %H:%M')
+        TRY_CAST(unplug_hourtime AS TIMESTAMP),
+        TRY_STRPTIME(COALESCE(started_at, start_time, starttime, unplug_hourtime), '%m/%d/%Y %H:%M:%S'),
+        TRY_STRPTIME(COALESCE(started_at, start_time, starttime, unplug_hourtime), '%m/%d/%Y %H:%M'),
+        TRY_STRPTIME(COALESCE(started_at, start_time, starttime, unplug_hourtime), '%Y-%m-%d %H:%M:%S')
       ) as started_at,
       COALESCE(
         TRY_CAST(ended_at AS TIMESTAMP),
         TRY_CAST(stop_time AS TIMESTAMP),
         TRY_CAST(stoptime AS TIMESTAMP),
-        TRY_STRPTIME(COALESCE(ended_at, stop_time, stoptime), '%m/%d/%Y %H:%M:%S'),
-        TRY_STRPTIME(COALESCE(ended_at, stop_time, stoptime), '%m/%d/%Y %H:%M')
+        -- For Bicing logs that only provide travel_time (duration)
+        COALESCE(
+          TRY_CAST(started_at AS TIMESTAMP),
+          TRY_CAST(start_time AS TIMESTAMP),
+          TRY_CAST(starttime AS TIMESTAMP),
+          TRY_CAST(unplug_hourtime AS TIMESTAMP)
+        ) + INTERVAL (COALESCE(travel_time, travel_time_sec, '0')) SECOND
       ) as ended_at,
 
-      -- Station names: normalize_names merges Title Case into snake_case
-      start_station_name,
-      end_station_name,
+      -- Station names/IDs: normalize_names merges Title Case into snake_case
+      COALESCE(start_station_name, idunplug_station::VARCHAR) as start_station_name,
+      COALESCE(end_station_name, idplug_station::VARCHAR) as end_station_name,
 
       -- Coordinates: all columns are VARCHAR with all_varchar=true
       TRY_CAST(COALESCE(start_lat, start_station_latitude) AS DOUBLE) as start_lat,
@@ -169,7 +178,11 @@ async function main() {
       -- Member type: normalize legacy 'Subscriber' -> 'member', 'Customer' -> 'casual'
       COALESCE(
         member_casual,
-        CASE WHEN COALESCE(usertype, user_type) = 'Subscriber' THEN 'member' ELSE 'casual' END
+        CASE 
+          WHEN COALESCE(usertype, user_type) = 'Subscriber' THEN 'member'
+          WHEN COALESCE(usertype, user_type) = 'Customer' THEN 'casual'
+          ELSE 'member' -- Fallback for Bicing
+        END
       ) as member_casual
 
     FROM read_csv_auto('${csvGlob}', union_by_name=true, normalize_names=true, all_varchar=true, null_padding=true, quote='"')
@@ -187,7 +200,7 @@ async function main() {
   `);
   await connection.run(`
     UPDATE raw SET output_day = strftime(
-      timezone('America/New_York', started_at)::TIMESTAMP,
+      timezone('Europe/Madrid', started_at)::TIMESTAMP,
       '%Y-%m-%d'
     )
     WHERE started_at IS NOT NULL
@@ -317,10 +330,12 @@ async function main() {
     AND rideable_type IN ('classic_bike', 'electric_bike')
     AND member_casual IN ('member', 'casual')
     AND ended_at >= started_at
-    AND start_lat BETWEEN ${NYC_BOUNDS.minLat} AND ${NYC_BOUNDS.maxLat}
-    AND start_lng BETWEEN ${NYC_BOUNDS.minLng} AND ${NYC_BOUNDS.maxLng}
-    AND end_lat BETWEEN ${NYC_BOUNDS.minLat} AND ${NYC_BOUNDS.maxLat}
-    AND end_lng BETWEEN ${NYC_BOUNDS.minLng} AND ${NYC_BOUNDS.maxLng}
+    -- Latitude/Longitude filter is more flexible if Bicing data lacks them (we join with stations.json later)
+    -- But we still want to filter out clear garbage if present
+    AND (start_lat IS NULL OR start_lat BETWEEN ${MAP_BOUNDS.minLat} AND ${MAP_BOUNDS.maxLat})
+    AND (start_lng IS NULL OR start_lng BETWEEN ${MAP_BOUNDS.minLng} AND ${MAP_BOUNDS.maxLng})
+    AND (end_lat IS NULL OR end_lat BETWEEN ${MAP_BOUNDS.minLat} AND ${MAP_BOUNDS.maxLat})
+    AND (end_lng IS NULL OR end_lng BETWEEN ${MAP_BOUNDS.minLng} AND ${MAP_BOUNDS.maxLng})
   `;
 
   console.log("\nCreating deduplicated table...");
@@ -350,8 +365,8 @@ async function main() {
         t.ride_id as id,
         COALESCE(snl_start.canonical_name, t.start_station_name) as startStationName,
         COALESCE(snl_end.canonical_name, t.end_station_name) as endStationName,
-        timezone('America/New_York', t.started_at)::TIMESTAMP as startedAt,
-        timezone('America/New_York', t.ended_at)::TIMESTAMP as endedAt,
+        timezone('Europe/Madrid', t.started_at)::TIMESTAMP as startedAt,
+        timezone('Europe/Madrid', t.ended_at)::TIMESTAMP as endedAt,
         t.rideable_type as bikeType,
         t.member_casual as memberCasual,
         t.start_lat as startLat,

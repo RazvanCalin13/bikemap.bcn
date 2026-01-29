@@ -137,7 +137,7 @@ async function loadStations(): Promise<Map<string, Station>> {
 
 async function checkOSRM(): Promise<void> {
   try {
-    const res = await fetch(`${OSRM_URL}/route/v1/bicycle/-73.99,40.73;-73.98,40.74`);
+    const res = await fetch(`${OSRM_URL}/route/v1/bicycle/2.1734,41.3851;2.1834,41.3951`);
     if (!res.ok) fail(`OSRM test request failed: ${res.status}`);
     const json: unknown = await res.json();
     const parsed = OSRMResponseSchema.safeParse(json);
@@ -181,20 +181,29 @@ async function getUniquePairsFromCSVs(): Promise<StationPair[]> {
   const connection = await DuckDBConnection.create();
   // Extract unique station NAME pairs (not IDs) from all years
   // normalize_names=true merges "start station name" and "Start Station Name" into start_station_name
-  const reader = await connection.runAndReadAll(`
+  const query = `
     SELECT DISTINCT
-      start_station_name AS startStationName,
-      end_station_name AS endStationName
+      COALESCE(start_station_name, idunplug_station::VARCHAR) AS startStationName,
+      COALESCE(end_station_name, idplug_station::VARCHAR) AS endStationName
     FROM read_csv_auto('${csvGlob}', union_by_name=true, normalize_names=true, all_varchar=true, null_padding=true, quote='"')
-    WHERE start_station_name IS NOT NULL
-      AND end_station_name IS NOT NULL
-      AND start_station_name != end_station_name
-  `);
+    WHERE (start_station_name IS NOT NULL OR idunplug_station IS NOT NULL)
+      AND (end_station_name IS NOT NULL OR idplug_station IS NOT NULL)
+      AND COALESCE(start_station_name, idunplug_station::VARCHAR) != COALESCE(end_station_name, idplug_station::VARCHAR)
+  `;
 
-  const pairs = reader.getRowObjectsJson() as unknown as StationPair[];
-  connection.closeSync();
-
-  return pairs;
+  try {
+    const reader = await connection.runAndReadAll(query);
+    const pairs = reader.getRowObjectsJson() as unknown as StationPair[];
+    connection.closeSync();
+    return pairs;
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("Referenced column")) {
+      console.warn("\n⚠️  Warning: DuckDB could not find standard station columns in the CSVs.");
+      console.warn("   Your files might be aggregate data (counts) rather than individual trip logs.");
+      console.warn("   Individual trip logs are required for map visualization.\n");
+    }
+    throw err;
+  }
 }
 
 async function main() {

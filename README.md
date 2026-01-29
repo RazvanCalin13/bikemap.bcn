@@ -1,17 +1,15 @@
-# bikemap.nyc
+# bikemap.bcn
 
-[bikemap.nyc](https://bikemap.nyc) is a visualization of the entire history of [Citi Bike](https://citibikenyc.com), the largest bike-sharing system in the US.
+[bikemap.bcn](https://bikemap.bcn) is a visualization of the [Bicing](https://www.bicing.barcelona/) bike-sharing system in Barcelona, Spain.
 
-https://github.com/user-attachments/assets/814a0366-c5a2-4410-9998-dfa13f8e5475
-
-Each moving arrow represents a real bike ride, based on anonymized [historical system data](https://citibikenyc.com/system-data) published by Lyft.
+Each moving arrow represents a real bike ride, based on anonymized historical system data (processed into parquets).
 
 ## Features
 - GPU-accelerated rendering of thousands of concurrent rides
 - Natural language date parsing to jump to any moment in history
 - Search for individual rides by date and station name
 - Full keyboard controls for playback and navigation
-- Coverage of more than 291.2 million trips from 2013 to 2025 (0.7% data loss)
+- Coverage of Bicing's modern era (2019-present)
 
 ## How it works 
 
@@ -52,10 +50,30 @@ bun install
 bun dev
 ```
 
-**Note:** The client queries parquet files from the official hosted CDN by default. You don't need to run the processing pipeline unless you want to regenerate the data. See the [processing README](packages/processing/README.md) for how to run the pipeline.
+**3. Update Stations (Optional)**
 
-## Why
+If you want to update the Bicing station list from the latest live data:
 
-I built this project because I think it is cool and beautiful :)
+```sh
+cd packages/processing
+bun run fetch-bicing-stations.ts
+```
 
-I hope to keep this project running indefinitely, but I'm paying for Mapbox and hosting costs out of pocket. If you'd like to support me, please consider [buying me a coffee](https://buymeacoffee.com/freemanjiang)!
+**Note:** The client queries parquet files from a hosted CDN by default. See the [processing README](packages/processing/README.md) for how to generate and host your own data.
+
+
+## Station Legend
+
+The map visualizes Bicing stations as dots that change color and size based on real-time occupancy (bikes vs. total docks).
+
+**Colors (Bike Availability):**
+- 🔴 **Red**: Empty (< 10% bikes)
+- 🟠 **Orange**: Low (< 50% bikes)
+- 🟡 **Yellow**: Medium (< 80% bikes)
+- 🟢 **Green**: High (>= 80% bikes)
+
+**Size:**
+- The size of the dot scales with the percentage of bikes available.
+- Larger dots indicate a higher percentage of available bikes (more full).
+- Smaller dots indicate fewer bikes relative to station capacity.
+

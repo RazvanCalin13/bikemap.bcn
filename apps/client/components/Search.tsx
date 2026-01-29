@@ -8,6 +8,7 @@ import { formatDateTime, formatDateTimeFull, formatDateTimeShort, formatDistance
 import { useAnimationStore } from "@/lib/stores/animation-store"
 import { usePickerStore } from "@/lib/stores/location-picker-store"
 import { useSearchStore } from "@/lib/stores/search-store"
+import { useMapStore } from "@/lib/stores/map-store"
 import { useStationsStore, type Station } from "@/lib/stores/stations-store"
 import { filterTrips } from "@/lib/trip-filters"
 import { cn } from "@/lib/utils"
@@ -61,6 +62,7 @@ export function Search() {
   const { pickedLocation, startPicking } = usePickerStore()
   const { animationStartDate, simCurrentTimeMs } = useAnimationStore()
   const { stations, getStation, load: loadStations } = useStationsStore()
+  const { triggerFlyTo } = useMapStore()
 
   // Compute current real time (absolute) for chrono reference
   const realCurrentTimeMs = React.useMemo(() => {
@@ -138,6 +140,20 @@ export function Search() {
     }
   }, [pickedLocation, openSearch])
 
+  // Sync initial input with current app time when opening (snapshot)
+  // And clear it when switching to "ride" mode
+  React.useEffect(() => {
+    if (isOpen && step === "datetime") {
+      if (mode === "time") {
+        const currentDate = new Date(animationStartDate.getTime() + simCurrentTimeMs)
+        setDatetimeInput(formatDateTimeShort(currentDate))
+      } else {
+        // "Find station" mode starts empty
+        setDatetimeInput("")
+      }
+    }
+  }, [isOpen, step, mode]) // Removed simCurrentTimeMs to prevent auto-updates while open
+
   // Reset state when dialog closes
   const handleOpenChange = (newOpen: boolean) => {
     if (newOpen) {
@@ -179,15 +195,32 @@ export function Search() {
   )
 
   const filteredStations = React.useMemo((): (Station | StationWithDistance)[] => {
+    // Determine the active query based on the current step
+    const query = (step === "datetime" ? datetimeInput : search).trim()
+
     // Helper to merge results from name, neighborhood, and alias fzf instances
-    const getMergedMatches = (query: string): Station[] => {
-      const nameMatches = nameFzf.find(query).map((r) => r.item)
-      const neighborhoodMatches = neighborhoodFzf.find(query).map((r) => r.item)
+    const getMergedMatches = (q: string): Station[] => {
+      const trimQuery = q.trim()
+      if (!trimQuery) return []
+
+      // 0. Exact Alias/ID Matches (Top Priority for "Search by ID")
+      const exactAliasMatches = stations.filter((s) => s.aliases.includes(trimQuery))
+
+      const nameMatches = nameFzf.find(q).map((r) => r.item)
+      const neighborhoodMatches = neighborhoodFzf.find(q).map((r) => r.item)
       // Alias matches return the canonical station (not the alias text)
-      const aliasMatches = aliasFzf.find(query).map((r) => r.item.station)
+      const aliasMatches = aliasFzf.find(q).map((r) => r.item.station)
 
       const seen = new Set<string>()
       const merged: Station[] = []
+
+      // Add exact matches first
+      for (const station of exactAliasMatches) {
+        if (!seen.has(station.name)) {
+          seen.add(station.name)
+          merged.push(station)
+        }
+      }
 
       // Priority: name matches first, then neighborhood, then alias
       for (const station of [...nameMatches, ...neighborhoodMatches, ...aliasMatches]) {
@@ -210,8 +243,8 @@ export function Search() {
       withDistance.sort((a, b) => a.distance - b.distance)
 
       // If there's a search query, filter by merged matches
-      if (search.trim()) {
-        const matchingNames = new Set(getMergedMatches(search.trim()).map((s) => s.name))
+      if (query) {
+        const matchingNames = new Set(getMergedMatches(query).map((s) => s.name))
         return withDistance.filter((s) => matchingNames.has(s.name)).slice(0, MAX_RESULTS)
       }
 
@@ -219,10 +252,9 @@ export function Search() {
     }
 
     // Normal fuzzy search
-    const query = search.trim()
     if (!query) return stations.slice(0, MAX_RESULTS)
     return getMergedMatches(query).slice(0, MAX_RESULTS)
-  }, [stations, search, nameFzf, neighborhoodFzf, aliasFzf, pickedLocation])
+  }, [stations, search, datetimeInput, step, nameFzf, neighborhoodFzf, aliasFzf, pickedLocation])
 
   // Filter trips by end station name + neighborhood
   const filteredTrips = React.useMemo(() => {
@@ -246,8 +278,22 @@ export function Search() {
 
 
   const handleSelectStation = async (station: Station | StationWithDistance) => {
-    if (!parsedDate) {
-      throw new Error("Cannot select station without a parsed date")
+    // If no date is parsed (e.g. in "Find station" mode), we'll use realCurrentTimeMs
+    // so we don't throw an error here.
+    const effectiveDate = parsedDate || realCurrentTimeMs
+
+    // Zoom to station
+    triggerFlyTo({
+      latitude: station.latitude,
+      longitude: station.longitude,
+      zoom: 16,
+      stationName: station.name
+    })
+
+    // If in "Find station" mode, close immediately
+    if (mode === "ride") {
+      close()
+      return
     }
 
     // Optimistically transition to results step
@@ -269,7 +315,7 @@ export function Search() {
 
       const rawTrips = await duckdbService.getTripsFromStation({
         startStationName: station.name,
-        datetime: parsedDate,
+        datetime: parsedDate || realCurrentTimeMs,
         intervalMs: SEARCH_WINDOW_MS,
       })
 
@@ -408,17 +454,17 @@ export function Search() {
               </TabsTrigger>
               <TabsTrigger value="ride" className="data-[state=active]:bg-zinc-800 px-3 py-1.5 sm:px-2 sm:py-1">
                 <SearchIcon className="size-4 sm:size-3.5" />
-                Find ride
+                Find station
               </TabsTrigger>
             </TabsList>
           </Tabs>
           <span className="hidden sm:flex text-xs text-muted-foreground items-center gap-1 ml-3">
-              <Kbd>Tab</Kbd> to switch
+            <Kbd>Tab</Kbd> to switch
           </span>
         </div>
         <CommandInput
           autoFocus
-          placeholder={mode === "ride" ? "When did this ride start?" : "What time do you want to jump to?"}
+          placeholder={mode === "ride" ? "What's the name of the Bike Station you're looking for (e.g. 'Marina')" : "What time do you want to jump to?"}
           value={datetimeInput}
           onValueChange={handleDatetimeChange}
           onKeyDown={handleDatetimeKeyDown}
@@ -426,8 +472,8 @@ export function Search() {
         />
         <div className="px-3 py-2 text-sm sm:text-xs text-zinc-500 flex flex-col gap-0.5">
           <span>
-            <span className="hidden sm:inline">Processed <a href="https://citibikenyc.com/" target="_blank" className="underline hover:text-zinc-50 text-zinc-300 font-medium">Citi Bike</a> data spans June 2013 – December 2025.</span>
-            <span className="sm:hidden"><a href="https://citibikenyc.com/" target="_blank" className="underline hover:text-zinc-50 text-zinc-300 font-medium">Citi Bike</a> data spans Jun 2013 – Dec 2025</span>
+            <span className="hidden sm:inline">Processed <a href="https://www.bicing.barcelona/" target="_blank" className="underline hover:text-zinc-50 text-zinc-300 font-medium">Bicing</a> data spans August 2018 – March 2019.</span>
+            <span className="sm:hidden"><a href="https://www.bicing.barcelona/" target="_blank" className="underline hover:text-zinc-50 text-zinc-300 font-medium">Bicing</a> data spans Aug 2018 – Mar 2019</span>
           </span>
           <span>{'Try "July 4th 2019 at 8pm" or "Fri 4pm"'}</span>
         </div>
@@ -441,14 +487,14 @@ export function Search() {
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
               >
-                <CommandGroup>
+                <CommandGroup heading={mode === "time" ? "Time travel" : "Time travel (search window start)"}>
                   <CommandItem
                     value="parsed-datetime"
                     onSelect={isDateOutOfRange ? undefined : (mode === "ride" ? handleConfirmDatetime : handleJumpToTime)}
                     className={cn("group bg-accent", isDateOutOfRange && "cursor-not-allowed")}
                     disabled={isDateOutOfRange}
                   >
-                    <ArrowRight  />
+                    <ArrowRight className="size-4" />
                     <span className="hidden sm:inline">{formatDateTime(parsedDate)}</span>
                     <span className="sm:hidden">{formatDateTimeShort(parsedDate)}</span>
                     <EnterHint className="ml-auto" />
@@ -464,6 +510,47 @@ export function Search() {
                   )}
                 </CommandGroup>
               </motion.div>
+            )}
+
+            {/* Station results in Step 1 (only for ride mode) */}
+            {mode === "ride" && datetimeInput.trim() && filteredStations.length > 0 && (
+              <>
+                <CommandSeparator />
+                <CommandGroup heading="Bicing Stations">
+                  {filteredStations.map((station, index) => (
+                    <motion.div
+                      key={station.name}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2, ease: "easeOut", delay: index * 0.05 }}
+                    >
+                      <CommandItem
+                        value={`station-${station.name}`}
+                        onSelect={() => {
+                          // If user picked a station without a valid date yet, default to now
+                          if (!parsedDate) {
+                            // We can't really "select" a date without input, but we can default to now
+                            // Chrono already defaults to now in the memo if input is empty, 
+                            // but here input is NOT empty (it's the station name).
+                            // So we just use realCurrentTimeMs.
+                          }
+                          handleSelectStation(station)
+                        }}
+                        className="group"
+                      >
+                        <Bike className="size-4" />
+                        <div className="flex flex-col flex-1">
+                          <span>{station.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {getStationRegionLabel(station)}
+                          </span>
+                        </div>
+                        <EnterHint />
+                      </CommandItem>
+                    </motion.div>
+                  ))}
+                </CommandGroup>
+              </>
             )}
           </AnimatePresence>
         </CommandList>
@@ -509,35 +596,35 @@ export function Search() {
             </>
           )}
           {filteredStations.length > 0 && (
-            <CommandGroup heading={pickedLocation ? "Nearest Stations" : "Citibike Stations"}>
-                {filteredStations.map((station, index) => (
-                  <motion.div
-                    key={station.name}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.25, ease: "easeOut", delay: index * 0.05 }}
+            <CommandGroup heading={pickedLocation ? "Nearest Stations" : "Bicing Stations"}>
+              {filteredStations.map((station, index) => (
+                <motion.div
+                  key={station.name}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.25, ease: "easeOut", delay: index * 0.05 }}
+                >
+                  <CommandItem
+                    value={`station-${station.name}`}
+                    onSelect={() => handleSelectStation(station)}
+                    className="group"
                   >
-                    <CommandItem
-                      value={station.name}
-                      onSelect={() => handleSelectStation(station)}
-                      className="group"
-                    >
-                      <Bike className="size-4" />
-                      <div className="flex flex-col flex-1">
-                        <span>{station.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {getStationRegionLabel(station)}
-                        </span>
-                      </div>
-                      {"distance" in station && (
-                        <span className="text-muted-foreground text-xs">
-                          {formatDistance(station.distance)}
-                        </span>
-                      )}
-                      <EnterHint />
-                    </CommandItem>
-                  </motion.div>
-                ))}
+                    <Bike className="size-4" />
+                    <div className="flex flex-col flex-1">
+                      <span>{station.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {getStationRegionLabel(station)}
+                      </span>
+                    </div>
+                    {"distance" in station && (
+                      <span className="text-muted-foreground text-xs">
+                        {formatDistance(station.distance)}
+                      </span>
+                    )}
+                    <EnterHint />
+                  </CommandItem>
+                </motion.div>
+              ))}
             </CommandGroup>
           )}
         </CommandList>
@@ -609,45 +696,45 @@ export function Search() {
                 transition={{ duration: 0.2, ease: "easeOut" }}
               >
                 <CommandGroup>
-                    {filteredTrips.slice(0, MAX_RESULTS).map((trip, index) => (
-                      <motion.div
-                        key={trip.id}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.25, ease: "easeOut", delay: index * 0.05 }}
-                      >
-                        <CommandItem value={trip.id} onSelect={() => handleSelectTrip(trip)}>
-                          <div className="flex items-center gap-3 w-full">
-                            {trip.bikeType === "electric_bike" ? (
-                              <EBike className="size-8 text-[#7DCFFF] shrink-0" />
-                            ) : (
-                              <Bike className="size-8 text-[#BB9AF7] shrink-0" />
-                            )}
-                            <div className="flex flex-col shrink-0 pr-4">
-                              <span className="font-medium whitespace-nowrap">
-                                {trip.bikeType === "electric_bike" ? "E-Bike" : "Bike"} ride · {formatDurationMinutes(trip.startedAt, trip.endedAt)}
+                  {filteredTrips.slice(0, MAX_RESULTS).map((trip, index) => (
+                    <motion.div
+                      key={trip.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.25, ease: "easeOut", delay: index * 0.05 }}
+                    >
+                      <CommandItem value={trip.id} onSelect={() => handleSelectTrip(trip)}>
+                        <div className="flex items-center gap-3 w-full">
+                          {trip.bikeType === "electric_bike" ? (
+                            <EBike className="size-8 text-[#7DCFFF] shrink-0" />
+                          ) : (
+                            <Bike className="size-8 text-[#BB9AF7] shrink-0" />
+                          )}
+                          <div className="flex flex-col shrink-0 pr-4">
+                            <span className="font-medium whitespace-nowrap">
+                              {trip.bikeType === "electric_bike" ? "E-Bike" : "Bike"} ride · {formatDurationMinutes(trip.startedAt, trip.endedAt)}
+                            </span>
+                            <span className="text-sm text-muted-foreground whitespace-nowrap">
+                              <span className="hidden sm:inline">
+                                {formatDateTimeFull({ startDate: trip.startedAt, endDate: trip.endedAt })}{trip.routeDistance && ` · ${formatDistance(trip.routeDistance)}`}
                               </span>
-                              <span className="text-sm text-muted-foreground whitespace-nowrap">
-                                <span className="hidden sm:inline">
-                                  {formatDateTimeFull({ startDate: trip.startedAt, endDate: trip.endedAt })}{trip.routeDistance && ` · ${formatDistance(trip.routeDistance)}`}
-                                </span>
-                                <span className="sm:hidden">
-                                  {formatTimeRange(trip.startedAt, trip.endedAt)}
-                                </span>
+                              <span className="sm:hidden">
+                                {formatTimeRange(trip.startedAt, trip.endedAt)}
                               </span>
-                            </div>
-                            <div className="ml-auto flex flex-col items-end min-w-0">
-                              <span className="text-zinc-100 font-normal truncate max-w-full">
-                                {getStation(trip.endStationName).name}
-                              </span>
-                              <span className="text-sm text-muted-foreground truncate max-w-full">
-                                {getStation(trip.endStationName).neighborhood}
-                              </span>
-                            </div>
+                            </span>
                           </div>
-                        </CommandItem>
-                      </motion.div>
-                    ))}
+                          <div className="ml-auto flex flex-col items-end min-w-0">
+                            <span className="text-zinc-100 font-normal truncate max-w-full">
+                              {getStation(trip.endStationName).name}
+                            </span>
+                            <span className="text-sm text-muted-foreground truncate max-w-full">
+                              {getStation(trip.endStationName).neighborhood}
+                            </span>
+                          </div>
+                        </div>
+                      </CommandItem>
+                    </motion.div>
+                  ))}
                 </CommandGroup>
               </motion.div>
             )}

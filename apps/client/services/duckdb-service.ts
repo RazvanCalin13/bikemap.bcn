@@ -1,52 +1,40 @@
 import { DATA_END_DATE, DATA_START_DATE } from "@/lib/config";
-import type { TripWithRoute } from "@/lib/trip-types";
 import * as duckdb from "@duckdb/duckdb-wasm";
 
-const TRIPS_BASE_URL = "https://cdn.bikemap.nyc";
-
-/**
- * Get day key from a date (e.g., "2025-09-15")
- * Uses UTC to match parquet file naming convention
- */
-function getDayKey(date: Date): string {
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+export interface Trip {
+  id: string;
+  startStationName: string;
+  endStationName: string;
+  startedAt: Date;
+  endedAt: Date;
+  bikeType: string;
+  memberCasual: string;
+  routeDistance: number | null;
+  startLat: number;
+  startLng: number;
+  endLat: number | null;
+  endLng: number | null;
+  routeGeometry: string | null;
 }
 
-// Valid data range boundaries (derived from config)
-const DATA_START_DAY = getDayKey(DATA_START_DATE);
-const DATA_END_DAY = getDayKey(DATA_END_DATE);
-
-/**
- * Get the list of days that overlap with a date range
- * Uses UTC to match parquet file naming convention
- * Filters to only include days within the valid data range
- */
-function getDaysForRange(from: Date, to: Date): string[] {
-  const days: string[] = [];
-  const current = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()));
-  const end = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate()));
-
-  while (current <= end) {
-    days.push(getDayKey(current));
-    current.setUTCDate(current.getUTCDate() + 1);
-  }
-
-  // Filter to valid data range (prevents loading non-existent parquet files)
-  return days.filter((d) => d >= DATA_START_DAY && d <= DATA_END_DAY);
+export interface StationStatus {
+  station_id: number;
+  bikes: number;
+  docks: number;
+  is_charging: boolean;
+  status: string;
 }
 
-/**
- * DuckDB WASM service for querying Parquet files from GCS.
- * Uses an internal worker for non-blocking queries.
- */
+const BASE_URL = "/occupancy"; // Local public folder
+
 class DuckDBService {
+  private registeredFiles = new Set<string>();
   private db: duckdb.AsyncDuckDB | null = null;
   private conn: duckdb.AsyncDuckDBConnection | null = null;
   private initPromise: Promise<void> | null = null;
 
   async init(): Promise<void> {
     if (this.initPromise) return this.initPromise;
-
     this.initPromise = this._initialize();
     return this.initPromise;
   }
@@ -59,30 +47,17 @@ class DuckDBService {
     const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES);
 
     const workerUrl = URL.createObjectURL(
-      new Blob([`importScripts("${bundle.mainWorker}");`], {
-        type: "text/javascript",
-      })
+      new Blob([`importScripts("${bundle.mainWorker}");`], { type: "text/javascript" })
     );
 
     const worker = new Worker(workerUrl);
-    const noopLogger: duckdb.Logger = { log: () => {} };
+    const noopLogger: duckdb.Logger = { log: () => { } };
     this.db = new duckdb.AsyncDuckDB(noopLogger, worker);
 
     await this.db.instantiate(bundle.mainModule, bundle.pthreadWorker);
     URL.revokeObjectURL(workerUrl);
 
-    // Configure for partial HTTP reads (range requests)
-    await this.db.open({
-      path: ":memory:",
-      filesystem: {
-        forceFullHTTPReads: false,
-        allowFullHTTPReads: false,
-        reliableHeadRequests: true
-      },
-    });
-
     this.conn = await this.db.connect();
-
     console.log(`[DuckDB] Initialized in ${Date.now() - startTime}ms`);
   }
 
@@ -94,190 +69,143 @@ class DuckDBService {
   }
 
   /**
-   * Register daily parquet files for a date range
+   * Register monthly CSV file for a given date
    */
-  private async registerDailyFiles(days: string[]): Promise<void> {
+  private async registerMonthlyFile(date: Date): Promise<string> {
     const { db } = this.ensureInitialized();
-    for (const day of days) {
-      const filename = `${day}.parquet`;
-      const url = `${TRIPS_BASE_URL}/parquets/${filename}`;
-      await db.registerFileURL(filename, url, duckdb.DuckDBDataProtocol.HTTP, false);
+    // Convention: 2025_01_Gener_BicingNou_ESTACIONS.csv
+    // Hardcoded for now based on user download. Ideally use lookup.
+    // We assume the file is in public/occupancy/
+    const filename = "2025_01_Gener_BicingNou_ESTACIONS.csv";
+    if (this.registeredFiles.has(filename)) return filename;
+    const url = `${BASE_URL}/${filename}`;
+
+    // Explicitly fetch the file first to avoid DuckDB-WASM internal fetch state issues
+    console.log(`[DuckDB] Fetching ${url}...`);
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ${url}: ${response.statusText}`);
     }
+    const arrayBuffer = await response.arrayBuffer();
+
+    // Register as buffer
+    await db.registerFileBuffer(filename, new Uint8Array(arrayBuffer));
+    this.registeredFiles.add(filename);
+    console.log(`[DuckDB] Registered ${filename} (${(arrayBuffer.byteLength / 1024 / 1024).toFixed(2)} MB)`);
+    return filename;
   }
 
   /**
-   * Get trips that START within a time range (for progressive batch loading)
+   * Get occupancy status for all stations at a specific time point.
+   * efficiently finds the last known status before `datetime`.
    */
-  async getTripsInRange(params: { from: Date; to: Date }): Promise<TripWithRoute[]> {
+  async getStationStatus(datetime: Date): Promise<StationStatus[]> {
+    // Ensure initialized (wait for it if currently loading)
+    await this.init();
     const { conn } = this.ensureInitialized();
-    const { from, to } = params;
+    const filename = await this.registerMonthlyFile(datetime); // Ensure file is loaded
 
-    const days = getDaysForRange(from, to);
-    await this.registerDailyFiles(days);
+    // Timestamp in CSV is unix seconds (based on sample: 1735685985)
+    // We query for the latest status per station <= datetime
+    const targetTs = Math.floor(datetime.getTime() / 1000);
 
-    const files = days.map((d) => `'${d}.parquet'`).join(", ");
-    console.log(`[DuckDB] getTripsInRange: ${from.toISOString()} to ${to.toISOString()} (files: ${days.length} days)`);
     const startTime = Date.now();
 
+    // arg_max(column, sort_column) finds the value of 'column' where 'sort_column' is max
     const result = await conn.query(`
-      SELECT
-        id,
-        startStationName,
-        endStationName,
-        startedAt,
-        endedAt,
-        bikeType,
-        memberCasual,
-        startLat,
-        startLng,
-        endLat,
-        endLng,
-        routeGeometry,
-        routeDistance
-      FROM read_parquet([${files}])
-      WHERE startedAt >= epoch_ms(${from.getTime()})
-        AND startedAt < epoch_ms(${to.getTime()})
-      ORDER BY startedAt ASC
+      SELECT 
+        station_id,
+        arg_max(num_bikes_available, last_reported) as bikes,
+        arg_max(num_docks_available, last_reported) as docks,
+        arg_max(is_charging_station, last_reported) as is_charging,
+        arg_max(status, last_reported) as status
+      FROM read_csv_auto('${filename}', nullstr='NA', ignore_errors=true)
+      WHERE station_id IS NOT NULL 
+        AND last_reported <= ${targetTs}
+        AND last_reported > ${targetTs - 3600} -- Optimization: Look back only 1 hour to prune data
+      GROUP BY station_id
     `);
 
-    const trips = this.transformResults(result);
-    console.log(`[DuckDB] getTripsInRange completed in ${Date.now() - startTime}ms, ${trips.length} trips`);
-    return trips;
+    const rows = result.toArray();
+    console.log(`[DuckDB] getStationStatus for ${datetime.toISOString()} returned ${rows.length} stations (${Date.now() - startTime}ms)`);
+
+    return rows.map((row: any) => ({
+      station_id: Number(row.station_id),
+      bikes: Number(row.bikes),
+      docks: Number(row.docks),
+      is_charging: Boolean(row.is_charging),
+      status: String(row.status)
+    }));
   }
 
   /**
-   * Get trips that OVERLAP with a time window (started before end, ended after start)
-   * Used for loading trips already in progress at animation start
+   * Get trips starting from a specific station within a time window.
    */
-  async getTripsOverlap(params: { chunkStart: Date; chunkEnd: Date }): Promise<TripWithRoute[]> {
+  async getTripsFromStation(filter: { startStationName: string, datetime: Date, intervalMs: number }): Promise<Trip[]> {
+    // TODO: Implement actual trip querying when trip data is available.
+    // Currently we only have station status data.
+    console.warn("[DuckDB] getTripsFromStation called but no trip data available.");
+    return [];
+  }
+
+  /**
+   * Get trips that start within a given time range.
+   */
+  async getTripsInRange(filter: { from: Date; to: Date }): Promise<any[]> {
+    // TODO: Implement actual trip querying when trip data is available.
+    console.warn("[DuckDB] getTripsInRange called but no trip data available.");
+    return [];
+  }
+
+  /**
+   * Get trips that were already in progress at chunkStart but end before/after/at chunkEnd.
+   */
+  async getTripsOverlap(filter: { chunkStart: Date; chunkEnd: Date }): Promise<any[]> {
+    // TODO: Implement actual trip querying when trip data is available.
+    console.warn("[DuckDB] getTripsOverlap called but no trip data available.");
+    return [];
+  }
+
+  /** Calculate system-wide stats (total parked, total docks) for a given time */
+  async getSystemStats(datetime: Date): Promise<{ parked: number, docks: number }> {
+    await this.init();
     const { conn } = this.ensureInitialized();
-    const { chunkStart, chunkEnd } = params;
+    const filename = await this.registerMonthlyFile(datetime);
 
-    // For overlap queries, we need files that could contain trips starting before chunkEnd
-    // 90 min lookback covers 99.92% of trips (P99.9 is 85 min with speed filters applied)
-    const lookbackStart = new Date(chunkStart.getTime() - 90 * 60 * 1000); // 90 min lookback
-    const days = getDaysForRange(lookbackStart, chunkEnd);
-    await this.registerDailyFiles(days);
-
-    const files = days.map((d) => `'${d}.parquet'`).join(", ");
-    console.log(`[DuckDB] getTripsOverlap: ${chunkStart.toISOString()} to ${chunkEnd.toISOString()} (files: ${days.length} days)`);
-    const startTime = Date.now();
+    const targetTs = Math.floor(datetime.getTime() / 1000);
 
     const result = await conn.query(`
-      SELECT
-        id,
-        startStationName,
-        endStationName,
-        startedAt,
-        endedAt,
-        bikeType,
-        memberCasual,
-        startLat,
-        startLng,
-        endLat,
-        endLng,
-        routeGeometry,
-        routeDistance
-      FROM read_parquet([${files}])
-      WHERE startedAt < epoch_ms(${chunkEnd.getTime()})
-        AND endedAt > epoch_ms(${chunkStart.getTime()})
-      ORDER BY startedAt ASC
+      WITH latest_status AS (
+        SELECT
+          arg_max(num_bikes_available, last_reported) as bikes,
+          arg_max(num_docks_available, last_reported) as docks
+        FROM read_csv_auto('${filename}', nullstr='NA', ignore_errors=true)
+        WHERE station_id IS NOT NULL 
+          AND last_reported <= ${targetTs}
+          AND last_reported > ${targetTs - 3600} 
+        GROUP BY station_id
+      )
+      SELECT sum(bikes) as parked, sum(docks) as docks FROM latest_status
     `);
-
-    const trips = this.transformResults(result);
-    console.log(`[DuckDB] getTripsOverlap completed in ${Date.now() - startTime}ms, ${trips.length} trips`);
-    return trips;
+    const row = result.toArray()[0];
+    return {
+      parked: row ? Number(row.parked) : 0,
+      docks: row ? Number(row.docks) : 0
+    };
   }
 
-  /**
-   * Get trips from a specific station within a time window (for search)
-   * Now queries by station NAME since parquet is keyed by name
-   */
-  async getTripsFromStation(params: {
-    startStationName: string;
-    datetime: Date;
-    intervalMs: number;
-  }): Promise<TripWithRoute[]> {
-    const { conn } = this.ensureInitialized();
-    const { startStationName, datetime, intervalMs } = params;
-
-    const windowStart = new Date(datetime.getTime() - intervalMs);
-    const windowEnd = new Date(datetime.getTime() + intervalMs);
-
-    const days = getDaysForRange(windowStart, windowEnd);
-    await this.registerDailyFiles(days);
-
-    const files = days.map((d) => `'${d}.parquet'`).join(", ");
-
-    // Escape single quotes in station name
-    const escapedName = startStationName.replace(/'/g, "''");
-
-    const result = await conn.query(`
-      SELECT
-        id,
-        startStationName,
-        endStationName,
-        startedAt,
-        endedAt,
-        bikeType,
-        memberCasual,
-        startLat,
-        startLng,
-        endLat,
-        endLng,
-        routeGeometry,
-        routeDistance
-      FROM read_parquet([${files}])
-      WHERE startStationName = '${escapedName}'
-        AND startedAt >= epoch_ms(${windowStart.getTime()})
-        AND startedAt <= epoch_ms(${windowEnd.getTime()})
-      ORDER BY startedAt ASC
-    `);
-
-    return this.transformResults(result);
-  }
-
-  /**
-   * Transform DuckDB Arrow result to TripWithRoute[]
-   */
-  private transformResults(result: { toArray(): unknown[] }): TripWithRoute[] {
-    const rows = result.toArray() as Array<{
-      id: string;
-      startStationName: string;
-      endStationName: string;
-      startedAt: bigint;
-      endedAt: bigint;
-      bikeType: string;
-      memberCasual: string;
-      startLat: number;
-      startLng: number;
-      endLat: number | null;
-      endLng: number | null;
-      routeGeometry: string | null;
-      routeDistance: number | null;
-    }>;
-
-    return rows.map((row) => {
-      // DuckDB WASM returns timestamps as BigInt milliseconds
-      const startedAt = new Date(Number(row.startedAt));
-      const endedAt = new Date(Number(row.endedAt));
-
-      return {
-        id: row.id,
-        startStationName: row.startStationName,
-        endStationName: row.endStationName,
-        startedAt,
-        endedAt,
-        bikeType: row.bikeType,
-        memberCasual: row.memberCasual,
-        startLat: row.startLat,
-        startLng: row.startLng,
-        endLat: row.endLat,
-        endLng: row.endLng,
-        routeGeometry: row.routeGeometry,
-        routeDistance: row.routeDistance,
-      };
-    });
+  async getSystemStatsBatch(timestamps: Date[]): Promise<{ time: number, parked: number, docks: number }[]> {
+    const results = [];
+    // Execute sequentially to be safe
+    for (const t of timestamps) {
+      const stats = await this.getSystemStats(t);
+      results.push({
+        time: t.getTime(),
+        parked: stats.parked,
+        docks: stats.docks
+      });
+    }
+    return results;
   }
 
   terminate(): void {
@@ -289,5 +217,4 @@ class DuckDBService {
   }
 }
 
-// Singleton instance
 export const duckdbService = new DuckDBService();

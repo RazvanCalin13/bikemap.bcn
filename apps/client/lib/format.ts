@@ -2,7 +2,7 @@
 // Timezone Convention
 // =============================================================================
 // All timestamps are stored and processed in UTC internally.
-// Display functions convert to America/New_York for user-facing output.
+// Display functions convert to Europe/Madrid for user-facing output.
 // See packages/processing/README.md for full documentation.
 
 // =============================================================================
@@ -12,12 +12,11 @@
 import { convertLength } from "@turf/helpers";
 
 export function formatDistance(meters: number): string {
-  const feet = convertLength(meters, "meters", "feet");
-  if (feet < 1000) {
-    return `${Math.round(feet)} ft`;
+  if (meters < 1000) {
+    return `${Math.round(meters)} m`;
   }
-  const miles = convertLength(meters, "meters", "miles");
-  return `${miles.toFixed(1)} mi`;
+  const km = meters / 1000;
+  return `${km.toFixed(1)} km`;
 }
 
 // =============================================================================
@@ -44,7 +43,7 @@ export function formatDateTime(date: Date): string {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-    timeZone: "America/New_York",
+    timeZone: "Europe/Madrid",
   });
 }
 
@@ -57,7 +56,7 @@ export function formatDateTimeShort(date: Date): string {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-    timeZone: "America/New_York",
+    timeZone: "Europe/Madrid",
   });
 }
 
@@ -74,7 +73,7 @@ export function formatDateTimeFull(data: { startDate: Date; endDate?: Date }): s
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
-      timeZone: "America/New_York",
+      timeZone: "Europe/Madrid",
     });
   }
 
@@ -83,21 +82,21 @@ export function formatDateTimeFull(data: { startDate: Date; endDate?: Date }): s
     month: "short",
     day: "numeric",
     year: "numeric",
-    timeZone: "America/New_York",
+    timeZone: "Europe/Madrid",
   });
 
   const startTime = startDate.toLocaleString("en-US", {
     hour: "numeric",
     minute: "2-digit",
     hour12: false,
-    timeZone: "America/New_York",
+    timeZone: "Europe/Madrid",
   });
 
   const endTime = endDate.toLocaleString("en-US", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-    timeZone: "America/New_York",
+    timeZone: "Europe/Madrid",
   });
 
   return `${datePart}, ${startTime} – ${endTime}`;
@@ -111,7 +110,7 @@ export function formatTime(ms: number): string {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-    timeZone: "America/New_York",
+    timeZone: "Europe/Madrid",
   });
 }
 
@@ -122,7 +121,7 @@ export function formatTimeOnly(ms: number): string {
     minute: "2-digit",
     second: "2-digit",
     hour12: true,
-    timeZone: "America/New_York",
+    timeZone: "Europe/Madrid",
   });
 }
 
@@ -132,7 +131,7 @@ export function formatTimeRange(startedAt: Date, endedAt: Date): string {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-    timeZone: "America/New_York",
+    timeZone: "Europe/Madrid",
   };
   const start = startedAt.toLocaleTimeString("en-US", options);
   const end = endedAt.toLocaleTimeString("en-US", options);
@@ -146,7 +145,7 @@ export function formatDateShort(ms: number): string {
     month: "short",
     day: "numeric",
     year: "numeric",
-    timeZone: "America/New_York",
+    timeZone: "Europe/Madrid",
   });
 }
 
@@ -154,13 +153,21 @@ export function formatDateShort(ms: number): string {
 // Speed Formatting
 // =============================================================================
 
-export function formatSpeedMph(data: {
+export function formatSpeedKmh(data: {
   distanceMeters: number;
   startedAt: Date;
   endedAt: Date;
 }): string {
-  const miles = convertLength(data.distanceMeters, "meters", "miles");
+  const km = data.distanceMeters / 1000;
   const hours = (data.endedAt.getTime() - data.startedAt.getTime()) / 3600000;
-  const mph = miles / hours;
-  return `${mph.toFixed(1)} mph`;
+  const kmh = km / hours;
+  return `${kmh.toFixed(1)} km/h`;
+}
+
+// =============================================================================
+// Number Formatting
+// =============================================================================
+
+export function formatNumber(num: number): string {
+  return new Intl.NumberFormat("en-US").format(num);
 }

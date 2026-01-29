@@ -4,12 +4,13 @@
 
 import { Color, MapViewState } from "@deck.gl/core";
 
-// Default animation start date for trip data timeframe (NYC time)
-export const DEFAULT_ANIMATION_START_DATE = new Date("2025-01-01T09:41:00-05:00"); // EST
+// Default animation start date (Barcelona time)
+export const DEFAULT_ANIMATION_START_DATE = new Date("2025-01-01T09:41:00+01:00"); // CET
 
-// Valid data range for Citi Bike data (NYC time)
-export const DATA_START_DATE = new Date("2013-06-01T00:00:00-04:00"); // EDT
-export const DATA_END_DATE = new Date("2025-12-31T23:59:59-05:00");   // EST
+// Valid data range for Bicing data (Barcelona time)
+// Modern Bicing (Smou) started around 2019
+export const DATA_START_DATE = new Date("2019-01-01T00:00:00+01:00"); // CET
+export const DATA_END_DATE = new Date("2026-12-31T23:59:59+01:00");   // CET
 
 // Default speedup multiplier for animation
 export const DEFAULT_SPEEDUP = 150 * 1;
@@ -52,8 +53,8 @@ export const REAL_MAX_FRAME_DELTA_MS = 100;
 // =============================================================================
 
 export const INITIAL_VIEW_STATE: MapViewState = {
-  longitude: -73.965, 
-  latitude: 40.71,
+  longitude: 2.1734,
+  latitude: 41.3851,
   zoom: 13,
   pitch: 0,
   bearing: 0,
@@ -70,15 +71,22 @@ export const GRAPH_MIN_SCALE = 100; // Minimum Y-axis scale (avoid jitter)
 // Colors (RGB tuples)
 // =============================================================================
 
+// Occupancy Colors
 export const COLORS = {
-  // Trail colors (TripsLayer)
-  classic: [187, 154, 247], // purple
-  electric: [125, 207, 255], // sky blue
-  selected: [255, 165, 0], // orange
-
-  // Bike head transition colors
-  fadeIn: [80, 200, 120], // emerald green
-  fadeOut: [247, 118, 142], // red/pink
-} as const satisfies Record<string, Color>;
+  occupancy: {
+    empty: [255, 50, 50],    // Red (0% bikes)
+    low: [255, 165, 0],      // Orange (Low bikes)
+    medium: [255, 255, 0],   // Yellow (Half full)
+    high: [80, 200, 120],    // Green (Full)
+    full: [0, 255, 255],     // Cyan (100% bikes / 0% docks) -> Optional
+  },
+  electric: [125, 207, 255], // E-bike blue
+  classic: [187, 154, 247],  // Classic bike purple
+  fadeIn: [255, 255, 255],   // White
+  fadeOut: [150, 150, 150],  // Grey
+} as const satisfies Record<string, any>;
 
 export const CAMERA_POLLING_INTERVAL_MS = 250;
+
+// Estimated total Bicing fleet size (for determining active bikes)
+export const ESTIMATED_TOTAL_FLEET = 7000;

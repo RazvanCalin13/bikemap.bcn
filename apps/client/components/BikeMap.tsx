@@ -2,312 +2,44 @@
 
 import {
   CAMERA_POLLING_INTERVAL_MS,
-  CHUNKS_PER_BATCH,
   COLORS,
   INITIAL_VIEW_STATE,
-  NUM_LOOKAHEAD_BATCHES,
-  PREFETCH_THRESHOLD_CHUNKS,
-  REAL_COLOR_TRANSITION_MS,
-  REAL_FADE_DURATION_MS,
   REAL_MAX_FRAME_DELTA_MS,
   SIM_CHUNK_SIZE_MS,
-  SIM_GRAPH_WINDOW_SIZE_MS,
-  SIM_TRAIL_LENGTH_MS,
 } from "@/lib/config";
 import { createThrottledSampler } from "@/lib/misc";
 import { useAnimationStore } from "@/lib/stores/animation-store";
 import { usePickerStore } from "@/lib/stores/location-picker-store";
 import { useSearchStore } from "@/lib/stores/search-store";
-import { useStationsStore, type Station } from "@/lib/stores/stations-store";
-import type { GraphDataPoint, Phase, ProcessedTrip } from "@/lib/trip-types";
-import { TripDataService } from "@/services/trip-data-service";
-import { DataFilterExtension, DataFilterExtensionProps } from "@deck.gl/extensions";
-import { TripsLayer } from "@deck.gl/geo-layers";
-import { IconLayer, PathLayer, ScatterplotLayer, SolidPolygonLayer } from "@deck.gl/layers";
+import { useMapStore } from "@/lib/stores/map-store";
+import { useStationsStore } from "@/lib/stores/stations-store";
+import { duckdbService, type StationStatus } from "@/services/duckdb-service";
+import { ESTIMATED_TOTAL_FLEET, SIM_GRAPH_WINDOW_SIZE_MS } from "@/lib/config";
+import { FlyToInterpolator, MapViewState, WebMercatorViewport } from "@deck.gl/core";
+import { ScatterplotLayer } from "@deck.gl/layers";
 import { DeckGL } from "@deck.gl/react";
 import { Info, Pause, Play, Search, Shuffle } from "lucide-react";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { AnimatePresence } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Map as MapboxMap } from "react-map-gl/mapbox";
-import { ActiveRidesPanel, type ActiveRidesPanelRef } from "./ActiveRidesPanel";
 import { MapControlButton } from "./MapControlButton";
-import { SelectedTripPanel } from "./SelectedTripPanel";
 import { TimeDisplay } from "./TimeDisplay";
+import { GlobalStatsPanel, type GlobalStatsPanelRef, type SystemStatsPoint } from "./GlobalStatsPanel";
+import { NeighborhoodStats } from "./NeighborhoodStats";
+import { StationDetailsPanel } from "./StationDetailsPanel";
+import { StationFocusOverlay } from "./StationFocusOverlay";
 import { Kbd } from "./ui/kbd";
-
-import type { MapViewState } from "@deck.gl/core";
-import { LinearInterpolator } from "@deck.gl/core";
 
 type AnimationState = "init" | "playing";
 
-// Arrow icon for bike heads
-const ARROW_SVG = `data:image/svg+xml;base64,${btoa(`
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-<g transform="rotate(45 12 12)">
-    <path d="M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z"/>
-</g>
-</svg>
-`)}`;
-
-// Color utilities
-type Color4 = [number, number, number, number];
-const MAX_ALPHA = 0.8 * 255;
-
-// Layer accessor functions (extracted to avoid recreation on each render)
-const getPath = (d: ProcessedTrip) => d.path;
-const getTimestamps = (d: ProcessedTrip) => d.simTimestampsMs;
-// Use currentPathColor which includes viewer fade alpha
-const getTripColor = (d: ProcessedTrip): Color4 =>
-  d.isSelected
-    ? [COLORS.selected[0], COLORS.selected[1], COLORS.selected[2], d.currentPathColor[3]]
-    : d.currentPathColor;
-
-// IconLayer accessors - now use ProcessedTrip directly (no intermediate BikeHead objects)
-const getBikeHeadPosition = (d: ProcessedTrip, { target }: { target: number[] }): [number, number, number] => {
-  target[0] = d.currentPosition[0];
-  target[1] = d.currentPosition[1];
-  target[2] = 0;
-  return target as [number, number, number];
+// Elastic easing for the "mushroom springing up" effect
+const elasticOut = (t: number) => {
+  if (t === 0) return 0;
+  if (t === 1) return 1;
+  const p = 0.3;
+  const s = p / 4;
+  return (Math.pow(2, -10 * t) * Math.sin((t - s) * (2 * Math.PI) / p) + 1);
 };
-const getBikeHeadAngle = (d: ProcessedTrip) => -d.currentBearing;
-const getBikeHeadColor = (d: ProcessedTrip): Color4 => d.currentHeadColor;
-
-const ICON_MAPPING = {
-  arrow: { x: 0, y: 0, width: 24, height: 24, anchorX: 12, anchorY: 12, mask: true },
-};
-
-// Static polygon for dim overlay (full world bounds)
-const DIM_OVERLAY_POLYGON = [
-  [
-    [-180, -90],
-    [-180, 90],
-    [180, 90],
-    [180, -90],
-    [-180, -90],
-  ],
-];
-
-// Selected path color with fade in/out based on phase
-const PATH_OPACITY = 180;
-const getSelectedPathColor = (d: ProcessedTrip): Color4 => d.currentPathColor;
-
-// DataFilterExtension for GPU-based visibility filtering
-// filterSize: 2 means we filter on 2 values [simVisibleStartMs, simVisibleEndMs]
-const dataFilter = new DataFilterExtension({ filterSize: 2 });
-
-// Accessor for DataFilterExtension - returns [simVisibleStartMs, simVisibleEndMs]
-const getFilterValue = (d: ProcessedTrip): [number, number] => [d.simVisibleStartMs, d.simVisibleEndMs];
-
-// Interpolate between two angles, handling 360°/0° wrapping
-function interpolateAngle(from: number, to: number, factor: number): number {
-  from = ((from % 360) + 360) % 360;
-  to = ((to % 360) + 360) % 360;
-  let diff = to - from;
-  if (diff > 180) diff -= 360;
-  if (diff < -180) diff += 360;
-  return ((from + diff * factor) % 360 + 360) % 360;
-}
-
-// Update trip's mutable state in place. Returns true if visible.
-function updateTripState(
-  trip: ProcessedTrip,
-  simTimeMs: number,
-  realFadeDurationMs: number
-): boolean {
-  const {
-    path,
-    simVisibleStartMs,
-    simVisibleEndMs,
-    simFadeInEndMs,
-    simEndTimeMs,
-    firstSegmentBearing,
-    lastSegmentBearing,
-  } = trip;
-
-  // Not visible yet or already gone
-  if (simTimeMs < simVisibleStartMs || simTimeMs > simVisibleEndMs) {
-    trip.isVisible = false;
-    return false;
-  }
-
-  // Track when viewer first sees this trip
-  if (trip.simViewerFirstSeenMs === null) {
-    trip.simViewerFirstSeenMs = simTimeMs;
-  }
-
-  // Calculate viewer fade progress (0 to 1, clamped) - used as alpha multiplier
-  const viewerFadeProgress = Math.min(1, (simTimeMs - trip.simViewerFirstSeenMs) / realFadeDurationMs);
-
-  // Determine timeline phase and progress using precomputed boundaries
-  let phase: Phase;
-  let phaseProgress: number;
-
-  if (simTimeMs < simFadeInEndMs) {
-    phase = "fading-in";
-    phaseProgress = (simTimeMs - simVisibleStartMs) / realFadeDurationMs;
-  } else if (simTimeMs >= simEndTimeMs) {
-    phase = "fading-out";
-    phaseProgress = (simTimeMs - simEndTimeMs) / realFadeDurationMs;
-  } else {
-    phase = "moving";
-    phaseProgress = 1;
-  }
-
-  // Fast path for stationary phases - skip expensive look-ahead calculation
-  if (phase === "fading-in") {
-    trip.currentPosition[0] = path[0][0];
-    trip.currentPosition[1] = path[0][1];
-    trip.currentBearing = interpolateAngle(0, firstSegmentBearing, phaseProgress);
-    trip.currentPhase = phase;
-    trip.currentPhaseProgress = phaseProgress;
-    trip.isVisible = true;
-    computeTripColors(trip, viewerFadeProgress, 0, 1); // movingTimeMs and colorTransitionMs unused in fading-in
-    return true;
-  }
-
-  if (phase === "fading-out") {
-    trip.currentPosition[0] = path[path.length - 1][0];
-    trip.currentPosition[1] = path[path.length - 1][1];
-    trip.currentBearing = lastSegmentBearing;
-    trip.currentPhase = phase;
-    trip.currentPhaseProgress = phaseProgress;
-    trip.isVisible = true;
-    computeTripColors(trip, viewerFadeProgress, 0, 1); // movingTimeMs and colorTransitionMs unused in fading-out
-    return true;
-  }
-
-  // Moving phase: interpolate along route with look-ahead bearing
-  const { simTimestampsMs, cumulativeDistances } = trip;
-  const simMovingDurationMs = simEndTimeMs - simFadeInEndMs;
-  const movingProgress = simMovingDurationMs > 0
-    ? Math.max(0, Math.min(1, (simTimeMs - simFadeInEndMs) / simMovingDurationMs))
-    : 1;
-
-  // Map to timestamp along route
-  const simTripTimeMs = simTimestampsMs[0] + movingProgress * (simTimestampsMs[simTimestampsMs.length - 1] - simTimestampsMs[0]);
-
-  // Use cached index and scan forward (time only increases)
-  let idx = trip.lastSegmentIndex;
-  while (idx < simTimestampsMs.length - 1 && simTimestampsMs[idx + 1] < simTripTimeMs) {
-    idx++;
-  }
-  trip.lastSegmentIndex = idx;
-
-  let t = 0;
-  if (idx >= path.length - 1) {
-    trip.currentPosition[0] = path[path.length - 1][0];
-    trip.currentPosition[1] = path[path.length - 1][1];
-  } else {
-    const t0 = simTimestampsMs[idx];
-    const t1 = simTimestampsMs[idx + 1];
-    t = t1 > t0 ? (simTripTimeMs - t0) / (t1 - t0) : 0;
-
-    const p0 = path[idx];
-    const p1 = path[idx + 1];
-    trip.currentPosition[0] = p0[0] + t * (p1[0] - p0[0]);
-    trip.currentPosition[1] = p0[1] + t * (p1[1] - p0[1]);
-  }
-
-  // Calculate bearing using look-ahead point (~20m ahead)
-  const cumDist = cumulativeDistances;
-  const currentDist = cumDist[idx] + t * ((cumDist[idx + 1] ?? cumDist[idx]) - cumDist[idx]);
-  const totalDist = cumDist[cumDist.length - 1];
-  const lookAheadDist = Math.min(currentDist + 20, totalDist);
-
-  // Find look-ahead position (start from current idx since look-ahead is only ~20m ahead)
-  let laIdx = idx;
-  while (laIdx < cumDist.length - 1 && cumDist[laIdx + 1] < lookAheadDist) {
-    laIdx++;
-  }
-
-  // Interpolate look-ahead point
-  const laD0 = cumDist[laIdx];
-  const laD1 = cumDist[laIdx + 1] ?? laD0;
-  const laFrac = laD1 > laD0 ? (lookAheadDist - laD0) / (laD1 - laD0) : 0;
-  const laP0 = path[laIdx];
-  const laP1 = path[laIdx + 1] ?? laP0;
-  const lookAheadX = laP0[0] + laFrac * (laP1[0] - laP0[0]);
-  const lookAheadY = laP0[1] + laFrac * (laP1[1] - laP0[1]);
-
-  // Calculate bearing from current position to look-ahead point
-  const dx = lookAheadX - trip.currentPosition[0];
-  const dy = lookAheadY - trip.currentPosition[1];
-  trip.currentBearing = Math.atan2(dx, dy) * (180 / Math.PI);
-
-  // Update phase state
-  trip.currentPhase = phase;
-  trip.currentPhaseProgress = phaseProgress;
-  trip.isVisible = true;
-  const movingTimeMs = simTimeMs - simFadeInEndMs;
-  const colorTransitionMs = REAL_COLOR_TRANSITION_MS * (realFadeDurationMs / REAL_FADE_DURATION_MS); // scale with speedup
-  computeTripColors(trip, viewerFadeProgress, movingTimeMs, colorTransitionMs);
-
-  return true;
-}
-
-// Compute colors in-place based on current phase, progress, and viewer fade
-// movingTimeMs: time since movement started (for color transition during moving phase)
-// colorTransitionMs: duration for color transition (green -> bike color)
-function computeTripColors(trip: ProcessedTrip, viewerFadeProgress: number, movingTimeMs: number, colorTransitionMs: number): void {
-  const bikeColor = trip.bikeType === "electric_bike" ? COLORS.electric : COLORS.classic;
-  const phase = trip.currentPhase;
-  const progress = trip.currentPhaseProgress;
-
-  let r: number, g: number, b: number;
-  let headAlpha: number, pathAlpha: number;
-
-  switch (phase) {
-    case "fading-in":
-      // Fade in to 100% green
-      r = COLORS.fadeIn[0];
-      g = COLORS.fadeIn[1];
-      b = COLORS.fadeIn[2];
-      headAlpha = progress * MAX_ALPHA;
-      pathAlpha = progress * PATH_OPACITY;
-      break;
-    case "fading-out": {
-      // First 25%: bike color -> red, then stay red
-      const colorTransitionEnd = 0.25;
-      if (progress < colorTransitionEnd) {
-        const colorProgress = progress / colorTransitionEnd;
-        r = bikeColor[0] + (COLORS.fadeOut[0] - bikeColor[0]) * colorProgress;
-        g = bikeColor[1] + (COLORS.fadeOut[1] - bikeColor[1]) * colorProgress;
-        b = bikeColor[2] + (COLORS.fadeOut[2] - bikeColor[2]) * colorProgress;
-      } else {
-        r = COLORS.fadeOut[0];
-        g = COLORS.fadeOut[1];
-        b = COLORS.fadeOut[2];
-      }
-      headAlpha = (1 - progress) * MAX_ALPHA;
-      pathAlpha = (1 - progress) * PATH_OPACITY;
-      break;
-    }
-    default: {
-      // Moving: transition from green to bike color
-      const colorProgress = Math.min(1, movingTimeMs / colorTransitionMs);
-      r = COLORS.fadeIn[0] + (bikeColor[0] - COLORS.fadeIn[0]) * colorProgress;
-      g = COLORS.fadeIn[1] + (bikeColor[1] - COLORS.fadeIn[1]) * colorProgress;
-      b = COLORS.fadeIn[2] + (bikeColor[2] - COLORS.fadeIn[2]) * colorProgress;
-      headAlpha = MAX_ALPHA;
-      pathAlpha = PATH_OPACITY;
-    }
-  }
-
-  // Head and path always match
-  trip.currentHeadColor[0] = r;
-  trip.currentHeadColor[1] = g;
-  trip.currentHeadColor[2] = b;
-  trip.currentHeadColor[3] = headAlpha * viewerFadeProgress;
-
-  trip.currentPathColor[0] = r;
-  trip.currentPathColor[1] = g;
-  trip.currentPathColor[2] = b;
-  trip.currentPathColor[3] = pathAlpha * viewerFadeProgress;
-}
-
-// Cached interpolator for camera follow (avoid allocating new object every frame)
-const cameraInterpolator = new LinearInterpolator(["longitude", "latitude", "bearing"]);
 
 export const BikeMap = () => {
   // Animation store
@@ -317,761 +49,486 @@ export const BikeMap = () => {
   const storePlay = useAnimationStore((s) => s.play);
   const storePause = useAnimationStore((s) => s.pause);
   const isPlaying = useAnimationStore((s) => s.isPlaying);
-  const isLoadingTrips = useAnimationStore((s) => s.isLoadingTrips);
   const advanceSimTime = useAnimationStore((s) => s.advanceSimTime);
   const setSimCurrentTimeMs = useAnimationStore((s) => s.setSimCurrentTimeMs);
-  const selectedTripId = useAnimationStore((s) => s.selectedTripId);
-  const selectedTripInfo = useAnimationStore((s) => s.selectedTripInfo);
-  const selectTrip = useAnimationStore((s) => s.selectTrip);
   const dateSelectionKey = useAnimationStore((s) => s.dateSelectionKey);
 
-  // Derived values (computed at consumption time)
-  const realWindowStartMs = animationStartDate.getTime();
-  const realFadeDurationMs = REAL_FADE_DURATION_MS * speedup;
 
-  const [activeTrips, setActiveTrips] = useState<ProcessedTrip[]>([]);
-  const [animState, setAnimState] = useState<AnimationState>("init");
-  const [initialViewState, setInitialViewState] = useState<MapViewState>(INITIAL_VIEW_STATE);
-  const [graphData, setGraphData] = useState<GraphDataPoint[]>([]);
-  const [bearing, setBearing] = useState(0);
+  const [viewState, setViewState] = useState<MapViewState>(INITIAL_VIEW_STATE);
+  const [stationStatuses, setStationStatuses] = useState<StationStatus[]>([]);
+  const [revealedCount, setRevealedCount] = useState(0);
+  const [selectedStationName, setSelectedStationName] = useState<string | null>(null);
   const [showHud, setShowHud] = useState(true);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const { isPickingLocation, setPickedLocation, pickedLocation } = usePickerStore();
-  const { getStation, load: loadStations, stations } = useStationsStore();
-  const { open: openSearch, step: searchStep } = useSearchStore();
-
-  // Detect Mac vs Windows/Linux for keyboard shortcut display
-  const [isMac, setIsMac] = useState(true); // Default to Mac to avoid layout shift
+  // Track container dimensions for coordinate projection
   useEffect(() => {
-    setIsMac(navigator.platform.toUpperCase().includes("MAC"));
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setDimensions({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height
+        });
+      }
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
   }, []);
 
-  // Load station data
-  useEffect(() => {
-    loadStations();
-  }, [loadStations]);
+  // Map Store actions (FlyTo)
+  const flyToTrigger = useMapStore((s) => s.flyToTrigger);
+  const flyToTarget = useMapStore((s) => s.flyToTarget);
+  const triggerFlyTo = useMapStore((s) => s.triggerFlyTo);
 
-  // Esc key handler: deselect selected trip
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && selectedTripId !== null) {
-        e.preventDefault();
-        selectTrip(null);
+    if (flyToTrigger > 0 && flyToTarget) {
+      setViewState((prev) => ({
+        ...prev,
+        ...flyToTarget,
+        transitionDuration: 1500,
+        transitionInterpolator: new FlyToInterpolator(),
+      }));
+
+      // If stationName provided, select it
+      if (flyToTarget.stationName) {
+        setSelectedStationName(flyToTarget.stationName);
+      }
+    }
+  }, [flyToTrigger, flyToTarget]);
+
+  // Actions
+  const setIsLoadingTrips = useAnimationStore((s) => s.setIsLoadingTrips);
+  const setLoadError = useAnimationStore((s) => s.setLoadError);
+
+  const { stations, load: loadStations } = useStationsStore();
+  const { open: openSearch } = useSearchStore();
+
+  const handleRandom = useCallback(() => {
+    if (stations.length === 0) return;
+    const randomStation = stations[Math.floor(Math.random() * stations.length)];
+    triggerFlyTo({
+      latitude: randomStation.latitude,
+      longitude: randomStation.longitude,
+      zoom: 16,
+      stationName: randomStation.name
+    });
+  }, [stations, triggerFlyTo]);
+
+
+  const lastTimestampRef = useRef<number | null>(null);
+
+  // Throttle data fetching - fetch every real second (approx every X sim minutes depending on speed)
+  const lastFetchSimTimeRef = useRef<number>(0);
+
+  // Create ID map for performance (maps alias/id -> Station)
+  const stationById = useMemo(() => {
+    const map = new Map<string, typeof stations[0]>();
+    stations.forEach(s => {
+      // Map station_id (if available) or assume aliases/name match CSV IDs
+      if (s.aliases) {
+        s.aliases.forEach(alias => map.set(alias, s));
+      }
+      // Also map name directly
+      map.set(s.name, s);
+    });
+    return map;
+  }, [stations]);
+
+  // Global System Stats
+  const [globalStats, setGlobalStats] = useState<SystemStatsPoint[]>([]);
+  const [currentStats, setCurrentStats] = useState({ parked: 0, active: 0 });
+
+  // Calculate current stats whenever statuses update
+  useEffect(() => {
+    if (stationStatuses.length === 0) return;
+
+    // Sum parked bikes across all known stations
+    const totalParked = stationStatuses.reduce((acc, s) => acc + s.bikes, 0);
+    const active = Math.max(0, ESTIMATED_TOTAL_FLEET - totalParked);
+
+    setCurrentStats({ parked: totalParked, active });
+
+    // Append to graph history (debounced by sim time)
+    setGlobalStats(prev => {
+      const last = prev[prev.length - 1];
+      // Only add point if >1 min simulation time has passed since last point to avoid too much data
+      if (last && (simTimeMs - last.simTimeMs) < 60 * 1000) return prev;
+
+      const newPoint: SystemStatsPoint = {
+        simTimeMs,
+        parked: totalParked,
+        active
+      };
+
+      // Keep only recent window
+      const windowStart = simTimeMs - SIM_GRAPH_WINDOW_SIZE_MS;
+      const filtered = prev.filter(p => p.simTimeMs > windowStart);
+      return [...filtered, newPoint];
+    });
+
+  }, [stationStatuses, simTimeMs]);
+
+  // District Stats Aggregation (Restored)
+  const districtStats = useMemo(() => {
+    if (stationStatuses.length === 0) return [];
+
+    const statsMap = new Map<string, { totalBikes: number; totalCapacity: number }>();
+
+    stationStatuses.forEach(status => {
+      const station = stationById.get(status.station_id.toString()) || stationById.get(status.station_id as any); // Try both
+      if (station) {
+        const district = station.borough || "Unknown";
+        const current = statsMap.get(district) || { totalBikes: 0, totalCapacity: 0 };
+
+        current.totalBikes += status.bikes;
+        current.totalCapacity += (status.bikes + status.docks);
+        statsMap.set(district, current);
+      }
+    });
+
+    return Array.from(statsMap.entries()).map(([name, data]) => ({
+      name,
+      totalBikes: data.totalBikes,
+      totalCapacity: data.totalCapacity,
+      occupancyRate: data.totalCapacity > 0 ? data.totalBikes / data.totalCapacity : 0
+    }));
+
+  }, [stationStatuses, stationById]);
+
+  // Load initial history batch for graph (lookback)
+  useEffect(() => {
+    const fetchHistory = async () => {
+      // Ideally we ask DuckDB for aggregate history. 
+      // For now, initiate empty or standard.
+      // Assuming user just starts animation, we build graph as we go.
+      // Or we can try to backfill if needed.
+      setGlobalStats([]);
+    };
+    fetchHistory();
+  }, [animationStartDate]);
+
+  // Initial Data Load
+  useEffect(() => {
+    const init = async () => {
+      try {
+        setIsLoadingTrips(true);
+        setLoadError(null);
+
+        // Parallel init
+        await Promise.all([
+          loadStations(),
+          duckdbService.init()
+        ]);
+
+        // Initial Data Fetch
+        const initialStatuses = await duckdbService.getStationStatus(animationStartDate);
+        setStationStatuses(initialStatuses);
+
+        setIsLoadingTrips(false);
+      } catch (err) {
+        console.error("Initialization error:", err);
+        setLoadError(err instanceof Error ? err.message : "Failed to initialize map data");
+        setIsLoadingTrips(false);
       }
     };
+    init();
+  }, [animationStartDate, loadStations, setIsLoadingTrips, setLoadError]);
 
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [selectedTripId, selectTrip]);
-
-  // Keyboard shortcut refs (to avoid stale closures)
-  const animStateRef = useRef(animState);
-  const isPlayingRef = useRef(isPlaying);
+  // Reveal stations one by one
   useEffect(() => {
-    animStateRef.current = animState;
-    isPlayingRef.current = isPlaying;
-  }, [animState, isPlaying]);
+    if (stationStatuses.length === 0) {
+      setRevealedCount(0);
+      return;
+    }
 
-  const rafRef = useRef<number | null>(null);
-  const lastTimestampRef = useRef<number | null>(null);
-  const panelRef = useRef<ActiveRidesPanelRef>(null);
-  const smoothedFpsRef = useRef(60);
-  const visibleCountRef = useRef(0);
-  const tripMapRef = useRef<Map<string, ProcessedTrip>>(new Map());
-  const loadingChunksRef = useRef<Set<number>>(new Set());
-  const loadedChunksRef = useRef<Set<number>>(new Set());
-  const lastChunkRef = useRef(-1);
-  const lastBatchRef = useRef(-1);
-  const serviceRef = useRef<TripDataService | null>(null);
-  const graphSamplerRef = useRef(createThrottledSampler({ intervalMs: 100 }));
-  const fpsSamplerRef = useRef(createThrottledSampler({ intervalMs: 100 }));
-  const cameraSamplerRef = useRef(createThrottledSampler({ intervalMs: CAMERA_POLLING_INTERVAL_MS }));
-  const currentZoomRef = useRef(INITIAL_VIEW_STATE.zoom);
-  const currentBearingRef = useRef(INITIAL_VIEW_STATE.bearing);
+    // If already revealed most of them, just finish
+    if (revealedCount >= stationStatuses.length) return;
 
-  // Button refs for keyboard shortcut animations
-  const playPauseButtonRef = useRef<HTMLButtonElement>(null);
-  const randomButtonRef = useRef<HTMLButtonElement>(null);
-
-  // Track if animation was playing before entering station view
-  const wasPlayingBeforeStationViewRef = useRef<boolean>(false);
-
-  // Helper to trigger button press animation
-  const triggerButtonAnimation = useCallback((ref: React.RefObject<HTMLButtonElement | null>) => {
-    const button = ref.current;
-    if (!button) return;
-    button.style.transform = "scale(0.95)";
-    setTimeout(() => {
-      button.style.transform = "";
-    }, 100);
-  }, []);
-
-  // Get chunk index from simulation time (ms)
-  const getChunkIndex = useCallback(
-    (simTimeMs: number) => Math.floor(simTimeMs / SIM_CHUNK_SIZE_MS),
-    []
-  );
-
-  // Load rides starting in a specific chunk (from worker)
-  const loadUpcomingRides = useCallback(
-    async (chunkIndex: number) => {
-      if (loadedChunksRef.current.has(chunkIndex) || loadingChunksRef.current.has(chunkIndex)) {
-        return;
-      }
-
-      if (chunkIndex < 0 || !serviceRef.current) {
-        return;
-      }
-
-      loadingChunksRef.current.add(chunkIndex);
-
-      try {
-        // Request pre-processed trips from service
-        const trips = await serviceRef.current.requestChunk(chunkIndex);
-
-        // console.log(`Chunk ${chunkIndex}: ${trips.length} rides from worker`);
-
-        // Add to ref (dedupes by ID)
-        for (const trip of trips) {
-          tripMapRef.current.set(trip.id, trip);
+    const timer = setInterval(() => {
+      setRevealedCount(prev => {
+        // Reveal in chunks to be snappy but still animated
+        // 500 stations revealed 15 at a time = ~33 steps. 
+        // At 16ms interval = ~0.5s total reveal time.
+        const next = prev + 15;
+        if (next >= stationStatuses.length) {
+          clearInterval(timer);
+          return stationStatuses.length;
         }
+        return next;
+      });
+    }, 16);
 
-        loadedChunksRef.current.add(chunkIndex);
-      } finally {
-        loadingChunksRef.current.delete(chunkIndex);
-      }
-    },
-    []
-  );
+    return () => clearInterval(timer);
+  }, [stationStatuses, revealedCount]);
 
-
-  const currentChunk = getChunkIndex(simTimeMs);
-
-  // On chunk change: load chunk from worker, prefetch next batch, cleanup old trips
+  // Animation Loop
   useEffect(() => {
-    if (animState !== "playing") return;
-    if (currentChunk === lastChunkRef.current) return;
-
-    // console.log(`Entered chunk ${currentChunk}`);
-    lastChunkRef.current = currentChunk;
-
-    // Load this chunk and next chunk from worker
-    loadUpcomingRides(currentChunk);
-    loadUpcomingRides(currentChunk + 1);
-
-    // Check if we need to prefetch next batch (when 10 chunks from batch end)
-    const currentBatch = Math.floor(currentChunk / CHUNKS_PER_BATCH);
-    const chunkInBatch = currentChunk % CHUNKS_PER_BATCH;
-
-    if (chunkInBatch >= PREFETCH_THRESHOLD_CHUNKS && serviceRef.current) {
-      for (let i = 1; i <= NUM_LOOKAHEAD_BATCHES; i++) {
-        serviceRef.current.prefetchBatch(currentBatch + i);
-      }
+    if (!isPlaying) {
+      lastTimestampRef.current = null;
+      return;
     }
 
-    // Clear previous batch from worker memory (already sent to main thread)
-    if (currentBatch > 0 && serviceRef.current) {
-      serviceRef.current.clearBatch(currentBatch - 1);
-    }
+    let animationFrameId: number;
 
-    // Remove trips that have fully finished (including fade-out)
-    for (const [id, trip] of tripMapRef.current) {
-      if (trip.simVisibleEndMs < simTimeMs) {
-        tripMapRef.current.delete(id);
-      }
-    }
-
-    // Sync state for rendering
-    const currentTrips = Array.from(tripMapRef.current.values());
-    setActiveTrips(currentTrips);
-  }, [currentChunk, animState, loadUpcomingRides, simTimeMs]);
-
-  // Start the animation loop (used by both play and resume)
-  const startLoop = useCallback(() => {
     const tick = (timestamp: number) => {
       if (lastTimestampRef.current !== null) {
-        const realRawDeltaMs = timestamp - lastTimestampRef.current;
-        // Cap delta to prevent time jumps when returning from background tab
-        const realDeltaMs = Math.min(realRawDeltaMs, REAL_MAX_FRAME_DELTA_MS);
-        advanceSimTime(realDeltaMs * speedup);
-        const currentFps = 1000 / realRawDeltaMs;
-        smoothedFpsRef.current = smoothedFpsRef.current * 0.9 + currentFps * 0.1;
-        fpsSamplerRef.current.sample(() => {
-          if (panelRef.current?.fps) {
-            panelRef.current.fps.textContent = `${Math.round(smoothedFpsRef.current)} FPS`;
-          }
-          if (panelRef.current?.mobileFps) {
-            panelRef.current.mobileFps.textContent = `${Math.round(smoothedFpsRef.current)}`;
-          }
-          if (panelRef.current?.rides) {
-            panelRef.current.rides.textContent = visibleCountRef.current.toLocaleString();
-          }
-          if (panelRef.current?.mobileRides) {
-            panelRef.current.mobileRides.textContent = visibleCountRef.current.toLocaleString();
-          }
-        });
+        const realDeltaMs = timestamp - lastTimestampRef.current;
+        // Cap delta
+        const safeDelta = Math.min(realDeltaMs, REAL_MAX_FRAME_DELTA_MS);
+        advanceSimTime(safeDelta * speedup);
 
-        // Sample graph data at intervals
-        graphSamplerRef.current.sample(() => {
-          const simTimeMs = useAnimationStore.getState().simCurrentTimeMs;
-          setGraphData((prev) => {
-            const newPoint = { simTimeMs, count: visibleCountRef.current };
-            const updated = [...prev, newPoint];
-            // Keep only points within rolling window
-            return updated.filter((p) => simTimeMs - p.simTimeMs <= SIM_GRAPH_WINDOW_SIZE_MS);
-          });
-        });
-
-        // Camera follow + cleanup - throttled to 500ms
-        cameraSamplerRef.current.sample(() => {
-          const state = useAnimationStore.getState();
-          const selectedId = state.selectedTripId;
-          if (selectedId === null) return;
-
-          const trip = tripMapRef.current.get(selectedId);
-
-          // Clear selection if trip ended OR if trip no longer exists in map
-          if (!trip || state.simCurrentTimeMs > trip.simVisibleEndMs) {
-            state.selectTrip(null);
-            return;
-          }
-
-          // Follow if visible
-          if (trip.isVisible) {
-            setInitialViewState((prev) => ({
-              ...prev,
-              longitude: trip.currentPosition[0],
-              latitude: trip.currentPosition[1],
-              zoom: currentZoomRef.current,
-              bearing: currentBearingRef.current,
-              transitionDuration: CAMERA_POLLING_INTERVAL_MS,
-              transitionInterpolator: cameraInterpolator,
-            }));
-          }
-        });
+        // Fetch new status if needed (e.g. every 5 sim-minutes)
+        const currentSimTime = useAnimationStore.getState().simCurrentTimeMs;
+        if (Math.abs(currentSimTime - lastFetchSimTimeRef.current) > 5 * 60 * 1000) {
+          lastFetchSimTimeRef.current = currentSimTime;
+          // Calculate real Date
+          const currentDate = new Date(animationStartDate.getTime() + currentSimTime);
+          duckdbService.getStationStatus(currentDate).then(setStationStatuses).catch(console.error);
+        }
       }
       lastTimestampRef.current = timestamp;
-      rafRef.current = requestAnimationFrame(tick);
+      animationFrameId = requestAnimationFrame(tick);
     };
+    animationFrameId = requestAnimationFrame(tick);
 
-    rafRef.current = requestAnimationFrame(tick);
-  }, [speedup, advanceSimTime]);
-
-  const play = useCallback(() => {
-    setAnimState("playing");
-    setSimCurrentTimeMs(0);
-    storePlay();
-    lastChunkRef.current = 0;
-    lastTimestampRef.current = null;
-    graphSamplerRef.current.reset();
-    fpsSamplerRef.current.reset();
-    setGraphData([]);
-    startLoop();
-  }, [setSimCurrentTimeMs, storePlay, startLoop]);
-
-  const resume = useCallback(() => {
-    lastTimestampRef.current = null; // Reset to avoid large delta on first frame
-    storePlay();
-    startLoop();
-  }, [storePlay, startLoop]);
-
-  const pause = useCallback(() => {
-    if (rafRef.current) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-    storePause();
-  }, [storePause]);
-
-  // Pause animation when showing stations, resume when back to bikes (only if was playing before)
-  useEffect(() => {
-    const showStations = searchStep === "station" || searchStep === "results";
-    if (showStations) {
-      // Save current playing state before pausing
-      wasPlayingBeforeStationViewRef.current = rafRef.current !== null;
-      if (rafRef.current) {
-        pause();
-      }
-    } else if (searchStep === "datetime" && animStateRef.current !== "init") {
-      // Only resume if animation was playing before entering station view
-      if (wasPlayingBeforeStationViewRef.current && !rafRef.current) {
-        resume();
-      }
-    }
-  }, [searchStep, pause, resume]);
-
-  // Toggle play/pause based on current state
-  const togglePlayPause = useCallback(() => {
-    if (animStateRef.current === "init") {
-      play();
-    } else if (isPlayingRef.current) {
-      pause();
-    } else {
-      resume();
-    }
-  }, [play, pause, resume]);
-
-  const toggleHud = useCallback(() => {
-    setShowHud((prev) => !prev);
-  }, []);
-
-  // Initialize service and reload when config changes
-  const configRef = useRef<{ realWindowStartMs: number; speedup: number; dateSelectionKey: number } | null>(null);
-  useEffect(() => {
-    const prev = configRef.current;
-    const isInitialMount = prev === null;
-
-    // Skip if config unchanged (but always run on initial mount)
-    if (!isInitialMount &&
-        prev.realWindowStartMs === realWindowStartMs &&
-        prev.speedup === speedup &&
-        prev.dateSelectionKey === dateSelectionKey) return;
-    configRef.current = { realWindowStartMs, speedup, dateSelectionKey };
-
-    // Only log and reset state on config changes, not initial mount
-    if (!isInitialMount) {
-      console.log("Config changed, resetting animation...");
-
-      // Stop current animation
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-      lastTimestampRef.current = null;
-
-      // Clear all state
-      tripMapRef.current.clear();
-      loadingChunksRef.current.clear();
-      loadedChunksRef.current.clear();
-      lastChunkRef.current = -1;
-      lastBatchRef.current = -1;
-      graphSamplerRef.current.reset();
-      fpsSamplerRef.current.reset();
-      setActiveTrips([]);
-      setAnimState("init");
-      setGraphData([]);
-    }
-
-    // Initialize/recreate service
-    const initService = async () => {
-      useAnimationStore.getState().setIsLoadingTrips(true);
-      useAnimationStore.getState().setLoadError(null);
-
-      // Terminate old service if exists
-      serviceRef.current?.terminate();
-
-      // Create new service
-      const service = new TripDataService({
-        realWindowStartMs,
-        animationStartDate,
-        realFadeDurationMs,
-        onError: (error) => useAnimationStore.getState().setLoadError(error),
-      });
-
-      serviceRef.current = service;
-
-      try {
-        // Initialize and get initial trips
-        const initialTrips = await service.init();
-
-        // Copy to local ref
-        tripMapRef.current = initialTrips;
-        for (let i = 0; i <= 2; i++) {
-          loadedChunksRef.current.add(i);
-        }
-        lastBatchRef.current = 0;
-
-        setActiveTrips(Array.from(tripMapRef.current.values()));
-        useAnimationStore.getState().setIsLoadingTrips(false);
-
-        // Auto-play after trips load
-        play();
-      } catch (error) {
-        useAnimationStore.getState().setLoadError(
-          error instanceof Error ? error.message : "Failed to load trips"
-        );
-        useAnimationStore.getState().setIsLoadingTrips(false);
-      }
-    };
-
-    initService();
-
-    // Cleanup on unmount
     return () => {
-      serviceRef.current?.terminate();
-      serviceRef.current = null;
+      cancelAnimationFrame(animationFrameId);
     };
-  }, [realWindowStartMs, speedup, realFadeDurationMs, play, animationStartDate, dateSelectionKey]);
+  }, [isPlaying, speedup, advanceSimTime, animationStartDate]);
 
-  // Select a random visible biker with at least half their trip remaining
-  const selectRandomBiker = useCallback(() => {
-    const eligibleTrips = activeTrips.filter((t) => {
-      if (!t.isVisible) return false;
-      // Only select trips that have at least half their duration remaining
-      const simMidpointMs = (t.simStartTimeMs + t.simEndTimeMs) / 2;
-      return simTimeMs < simMidpointMs;
-    });
-    if (eligibleTrips.length === 0) return;
-    const randomTrip = eligibleTrips[Math.floor(Math.random() * eligibleTrips.length)];
+  const togglePlayPause = useCallback(() => {
+    if (isPlaying) storePause();
+    else storePlay();
+  }, [isPlaying, storePause, storePlay]);
 
-    const startStation = getStation(randomTrip.startStationName);
-    const endStation = getStation(randomTrip.endStationName);
-
-    selectTrip({
-      id: randomTrip.id,
-      info: {
-        id: randomTrip.id,
-        bikeType: randomTrip.bikeType,
-        memberCasual: randomTrip.memberCasual,
-        startStationName: startStation.name,
-        endStationName: endStation.name,
-        startNeighborhood: startStation.neighborhood,
-        endNeighborhood: endStation.neighborhood,
-        startedAt: new Date(randomTrip.realStartedAtMs),
-        endedAt: new Date(randomTrip.realEndedAtMs),
-        routeDistance: randomTrip.routeDistance,
-      },
-    });
-  }, [activeTrips, selectTrip, getStation, simTimeMs]);
-
-  // Keyboard shortcuts: Space for play/pause, R for random
+  // Initial Play
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+    storePlay();
+  }, [storePlay]);
 
-      if (e.key === " " && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        // Block play/resume while loading, but always allow pause
-        if (isLoadingTrips && !isPlayingRef.current) return;
-        togglePlayPause();
-        triggerButtonAnimation(playPauseButtonRef);
-      } else if (e.key.toLowerCase() === "r" && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        selectRandomBiker();
-        triggerButtonAnimation(randomButtonRef);
-      } else if (e.key.toLowerCase() === "a" && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        window.location.href = "/about";
-      } else if (e.key.toLowerCase() === "h" && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
-        toggleHud();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [togglePlayPause, selectRandomBiker, triggerButtonAnimation, toggleHud, isLoadingTrips]);
-
-
-  if (!process.env.NEXT_PUBLIC_MAPBOX_TOKEN) {
-    throw new Error("NEXT_PUBLIC_MAPBOX_TOKEN is not set");
-  }
-
-  // Update all trip states in place - GPU handles visibility filtering via DataFilterExtension
-  useMemo(() => {
-    let count = 0;
-    for (const trip of activeTrips) {
-      if (simTimeMs < trip.simVisibleStartMs || simTimeMs > trip.simVisibleEndMs) {
-        trip.isVisible = false;
-        continue;
-      }
-      updateTripState(trip, simTimeMs, realFadeDurationMs);
-      trip.isSelected = trip.id === selectedTripId;
-      count++;
-    }
-    visibleCountRef.current = count;
-  }, [activeTrips, simTimeMs, selectedTripId, realFadeDurationMs]);
-
-  // Memoize selected trip data - O(1) map lookup instead of O(n) filter
-  // Depends on activeTrips to recalculate when trips load after config change
-  const selectedTripData = useMemo(() => {
-    if (!selectedTripId) return [];
-    const trip = tripMapRef.current.get(selectedTripId);
-    return trip ? [trip] : [];
-    // forgive me for this
-    // eslint-disable-next-line react-hooks/exhaustive-deps 
-  }, [selectedTripId, activeTrips]); 
-
+  // Layers
   const layers = useMemo(() => {
-    const hasSelection = selectedTripData.length > 0;
-    // Show stations (hide bikes) during station selection and results steps
-    const showStations = searchStep === "station" || searchStep === "results";
+    if (stationStatuses.length === 0) return [];
+
+    const data = stationStatuses.slice(0, revealedCount).map(s => {
+      // Match by checking aliases via optimized map
+      const sidStr = s.station_id.toString();
+      const station = stationById.get(sidStr);
+
+      if (!station) return null;
+      return {
+        ...s,
+        coordinates: [station.longitude, station.latitude],
+        percentage: s.bikes + s.docks > 0 ? s.bikes / (s.bikes + s.docks) : 0
+      };
+    }).filter((d): d is NonNullable<typeof d> => d !== null);
 
     return [
-      // Station dots - fade in/out based on search step (GPU-accelerated transitions)
-      // Fade in: 700ms, Fade out: 200ms
-      new ScatterplotLayer<Station>({
-        id: "stations-glow",
-        data: stations,
-        getPosition: (d) => [d.longitude, d.latitude],
-        getFillColor: showStations ? [125, 207, 255, 60] : [125, 207, 255, 0],
-        getRadius: 6,
-        radiusUnits: "pixels",
-        pickable: false,
-        transitions: {
-          getFillColor: showStations ? 700 : 200,
+      new ScatterplotLayer({
+        id: "station-pulse",
+        data,
+        pickable: true,
+        opacity: 0.8,
+        stroked: true,
+        filled: true,
+        radiusScale: 1,
+        radiusMinPixels: 3,
+        radiusMaxPixels: 20,
+        lineWidthMinPixels: 1,
+        getPosition: (d: any) => d.coordinates,
+        getRadius: (d: any) => 30 + (d.percentage * 20),
+        getFillColor: (d: any) => {
+          const p = d.percentage;
+          if (p < 0.1) return COLORS.occupancy.empty as [number, number, number];
+          if (p < 0.5) return COLORS.occupancy.low as [number, number, number];
+          if (p < 0.8) return COLORS.occupancy.medium as [number, number, number];
+          return COLORS.occupancy.high as [number, number, number];
         },
-      }),
-      new ScatterplotLayer<Station>({
-        id: "stations",
-        data: stations,
-        getPosition: (d) => [d.longitude, d.latitude],
-        getFillColor: showStations ? [125, 207, 255, 255] : [125, 207, 255, 0],
-        getRadius: 2,
-        radiusUnits: "pixels",
-        pickable: false,
-        transitions: {
-          getFillColor: showStations ? 700 : 200,
-        },
-      }),
-      // Trips layer - dimmed when selection active, hidden during station/results steps
-      // Uses DataFilterExtension to GPU-filter trips by visibility window
-      new TripsLayer<ProcessedTrip, DataFilterExtensionProps<ProcessedTrip>>({
-        id: "trips",
-        data: activeTrips,
-        getPath,
-        getTimestamps,
-        getColor: getTripColor,
-        opacity: showStations ? 0 : 0.2,
-        widthMinPixels: 3,
-        jointRounded: true,
-        capRounded: true,
-        trailLength: SIM_TRAIL_LENGTH_MS,
-        currentTime: simTimeMs,
-        pickable: false,
-        // GPU-based visibility filtering - only render trips where:
-        // simVisibleStartMs <= simTimeMs AND simVisibleEndMs >= simTimeMs
-        extensions: [dataFilter],
-        getFilterValue,
-        filterRange: [[-Infinity, simTimeMs], [simTimeMs, Infinity]],
+        getLineColor: [0, 0, 0],
         updateTriggers: {
-          getColor: [simTimeMs, selectedTripId],
+          getFillColor: [stationStatuses],
+          getRadius: [stationStatuses]
         },
+        // Animation transitions
         transitions: {
-          opacity: showStations ? 0 : 700,
+          getFillColor: 600,
+          getRadius: {
+            type: "interpolation",
+            duration: 800,
+            easing: elasticOut,
+            enter: () => [0], // Start from zero radius
+          }
         },
-      }),
-      new IconLayer({
-        id: "bike-heads",
-        data: activeTrips,
-        billboard: false,
-        opacity: showStations ? 0 : 0.75,
-        getPosition: getBikeHeadPosition,
-        getAngle: getBikeHeadAngle,
-        getIcon: () => "arrow",
-        getSize: 9,
-        getColor: getBikeHeadColor,
-        iconAtlas: ARROW_SVG,
-        iconMapping: ICON_MAPPING,
-        pickable: false,
-        // GPU-based visibility filtering
-        extensions: [dataFilter],
-        getFilterValue,
-        filterRange: [[-Infinity, simTimeMs], [simTimeMs, Infinity]],
-        updateTriggers: {
-          getPosition: [simTimeMs],
-          getAngle: [simTimeMs],
-          getColor: [simTimeMs, selectedTripId],
-        },
-        transitions: {
-          opacity: showStations ? 0 : 700,
-        },
-      }),
-      // Dimming overlay - always present, fades via GPU transitions
-      new SolidPolygonLayer({
-        id: "dim-overlay",
-        data: DIM_OVERLAY_POLYGON,
-        getPolygon: (d) => d,
-        getFillColor: hasSelection ? [0, 0, 0, 180] : [0, 0, 0, 0],
-        transitions: {
-          getFillColor: 250,
-        },
-        pickable: false,
-      }),
-      // Selected route - rendered on TOP with bike type color
-      ...(hasSelection
-        ? [
-            new PathLayer<ProcessedTrip>({
-              id: "selected-route",
-              data: selectedTripData,
-              getPath: (d) => d.path,
-              getColor: getSelectedPathColor,
-              getWidth: 4,
-              widthMinPixels: 2,
-              opacity: 0.75,
-              pickable: false,
-              updateTriggers: {
-                getColor: [simTimeMs],
-              },
-            }),
-            // Selected bike head - rendered on top at full opacity
-            new IconLayer({
-              id: "selected-bike-head",
-              data: selectedTripData,
-              billboard: false,
-              opacity: 1,
-              getPosition: getBikeHeadPosition,
-              getAngle: getBikeHeadAngle,
-              getIcon: () => "arrow",
-              getSize: 9,
-              getColor: getBikeHeadColor,
-              iconAtlas: ARROW_SVG,
-              iconMapping: ICON_MAPPING,
-              pickable: false,
-              extensions: [dataFilter],
-              getFilterValue,
-              filterRange: [[-Infinity, simTimeMs], [simTimeMs, Infinity]],
-              updateTriggers: {
-                getPosition: [simTimeMs],
-                getAngle: [simTimeMs],
-                getColor: [simTimeMs],
-              },
-            }),
-          ]
-        : []),
+        onClick: (info) => {
+          if (info.object) {
+            const station = stationById.get(info.object.station_id.toString());
+            if (station) {
+              setSelectedStationName(station.name);
+            }
+          } else {
+            setSelectedStationName(null);
+          }
+        }
+      })
     ];
-  }, [activeTrips, simTimeMs, selectedTripId, selectedTripData, searchStep, stations]);
+  }, [stationStatuses, stationById, revealedCount]);
 
-  const handleMapClick = useCallback(
-    (info: { coordinate?: number[] }) => {
-      if (isPickingLocation && info.coordinate && info.coordinate.length >= 2) {
-        setPickedLocation({
-          lng: info.coordinate[0],
-          lat: info.coordinate[1],
-        });
+  const selectedStationData = useMemo(() => {
+    if (!selectedStationName) return null;
+    const info = stationById.get(selectedStationName);
+    if (!info) return null;
+
+    // Find status for this station (match by name or ID-alias)
+    const status = stationStatuses.find(s => {
+      const stationMatch = stationById.get(s.station_id.toString());
+      return stationMatch?.name === selectedStationName;
+    });
+
+    if (!status) return null;
+    return { ...status, name: info.name };
+  }, [selectedStationName, stationStatuses, stationById]);
+
+  // Calculate focus point on screen for the selected station
+  const focusPoint = useMemo(() => {
+    if (!selectedStationName || !dimensions.width || !dimensions.height) return null;
+    const station = stationById.get(selectedStationName);
+    if (!station) return null;
+
+    const viewport = new WebMercatorViewport({
+      ...viewState,
+      width: dimensions.width,
+      height: dimensions.height
+    });
+
+    const [x, y] = viewport.project([station.longitude, station.latitude]);
+    return { x, y };
+  }, [selectedStationName, stationById, viewState, dimensions]);
+
+  const focusColor = useMemo(() => {
+    if (!selectedStationData) return "#50C878";
+    const p = selectedStationData.bikes / (selectedStationData.bikes + selectedStationData.docks);
+    if (p < 0.1) return "#FF3232";
+    if (p < 0.5) return "#FFA500";
+    if (p < 0.8) return "#FFFF00";
+    return "#50C878";
+  }, [selectedStationData]);
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      switch (e.code) {
+        case "Space":
+          e.preventDefault();
+          togglePlayPause();
+          break;
+        case "KeyR":
+          e.preventDefault();
+          handleRandom();
+          break;
+        case "Slash": // '/' key
+          e.preventDefault();
+          openSearch();
+          break;
+        case "Escape":
+          setSelectedStationName(null);
+          break;
       }
-    },
-    [isPickingLocation, setPickedLocation]
-  );
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [togglePlayPause, handleRandom, openSearch]);
+
+  if (!process.env.NEXT_PUBLIC_MAPBOX_TOKEN) return <div>Missing Token</div>;
 
   return (
-    <div className="relative w-full h-full">
+    <div ref={containerRef} className="relative w-full h-full bg-slate-950">
       <DeckGL
+        viewState={viewState}
+        controller={true}
         layers={layers}
-        initialViewState={initialViewState}
-        controller={{
-          touchRotate: true,
-        }}
-        onClick={handleMapClick}
-        onViewStateChange={({ viewState }) => {
-          // Lock pitch to 0 while following a bike, but allow rotation
-          const maxPitch = selectedTripId === null ? 60 : 0;
-          if ("pitch" in viewState && typeof viewState.pitch === "number") {
-            if (viewState.pitch > maxPitch) {
-              viewState.pitch = maxPitch;
-            }
-            if (viewState.pitch < 0) {
-              viewState.pitch = 0;
-            }
-          }
-          // Track bearing for camera follow (preserves user bearing while following a bike)
-          const bearing = "bearing" in viewState ? viewState.bearing : undefined;
-          if (typeof bearing === "number") {
-            currentBearingRef.current = bearing;
-            queueMicrotask(() => setBearing(bearing));
-          }
-          // Track zoom for camera follow (preserves user zoom while following a bike)
-          if ("zoom" in viewState && typeof viewState.zoom === "number") {
-            currentZoomRef.current = viewState.zoom;
+        onViewStateChange={({ viewState }) => setViewState(viewState as MapViewState)}
+        onClick={(info) => {
+          if (!info.object) {
+            setSelectedStationName(null);
           }
         }}
-        getCursor={() => (isPickingLocation ? "crosshair" : "grab")}
       >
         <MapboxMap
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
           mapStyle="mapbox://styles/mapbox/dark-v11"
-          reuseMaps
-        >
-        </MapboxMap>
+        />
       </DeckGL>
 
-      {/* HUD - top bar (toggle with H key) */}
-      {showHud && (
-      <div className="absolute top-3 inset-x-0 z-10 flex items-start justify-between px-3 pointer-events-none">
-        {/* Controls - bottom-right on mobile, top-left on desktop */}
-        <div className="fixed bottom-4 right-3 z-20 sm:static sm:z-auto grid grid-cols-2 gap-1.5 sm:flex sm:flex-col sm:gap-1 pointer-events-auto">
-          {/* Search button */}
-          <MapControlButton onClick={openSearch}>
-            <span className="flex items-center gap-1.5 min-w-20">
-              <Search className="w-4 h-4" />
-              Search
-            </span>
-            <Kbd className="hidden sm:inline-flex bg-zinc-800 text-white/70">{isMac ? "⌘" : "Ctrl+"}K</Kbd>
-          </MapControlButton>
-          {/* Play/Pause button */}
-          {animState === "init" ? (
-            <MapControlButton ref={playPauseButtonRef} onClick={play} disabled={isLoadingTrips}>
-              <span className="flex items-center gap-1.5">
-                <Play className="w-4 h-4" />
-                Play
-              </span>
-              <Kbd className="hidden sm:inline-flex bg-zinc-800 text-white/70">Space</Kbd>
-            </MapControlButton>
-          ) : isPlaying ? (
-            <MapControlButton ref={playPauseButtonRef} onClick={pause}>
-              <span className="flex items-center gap-1.5">
-                <Pause className="w-4 h-4" />
-                Pause
-              </span>
-              <Kbd className="hidden sm:inline-flex bg-zinc-800 text-white/70">Space</Kbd>
-            </MapControlButton>
-          ) : (
-            <MapControlButton ref={playPauseButtonRef} onClick={resume} disabled={isLoadingTrips}>
-              <span className="flex items-center gap-1.5">
-                <Play className="w-4 h-4" />
-                Play
-              </span>
-              <Kbd className="hidden sm:inline-flex bg-zinc-800 text-white/70">Space</Kbd>
-            </MapControlButton>
-          )}
-          {/* Random button */}
-          <MapControlButton ref={randomButtonRef} onClick={selectRandomBiker}>
-            <span className="flex items-center gap-1.5">
-              <Shuffle className="w-4 h-4" />
-              Random
-            </span>
-            <Kbd className="hidden sm:inline-flex bg-zinc-800 text-white/70">R</Kbd>
-          </MapControlButton>
-          <a
-            href="/about"
-            className="flex items-center justify-between gap-3 bg-black/45 hover:bg-black/55 hover:scale-[1.02] active:scale-95 text-white/90 text-sm font-medium pl-2.5 pr-2.5 py-2 sm:pl-2 sm:pr-2 sm:py-1.5 rounded-full border border-white/10 backdrop-blur-md transition-all duration-200 ease-out shadow-[0_0_20px_rgba(0,0,0,0.6)] hover:duration-100 active:duration-200 outline-none"
-          >
-            <span className="flex items-center gap-1.5 min-w-20">
-              <Info className="w-4 h-4" />
-              About
-            </span>
-            <Kbd className="hidden sm:inline-flex bg-zinc-800 text-white/70">A</Kbd>
-          </a>
-        </div>
+      {/* Focus Overlay - Gradient dimming and station highlight */}
+      <StationFocusOverlay point={focusPoint} color={focusColor} />
 
-        {/* Time - absolutely centered */}
-        <div className="absolute left-1/2 -translate-x-1/2 pointer-events-auto flex flex-col items-center">
-          <TimeDisplay simTimeMs={simTimeMs} realWindowStartDate={animationStartDate} />
-          {/* SelectedTripPanel - mobile only (below time) */}
-          <AnimatePresence>
-            {selectedTripInfo && (
-              <div className="sm:hidden">
-                <SelectedTripPanel info={selectedTripInfo} />
-              </div>
-            )}
-          </AnimatePresence>
-        </div>
+      {/* HUD Controls */}
+      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+        {/* MapControlButton handles children, not icon prop */}
+        <MapControlButton onClick={togglePlayPause} >
+          <div className="flex items-center gap-2">
+            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+            <span>{isPlaying ? "Pause" : "Play"}</span>
+          </div>
+          <Kbd>Space</Kbd>
+        </MapControlButton>
+        <MapControlButton onClick={openSearch} >
+          <div className="flex items-center gap-2">
+            <Search className="w-4 h-4" />
+            <span>Search</span>
+          </div>
+          <Kbd>/</Kbd>
+        </MapControlButton>
+        <MapControlButton onClick={handleRandom} >
+          <div className="flex items-center gap-2">
+            <Shuffle className="w-4 h-4" />
+            <span>Random</span>
+          </div>
+          <Kbd>R</Kbd>
+        </MapControlButton>
 
-        {/* Stats - right */}
-        <div className="pointer-events-none">
-          <ActiveRidesPanel ref={panelRef} graphData={graphData} simTimeMs={simTimeMs} bearing={bearing} />
-          {/* SelectedTripPanel - desktop only (right side) */}
-          <AnimatePresence>
-            {selectedTripInfo && (
-              <div className="hidden sm:block">
-                <SelectedTripPanel info={selectedTripInfo} />
-              </div>
-            )}
-          </AnimatePresence>
+        <div className="mt-6 pointer-events-auto">
+          <NeighborhoodStats stats={districtStats} />
         </div>
       </div>
+
+      {/* Clock - Top Center */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
+        <TimeDisplay simTimeMs={simTimeMs} realWindowStartDate={animationStartDate} />
+      </div>
+
+      {/* Global Stats - Top Right */}
+      <div className="absolute top-4 right-4 z-10">
+        <GlobalStatsPanel
+          graphData={globalStats}
+          simTimeMs={simTimeMs}
+          bearing={viewState.bearing || 0}
+          currentStats={currentStats}
+        />
+      </div>
+
+      {selectedStationData && (
+        <StationDetailsPanel
+          station={selectedStationData}
+          position={focusPoint}
+          onClose={() => setSelectedStationName(null)}
+        />
       )}
+
+      {/* Legend / Info */}
+      <div className="absolute bottom-8 right-4 z-10 bg-black/80 p-4 rounded text-white text-xs">
+        <div className="font-bold mb-2">Station Occupancy</div>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#50C878] rounded-full"></div> High (&gt;80%)</div>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#FFFF00] rounded-full"></div> Medium</div>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#FFA500] rounded-full"></div> Low</div>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#FF3232] rounded-full"></div> Empty (&lt;10%)</div>
+      </div>
     </div>
   );
 };

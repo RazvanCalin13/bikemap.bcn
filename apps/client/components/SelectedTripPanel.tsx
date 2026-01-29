@@ -1,5 +1,5 @@
 import { EBike } from "@/components/icons/Ebike";
-import { formatDistance, formatDurationMinutes, formatSpeedMph, formatTimeRange } from "@/lib/format";
+import { formatDistance, formatDurationMinutes, formatSpeedKmh, formatTimeRange } from "@/lib/format";
 import type { SelectedTripInfo } from "@/lib/stores/animation-store";
 import { Bike } from "lucide-react";
 import { motion } from "motion/react";
@@ -52,7 +52,7 @@ export function SelectedTripPanel({ info }: SelectedTripPanelProps) {
           {info.routeDistance && <span>{formatDistance(info.routeDistance)}</span>}
           {info.routeDistance && (
             <span>
-              {formatSpeedMph({
+              {formatSpeedKmh({
                 distanceMeters: info.routeDistance,
                 startedAt: info.startedAt,
                 endedAt: info.endedAt,

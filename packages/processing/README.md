@@ -1,58 +1,28 @@
-# Processing Pipeline
+# Processing Pipeline (Bicing / Barcelona)
 
-Converts raw Citi Bike CSV data into optimized formats for the visualization client.
+Converts Bicing trip data into optimized formats for the visualization client.
 
 ## Prerequisites
 
 - [Bun](https://bun.sh/) v1.2.9+
 - [Docker](https://www.docker.com/) (for OSRM routing server)
-- [s5cmd](https://github.com/peak/s5cmd) (fast S3 client)
-
-On Linux, ensure Docker daemon is running:
-
-```bash
-sudo systemctl start docker
-```
 
 ## Setup
 
-### 1. Download Citi Bike Trip Data
+### 1. Download Bicing Trip Data
 
-Download all historical trip data from the public S3 bucket (no credentials required):
+Download historical trip data from the [Open Data BCN](https://opendata-ajuntament.barcelona.cat/) portal. Check for "Bicing service use" datasets.
 
-```bash
-mkdir -p data
-s5cmd --no-sign-request cp 's3://tripdata/*.zip' data/
-```
+### 2. Set Up OSRM Routing Server
 
-### 2. Download NYC Neighborhoods GeoJSON
-
-Required for station geocoding (borough/neighborhood lookup):
-
-```bash
-cd data
-wget -O d085e2f8d0b54d4590b1e7d1f35594c1pediacitiesnycneighborhoods.geojson \
-  "https://data.dathere.com/dataset/acbbee9e-4e37-4439-8e69-ca906f476ae3/resource/d6db2e12-fc58-4e41-bc58-5bdfb5078131/download/d085e2f8d0b54d4590b1e7d1f35594c1pediacitiesnycneighborhoods.geojson"
-cd ..
-```
-
-Source: [NYC Neighborhoods Dataset](https://data.dathere.com/dataset/nyc-neighborhoods)
-
-### 3. Set Up OSRM Routing Server
-
-The pipeline needs a local OSRM server for bike route calculations. See [`osrm/README.md`](osrm/README.md) for setup instructions. Run this in the background.
-
-Quick summary:
-1. Download NYC OpenStreetMap data
-2. Build routing graph with Docker
-3. Start server on `localhost:5000`
+The pipeline needs a local OSRM server for bike route calculations. You will need the OpenStreetMap data for **Barcelona/Catalonia**.
 
 ## Data Flow
 
 ```
-CSV files (all years) → build-stations.ts → stations.json
-CSV files (all years) → build-routes.ts   → routes.db
-CSV files (all years) → build-parquet.ts  → parquet files (per day)
+Bicing API (Citybikes) → fetch-bicing-stations.ts → stations.json
+CSV files (history)    → build-routes.ts         → routes.db
+CSV files (history)    → build-parquet.ts        → parquet files (per day)
 ```
 
 ## Scripts
@@ -67,16 +37,13 @@ bun install
 Run in order:
 
 ```bash
-# 0. Extract all .zip files (recursive)
-bun run unzip-data.ts
+# 1. Update station list from live API
+bun run fetch-bicing-stations.ts
 
-# 1. Build unified station list with aliases (from ALL years)
-bun run build-stations.ts
-
-# 2. Build route cache from OSRM (requires OSRM server on localhost:5000)
+# 2. Build route cache from OSRM (requires OSRM server on localhost:5000 with Barcelona data)
 bun run build-routes.ts
 
-# 3. Build trips parquet with embedded route geometries (processes ALL years)
+# 3. Build trips parquet with embedded route geometries
 bun run build-parquet.ts
 ```
 
