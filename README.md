@@ -1,88 +1,161 @@
 # bikemap.bcn
 
-[bikemap.bcn](https://bikemap.bcn) is a visualization of the [Bicing](https://www.bicing.barcelona/) bike-sharing system in Barcelona, Spain.
+[bikemap.bcn](https://bikemap.bcn) is a visualization of the [Bicing](https://www.bicing.barcelona/) bike-sharing system in Barcelona, Spain. 
 
 Each moving arrow represents a real bike ride, based on anonymized historical system data (processed into parquets).
 
 ## Features
-- GPU-accelerated rendering of thousands of concurrent rides
-- Natural language date parsing to jump to any moment in history
-- Search for individual rides by date and station name
-- Full keyboard controls for playback and navigation
-- Coverage of Bicing's modern era (2019-present)
+- **GPU-accelerated rendering** of thousands of concurrent rides
+- **Natural language date parsing** to jump to any moment in history
+- **Search** for individual rides by date and station name
+- **Full keyboard controls** for playback and navigation
+- **Coverage** of Bicing's modern era (2019-present)
 
-## How it works 
+---
 
-There is no backend. The client uses [DuckDB WASM](https://duckdb.org/docs/api/wasm/overview.html) to query parquet files using SQL directly from a CDN, downloading only the rows it needs via HTTP range requests.
+## Architecture
 
-### 1. Data processing pipeline
+There is no traditional backend. The client uses [DuckDB WASM](https://duckdb.org/docs/api/wasm/overview.html) to query parquet files using SQL directly from a CDN, downloading only the rows it needs via HTTP range requests.
 
-The raw system data spans 12 years and has significant inconsistencies, making it difficult to use directly. The processing pipeline cleans and normalizes the data into optimized parquet files.
+### Data Flow
+1. **Raw Data**: Anonymized trip data from [Open Data BCN](https://opendata-ajuntament.barcelona.cat/).
+2. **Processing Pipeline**: 
+   - **Station Clustering**: Unifies station names and coordinates.
+   - **Routing**: Queries [OSRM](https://project-osrm.org/) for bike routes between all station pairs.
+   - **Parquet Export**: Generates daily parquet files with embedded route geometries (polyline6).
+3. **Client**: 
+   - Queries parquets limits via DuckDB WASM.
+   - Decodes geometries and animates rides using deck.gl.
 
-1. **Station clustering**: Creates a list of all unique station names and their coordinates.
-2. **Route generation**: Queries [OSRM](https://project-osrm.org/) for bike routes between all station pairs. Geometries are cached per pair and stored as polyline6 in an intermediate SQLite database.
-3. **Parquet export**: Generates a parquet file for each day by joining each trip with its corresponding route geometry.
+---
 
-### 2. Client application
+## 🚀 Quickstart: Running the Client
 
-This is what you see when you visit [bikemap.nyc](https://bikemap.nyc).
+### 1. Install Dependencies
+```bash
+bun install
+```
 
-- **Data loading**: DuckDB WASM queries parquet files from the CDN using HTTP range requests. Trips load in 30-minute batches with lookahead prefetching.
-- **Processing**: A Web Worker decodes the polyline6 geometry and pre-computes timestamps with easing so that bikes slow down at station endpoints.
-- **Rendering**: Heavy lifting is done with deck.gl layers on top of Mapbox.
-- **Search**: Natural language date parsing via chrono-node lets you jump to any point in time or find a specific ride by querying the parquets directly.
-
-
-## Quickstart
-
-**1. Set up environment variables**
-
+### 2. Environment Setup
 Create a `.env` file in `apps/client` and add your Mapbox token:
-
-```sh
+```bash
 NEXT_PUBLIC_MAPBOX_TOKEN=pk.xxx  # Get one at https://mapbox.com
 ```
 
-**2. Install dependencies and run**
-
-```sh
-bun install
+### 3. Run Development Server
+```bash
 bun dev
 ```
-
-> [!NOTE]
-> If you encounter a `TurbopackInternalError` or exit code 58 (common on Windows), run the dev server using Webpack instead:
->
+> **Note**: If you see a `TurbopackInternalError` (common on Windows), use Webpack:
 > ```bash
-> bun run --cwd apps/client dev -- --webpack
-> # OR from the apps/client directory:
 > bun run dev -- --webpack
 > ```
 
-**3. Update Stations (Optional)**
+Open [http://localhost:3000](http://localhost:3000) to view the app.
 
-If you want to update the Bicing station list from the latest live data:
+---
 
-```sh
-cd packages/processing
-bun run fetch-bicing-stations.ts
+## 🛠️ Advanced: Data Processing Pipeline
+
+If you want to generate your own data tiles or run the processing scripts, you need to set up the local routing engine and pipeline.
+
+### Prerequisites
+- [Bun](https://bun.sh/) v1.2.9+
+- [Docker](https://www.docker.com/) (for OSRM routing server)
+- `wget` or `curl`
+
+### 1. Set Up OSRM Routing Server
+The pipeline needs a local OSRM server for bike route calculations (excluding ferries).
+
+```bash
+cd packages/processing/osrm
+
+# 1. Download Barcelona OSM data (~20MB)
+curl -O https://download.bbbike.org/osm/bbbike/Barcelona/Barcelona.osm.pbf
+
+# 2. Build routing graph (one-time, ~1 min)
+docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-extract -p /data/bicycle-no-ferry.lua /data/Barcelona.osm.pbf
+docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-partition /data/Barcelona.osrm
+docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-customize /data/Barcelona.osrm
+
+# 3. Start server (runs on localhost:5000)
+docker run --rm -p 5000:5000 -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-routed --algorithm mld /data/Barcelona.osrm
 ```
 
-**Note:** The client queries parquet files from a hosted CDN by default. See the [processing README](packages/processing/README.md) for how to generate and host your own data.
+### 2. Run Processing Scripts
+Once OSRM is running on port 5000:
 
+```bash
+cd packages/processing
 
-## Station Legend
+# 1. Update station list from live API
+bun run fetch-bicing-stations.ts
 
-The map visualizes Bicing stations as dots that change color and size based on real-time occupancy (bikes vs. total docks).
+# 2. Build route cache from OSRM
+bun run build-routes.ts
 
-**Colors (Bike Availability):**
+# 3. Build trips parquet with embedded route geometries
+bun run build-parquet.ts
+```
+
+### Outputs
+- `apps/client/public/stations.json`: Station index.
+- `output/routes.db`: SQLite cache of routes.
+- `output/parquets/<year>-<month>-<day>.parquet`: Final data files.
+
+---
+
+## 📚 Technical Details
+
+### Station Legend (Client)
+The map visualizes stations as dots changing color/size based on occupancy:
 - 🔴 **Red**: Empty (< 10% bikes)
 - 🟠 **Orange**: Low (< 50% bikes)
 - 🟡 **Yellow**: Medium (< 80% bikes)
 - 🟢 **Green**: High (>= 80% bikes)
 
-**Size:**
-- The size of the dot scales with the percentage of bikes available.
-- Larger dots indicate a higher percentage of available bikes (more full).
-- Smaller dots indicate fewer bikes relative to station capacity.
+size scales with absolute bike availability.
 
+### Schema & Data Handling (Processing)
+
+**Parquet Schema**:
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | string | Trip ID |
+| `startStationName` | string | Canonical station name |
+| `startedAt` | timestamp | Trip start (UTC) |
+| `routeGeometry` | string | Polyline6-encoded route |
+| ... | ... | See `packages/processing/README.md` history for full details |
+
+**Timezone Handling**:
+- **Raw CSV**: NYC/Local (naive)
+- **Parquet**: UTC
+- **Client Display**: Configured to "America/New_York" or relevant local time in formatters.
+
+**Legacy vs Modern Data**:
+The pipeline unifies legacy (2013-2019) and modern (2020+) Bicing data formats by keying everything on **Station Names** (mapped via aliases) rather than IDs, which have changed over time.
+
+---
+
+## ☁️ Deployment
+
+### Hosting Infrastructure
+The project is designed to be hosted on **Cloudflare**:
+1. **Frontend**: Cloudflare Pages (Next.js preset)
+2. **Data Storage**: Cloudflare R2 (for accessing large JSON/Parquet datasets via DuckDB WASM)
+
+### Deployment Steps
+
+1. **Cloudflare R2 (Data Storage)**
+   - Create a bucket named `bikemap-data`.
+   - Configure **CORS** to allow GET requests from your domain.
+   - Upload the `recurs.json` (or parquet files) to the bucket.
+   - Enable **Public Bucket Access** or connect a domain (e.g., `data.bikemap.bcn`).
+
+2. **Cloudflare Pages (Frontend)**
+   - Connect your GitHub repository to Cloudflare Pages.
+   - **Build Command**: `npm run build` (or `bun run build`)
+   - **Build Output**: `.next`
+   - **Environment Variables**:
+     - `NEXT_PUBLIC_MAPBOX_TOKEN`: Your Mapbox GL JS token.
+     - `NEXT_PUBLIC_DATA_URL`: The public URL of your R2 bucket (e.g., `https://data.bikemap.bcn/recurs.json`).

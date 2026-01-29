@@ -83,8 +83,8 @@ class DuckDBService {
 
     if (this.registeredFiles.has(filename)) return filename;
 
-    // Use local proxy to avoid CORS and hide token
-    const url = "/api/proxy";
+    // Use environment variable for R2 (prod) or local proxy (dev)
+    const url = process.env.NEXT_PUBLIC_DATA_URL || "/api/proxy";
 
     console.log(`[DuckDB] Fetching ${url}...`);
 
