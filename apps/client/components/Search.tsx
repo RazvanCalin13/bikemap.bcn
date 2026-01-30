@@ -464,7 +464,7 @@ export function Search() {
         </div>
         <CommandInput
           autoFocus
-          placeholder={mode === "ride" ? "What's the name of the Bike Station you're looking for (e.g. 'Marina')" : "What time do you want to jump to?"}
+          placeholder={mode === "ride" ? "Enter the Bike Station ID or Street Name" : "What time do you want to jump to?"}
           value={datetimeInput}
           onValueChange={handleDatetimeChange}
           onKeyDown={handleDatetimeKeyDown}
@@ -472,10 +472,10 @@ export function Search() {
         />
         <div className="px-3 py-2 text-sm sm:text-xs text-zinc-500 flex flex-col gap-0.5">
           <span>
-            <span className="hidden sm:inline">Processed <a href="https://www.bicing.barcelona/" target="_blank" className="underline hover:text-zinc-50 text-zinc-300 font-medium">Bicing</a> data spans August 2018 – March 2019.</span>
-            <span className="sm:hidden"><a href="https://www.bicing.barcelona/" target="_blank" className="underline hover:text-zinc-50 text-zinc-300 font-medium">Bicing</a> data spans Aug 2018 – Mar 2019</span>
+            <span className="hidden sm:inline">Processed <a href="https://www.bicing.barcelona/" target="_blank" className="underline hover:text-zinc-50 text-zinc-300 font-medium">Bicing</a> data spans over the past 3 months.</span>
+            <span className="sm:hidden"><a href="https://www.bicing.barcelona/" target="_blank" className="underline hover:text-zinc-50 text-zinc-300 font-medium">Bicing</a> data spans over the past 3 months</span>
           </span>
-          <span>{'Try "July 4th 2019 at 8pm" or "Fri 4pm"'}</span>
+          <span>{mode === "ride" ? 'Try something like "Marina" or "Bilbao"' : 'Try "July 4th 2019 at 8pm" or "Fri 4pm"'}</span>
         </div>
         <CommandList className="overflow-hidden">
           <AnimatePresence mode="wait">
