@@ -207,7 +207,6 @@ class DuckDBService {
         arg_max(status, last_reported) as status
       FROM stations
       WHERE station_id IS NOT NULL 
-        AND last_reported <= ${targetTs}
       GROUP BY station_id
     `;
 
@@ -306,7 +305,7 @@ class DuckDBService {
           arg_max(s.num_bikes_available::INTEGER, s.last_reported::BIGINT) as bikes,
           arg_max(s.num_docks_available::INTEGER, s.last_reported::BIGINT) as docks
         FROM raw_data
-        WHERE s.station_id IS NOT NULL AND s.last_reported::BIGINT <= ${targetTs}
+        WHERE s.station_id IS NOT NULL
         GROUP BY s.station_id
       )
       SELECT sum(bikes) as parked, sum(docks) as docks FROM latest_status
