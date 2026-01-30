@@ -20,6 +20,7 @@ import { Fzf } from "fzf"
 import { ArrowLeft, ArrowRight, Bike, CalendarSearch, History, Loader2, MapPin, Search as SearchIcon } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
 import React from "react"
+import dataManifest from "@/lib/data-manifest.json"
 
 type SearchMode = "ride" | "time"
 
@@ -63,6 +64,10 @@ export function Search() {
   const { animationStartDate, simCurrentTimeMs } = useAnimationStore()
   const { stations, getStation, load: loadStations } = useStationsStore()
   const { triggerFlyTo } = useMapStore()
+
+  const formattedMonths = React.useMemo(() => {
+    return new Intl.ListFormat('en', { style: 'long', type: 'conjunction' }).format(dataManifest.months)
+  }, [])
 
   // Compute current real time (absolute) for chrono reference
   const realCurrentTimeMs = React.useMemo(() => {
@@ -472,8 +477,8 @@ export function Search() {
         />
         <div className="px-3 py-2 text-sm sm:text-xs text-zinc-500 flex flex-col gap-0.5">
           <span>
-            <span className="hidden sm:inline">Processed <a href="https://www.bicing.barcelona/" target="_blank" className="underline hover:text-zinc-50 text-zinc-300 font-medium">Bicing</a> data spans over the past 3 months.</span>
-            <span className="sm:hidden"><a href="https://www.bicing.barcelona/" target="_blank" className="underline hover:text-zinc-50 text-zinc-300 font-medium">Bicing</a> data spans over the past 3 months</span>
+            <span className="hidden sm:inline">Processed <a href="https://www.bicing.barcelona/" target="_blank" className="underline hover:text-zinc-50 text-zinc-300 font-medium">Bicing</a> data from the past {formattedMonths}</span>
+            <span className="sm:hidden"><a href="https://www.bicing.barcelona/" target="_blank" className="underline hover:text-zinc-50 text-zinc-300 font-medium">Bicing</a> data from the past {formattedMonths}</span>
           </span>
           <span>{mode === "ride" ? 'Try something like "Marina" or "Bilbao"' : 'Try "July 4th 2019 at 8pm" or "Fri 4pm"'}</span>
         </div>

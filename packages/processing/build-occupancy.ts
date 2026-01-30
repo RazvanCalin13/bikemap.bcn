@@ -1,148 +1,104 @@
-
-import * as duckdb from "@duckdb/duckdb-wasm";
-import { Worker } from "worker_threads";
+import { DuckDBConnection } from "@duckdb/node-api";
 import { glob } from "glob";
-import { mkdir, readFile, writeFile, readdir } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import path from "path";
-import { dataDir, outputDir } from "./utils";
 import fs from "node:fs";
+import { dataDir, outputDir } from "./utils";
 
 // Create output directory
 const occupancyDir = path.join(outputDir, "occupancy");
-await mkdir(occupancyDir, { recursive: true });
 
 async function main() {
-    console.log("🚴 Processing Bicing Occupancy Data (Async WASM)...");
+    console.log("🚴 Processing Bicing Occupancy Data (Native)...");
 
-    // Locating WASM bundles
-    // We try to find them in node_modules relative to this script or CWD
-    const basePaths = [
-        path.resolve(process.cwd(), "node_modules"),
-        path.resolve(path.dirname(import.meta.file), "../../node_modules"),
-        path.resolve(path.dirname(import.meta.file), "node_modules"),
-    ];
+    await mkdir(occupancyDir, { recursive: true });
 
-    let duckDBDist;
-    for (const p of basePaths) {
-        const check = path.join(p, "@duckdb/duckdb-wasm", "dist");
-        if (fs.existsSync(check)) {
-            duckDBDist = check;
-            break;
+    // Find CSV files - glob requires forward slashes
+    const pattern = path.join(dataDir, "*.csv").replace(/\\/g, "/");
+    const csvFiles = await glob(pattern);
+
+    if (csvFiles.length === 0) {
+        console.error("❌ No CSV files found in " + dataDir);
+        process.exit(1);
+    }
+
+    console.log(`Found ${csvFiles.length} CSV files.`);
+
+    const connection = await DuckDBConnection.create();
+
+    // Helper to read CSV header
+    async function getCSVHeaders(filePath: string): Promise<string[]> {
+        const fileHandle = await fs.promises.open(filePath);
+        try {
+            const stream = fileHandle.createReadStream({ start: 0, end: 1024 }); // Read first chunk
+            for await (const chunk of stream) {
+                const text = chunk.toString("utf-8");
+                const firstLine = text.split(/\r?\n/)[0];
+                return firstLine.split(",").map((h: string) => h.trim().replace(/^"|"$/g, ""));
+            }
+        } finally {
+            await fileHandle.close();
         }
+        return [];
     }
 
-    if (!duckDBDist) {
-        duckDBDist = path.join(process.cwd(), "node_modules/@duckdb/duckdb-wasm/dist");
-    }
+    for (const file of csvFiles) {
+        const fileName = path.basename(file);
+        console.log(`\n📄 Processing: ${fileName}`);
 
-    console.log(`   🔎 Using DuckDB WASM from: ${duckDBDist}`);
+        const headers = await getCSVHeaders(file);
 
-    const MANUAL_BUNDLE = {
-        mvp: {
-            mainModule: path.join(duckDBDist, "duckdb-mvp.wasm"),
-            mainWorker: path.join(duckDBDist, "duckdb-node-mvp.worker.cjs"),
-        },
-        eh: {
-            mainModule: path.join(duckDBDist, "duckdb-eh.wasm"),
-            mainWorker: path.join(duckDBDist, "duckdb-node-eh.worker.cjs"),
-        },
-    };
+        // Validation: Check for bike availability columns
+        const hasBikes = headers.includes("num_bikes_available");
 
-    console.log("   🦆 Initializing DuckDB Async...");
-    const logger = new duckdb.ConsoleLogger();
-
-    // Create Worker and Polyfill it for Web Worker compatibility
-    const worker = new Worker(MANUAL_BUNDLE.mvp.mainWorker);
-
-    // Polyfill addEventListener/removeEventListener
-    const workerAny = worker as any;
-    if (!workerAny.addEventListener) {
-        workerAny.addEventListener = (type: string, listener: any) => {
-            // Node worker 'message' sends data directly, Web Worker sends Event with .data
-            // We need to verify what DuckDB Expects.
-            // If we are using duckdb-node.cjs, it might expect simple data?
-            // However, the error was 'addEventListener is not a function'.
-            // Let's just bind 'on' first.
-            worker.on(type, listener);
-        };
-    }
-    if (!workerAny.removeEventListener) {
-        workerAny.removeEventListener = (type: string, listener: any) => {
-            worker.off(type, listener);
-        };
-    }
-
-    const db = new duckdb.AsyncDuckDB(logger, workerAny);
-    await db.instantiate(MANUAL_BUNDLE.mvp.mainModule);
-    const conn = await db.connect();
-
-    try {
-        console.log(`Using Data Directory: ${dataDir}`);
-        const files = await readdir(dataDir);
-        const csvFiles = files.filter(f => f.toLowerCase().endsWith(".csv")).map(f => path.join(dataDir, f));
-
-        if (csvFiles.length === 0) {
-            console.error("❌ No CSV files found.");
-            process.exit(1);
+        if (!hasBikes) {
+            console.warn(`   ⚠️  Skipping: Missing 'num_bikes_available' column. This appears to be static station info, not status logs.`);
+            continue;
         }
 
-        console.log(`Found ${csvFiles.length} CSV files.`);
+        // Column mapping
+        const lastReportedCol = headers.includes("last_reported") ? "last_reported" :
+            headers.includes("last_updated") ? "last_updated" : null;
 
-        for (const file of csvFiles) {
-            const fileName = path.basename(file);
-            console.log(`\n📄 Processing: ${fileName}`);
+        if (!lastReportedCol) {
+            console.warn(`   ⚠️  Skipping: Missing 'last_reported' or 'last_updated' timestamp column.`);
+            continue;
+        }
 
-            // Read file into buffer
-            const buffer = await readFile(file);
+        const parquetName = fileName.replace(/\.csv$/i, ".parquet");
+        const parquetPath = path.join(occupancyDir, parquetName);
 
-            // Register file in DuckDB Virtual FS
-            await db.registerFileBuffer(fileName, new Uint8Array(buffer));
+        console.log("   🔄 Converting to Parquet...");
 
-            const parquetName = fileName.replace(".csv", ".parquet").replace(".CSV", ".parquet");
-            const parquetPath = path.join(occupancyDir, parquetName);
+        // Escape backslashes for Windows paths in SQL
+        const msgPath = file.replace(/\\/g, "/");
+        const outPath = parquetPath.replace(/\\/g, "/");
 
-            console.log("   🔄 Converting to Parquet...");
-
-            // Run Query
-            // Note: Virtual FS works well in Async mode
-            await conn.query(`
+        try {
+            await connection.run(`
                 COPY (
                     SELECT 
                         station_id::INTEGER as station_id,
-                        to_timestamp(last_reported)::TIMESTAMP as reported_at,
+                        to_timestamp(${lastReportedCol})::TIMESTAMP as reported_at,
                         num_bikes_available::INTEGER as bikes,
-                        num_docks_available::INTEGER as docks,
+                        COALESCE(num_docks_available, 0)::INTEGER as docks,
                         is_charging_station::BOOLEAN as is_charging,
                         status
-                    FROM read_csv_auto('${fileName}', HEADER=TRUE)
-                    WHERE last_reported IS NOT NULL
-                ) TO '${parquetName}' (FORMAT 'parquet', CODEC 'SNAPPY');
+                    FROM read_csv_auto('${msgPath}', HEADER=TRUE, normalize_names=true)
+                    WHERE ${lastReportedCol} IS NOT NULL
+                ) TO '${outPath}' (FORMAT 'parquet', CODEC 'SNAPPY');
             `);
 
-            // Read output
-            const parquetBuffer = await db.copyFileToBuffer(parquetName);
-            await writeFile(parquetPath, parquetBuffer);
-
             console.log(`   💾 Saved to: ${parquetPath}`);
-            console.log(`      Size: ${(parquetBuffer.length / 1024 / 1024).toFixed(2)} MB`);
-
-            // Cleanup
-            await db.registerFileBuffer(fileName, new Uint8Array(0));
-            // db.dropFile available?
+        } catch (err) {
+            console.error(`   ❌ Failed to convert ${fileName}:`, err);
         }
-
-        console.log("\n✅ Processing complete!");
-
-    } catch (err) {
-        console.error("❌ Error:", err);
-        process.exit(1);
-    } finally {
-        if (db) await db.terminate();
-        worker.terminate();
     }
+
+    console.log("\n✅ Processing complete!");
 }
 
-// @ts-ignore
-if (import.meta.main) {
-    main();
-}
+main().catch(err => {
+    console.error("❌ Fatal Error:", err);
+    process.exit(1);
+});

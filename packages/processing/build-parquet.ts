@@ -105,12 +105,26 @@ async function main() {
 
   // 1. Load ALL data from all years using unified schema
   // Uses COALESCE to handle both legacy (2013-2019) and modern (2020+) schemas
-  console.log(`\nReading CSVs matching: ${csvGlob}`);
+  // Fix for Windows: ensure glob pattern uses forward slashes
+  const globPattern = csvGlob.replace(/\\/g, "/");
+  console.log(`\nReading CSVs matching: ${globPattern}`);
 
   // Expand glob so we can report inputs deterministically
-  const matchedCsvs = globSync(csvGlob, { nodir: true });
+  let matchedCsvs = globSync(globPattern, { nodir: true });
+
+  // Filter out Station Status files (ESTACIONS.csv) to avoid schema errors
+  const originalCount = matchedCsvs.length;
+  matchedCsvs = matchedCsvs.filter(f => !f.toUpperCase().endsWith("_ESTACIONS.CSV"));
+
+  if (originalCount > 0 && matchedCsvs.length === 0) {
+    console.warn("⚠️  Found CSV files, but they all appear to be Station Status logs (ending in _ESTACIONS.csv).");
+    console.warn("   This script (build-parquet.ts) builds *Trip Data*. Use build-occupancy.ts for Station Status.");
+    // We exit gracefully or throw error? Throw error is consistent
+    throw new Error("No Trip Data CSVs found.");
+  }
+
   if (matchedCsvs.length === 0) {
-    throw new Error(`No CSV files matched: ${csvGlob}`);
+    throw new Error(`No CSV files matched: ${globPattern}`);
   }
 
   let totalBytes = 0;
@@ -121,6 +135,10 @@ async function main() {
   console.log(`Matched CSVs: ${matchedCsvs.length}`);
   console.log(matchedCsvs.map((p) => `- ${p}`).join("\n"));
   console.log(`Total input size: ${formatHumanReadableBytes(totalBytes)}`);
+
+  // Format file list for DuckDB SQL: ['file1', 'file2']
+  // We accepted full paths from glob, need to escape them for SQL
+  const sqlFileList = matchedCsvs.map(f => `'${f.replace(/\\/g, "/")}'`).join(", ");
 
   const startTime = Date.now();
 
@@ -139,8 +157,6 @@ async function main() {
       -- Bike type: use rideable_type if present, else 'classic_bike' for legacy
       COALESCE(rideable_type, 'classic_bike') as rideable_type,
 
-      -- Timestamps: all columns are VARCHAR with all_varchar=true
-      -- First COALESCE picks first non-null value, then parse
       -- Timestamps: all columns are VARCHAR with all_varchar=true
       -- First COALESCE picks first non-null value, then parse
       COALESCE(
@@ -171,7 +187,7 @@ async function main() {
 
       -- Coordinates: all columns are VARCHAR with all_varchar=true
       TRY_CAST(COALESCE(start_lat, start_station_latitude) AS DOUBLE) as start_lat,
-      TRY_CAST(COALESCE(start_lng, start_station_longitude) AS DOUBLE) as start_lng,
+      TRY_CAST(COALESCE(start_lng, start_station_longitude) AS DOUBLE) as start_lat,
       TRY_CAST(COALESCE(end_lat, end_station_latitude) AS DOUBLE) as end_lat,
       TRY_CAST(COALESCE(end_lng, end_station_longitude) AS DOUBLE) as end_lng,
 
@@ -185,7 +201,7 @@ async function main() {
         END
       ) as member_casual
 
-    FROM read_csv_auto('${csvGlob}', union_by_name=true, normalize_names=true, all_varchar=true, null_padding=true, quote='"')
+    FROM read_csv_auto([${sqlFileList}], union_by_name=true, normalize_names=true, all_varchar=true, null_padding=true, quote='"')
   `);
 
   const loadTime = Date.now() - startTime;

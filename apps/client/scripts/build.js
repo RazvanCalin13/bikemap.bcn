@@ -5,6 +5,19 @@ const { execSync } = require('child_process');
 const proxyDir = path.join(__dirname, '../app/api/proxy');
 const backupDir = path.join(__dirname, '../app/api/_proxy_backup');
 
+// 0. Generate data manifest
+console.log('[Build] Generating data manifest...');
+try {
+    execSync('node scripts/generate-manifest.js', {
+        stdio: 'inherit',
+        cwd: path.join(__dirname, '..')
+    });
+} catch (e) {
+    console.error('[Build] Failed to generate data manifest:', e);
+    // Continue? Or fail? Probably fail if data is critical, but maybe warn if dev.
+    // For now let's not break production build hard if it fails, but logging error is good.
+}
+
 try {
     // 1. Check if proxy exists and move it to backup to avoid Next.js static export error
     if (fs.existsSync(proxyDir)) {

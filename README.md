@@ -29,6 +29,7 @@ There is no traditional backend. The client uses [DuckDB WASM](https://duckdb.or
 
 ---
 
+
 ## 🚀 Quickstart: Running the Client
 
 ### 1. Install Dependencies
@@ -53,6 +54,7 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) to view the app.
 
+
 ---
 
 ## 🛠️ Advanced: Data Processing Pipeline
@@ -65,7 +67,7 @@ If you want to generate your own data tiles or run the processing scripts, you n
 - `wget` or `curl`
 
 ### 1. Set Up OSRM Routing Server
-The pipeline needs a local OSRM server for bike route calculations (excluding ferries).
+The pipeline needs a local OSRM server.
 
 ```bash
 cd packages/processing/osrm
@@ -102,6 +104,41 @@ bun run build-parquet.ts
 - `apps/client/public/stations.json`: Station index.
 - `output/routes.db`: SQLite cache of routes.
 - `output/parquets/<year>-<month>-<day>.parquet`: Final data files.
+
+### 🔄 Workflow: Updating Data
+To update the dataset (e.g., removing months, adding others):
+
+1. **Update CSVs**: Add or remove `.csv` files in the **project root** `data/` directory.
+2. **Clean Output**: Delete old files in `packages/processing/output/parquets` (if the folder exists) to prevent stale data from persisting.
+3. **Run Pipeline**:
+
+   **Option A: Updating Station Status (Occupancy)**
+   *For `..._ESTACIONS.csv` files*
+   ```bash
+   cd packages/processing
+   
+   # 1. Update station list
+   bun run fetch-bicing-stations.ts
+
+   # 2. Build occupancy parquets
+   bun run build-occupancy.ts
+   ```
+
+   **Option B: Updating Trip History**
+   *For Trip CSV files (with start/end stations)*
+   ```bash
+   cd packages/processing
+
+   # 1. Update station list
+   bun run fetch-bicing-stations.ts
+
+   # 2. Update routes (requires OSRM server running)
+   bun run build-routes.ts
+
+   # 3. Build trip parquets
+   bun run build-parquet.ts
+   ```
+
 
 ---
 
