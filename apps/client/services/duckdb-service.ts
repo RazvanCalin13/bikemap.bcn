@@ -26,7 +26,7 @@ export interface StationStatus {
   status: string;
 }
 
-const BASE_URL = "/occupancy"; // Local public folder
+const BASE_URL = process.env.NEXT_PUBLIC_HISTORICAL_DATA_URL || "/occupancy"; // Support R2 or local public folder
 
 const MONTH_NAMES = [
   "Gener", "Febrer", "Marc", "Abril", "Maig", "Juny",
@@ -210,10 +210,29 @@ class DuckDBService {
     const result = await conn.query(query);
     let rows = result.toArray();
 
-    // Fallback if no data for this simulation time (e.g. before data starts)
-    if (rows.length === 0 && isCSV) {
-      console.log(`[DuckDB] No historical data for ${datetime.toISOString()}. Falling back to absolute latest in file.`);
-      const fallbackResult = await conn.query(`SELECT station_id, arg_max(num_bikes_available::INTEGER, last_reported::BIGINT) as bikes, arg_max(num_docks_available::INTEGER, last_reported::BIGINT) as docks, arg_max(is_charging_station::BOOLEAN, last_reported::BIGINT) as is_charging, arg_max(status, last_reported::BIGINT) as status FROM read_csv_auto('${filename}', ALL_VARCHAR=true) GROUP BY station_id`);
+    // Fallback if no data for this simulation time (e.g. before data starts or gap in real-time data)
+    if (rows.length === 0) {
+      console.log(`[DuckDB] No data for ${datetime.toISOString()} in ${filename}. Falling back to absolute latest in file.`);
+      const fallbackQuery = isCSV ? `
+        SELECT 
+          station_id::INTEGER as station_id, 
+          arg_max(num_bikes_available::INTEGER, last_reported::BIGINT) as bikes, 
+          arg_max(num_docks_available::INTEGER, last_reported::BIGINT) as docks, 
+          arg_max(is_charging_station::BOOLEAN, last_reported::BIGINT) as is_charging, 
+          arg_max(status, last_reported::BIGINT) as status 
+        FROM read_csv_auto('${filename}', ALL_VARCHAR=true, nullstr='NA', ignore_errors=true) 
+        GROUP BY station_id
+      ` : `
+        SELECT 
+          s.station_id::INTEGER as station_id,
+          arg_max(s.num_bikes_available::INTEGER, s.last_reported::BIGINT) as bikes,
+          arg_max(s.num_docks_available::INTEGER, s.last_reported::BIGINT) as docks,
+          arg_max(s.is_charging_station::BOOLEAN, s.last_reported::BIGINT) as is_charging,
+          arg_max(s.status::VARCHAR, s.last_reported::BIGINT) as status
+        FROM (SELECT unnest(data.stations) as s FROM read_json_auto('${filename}', ignore_errors=true))
+        GROUP BY station_id
+      `;
+      const fallbackResult = await conn.query(fallbackQuery);
       rows = fallbackResult.toArray();
     }
     console.log(`[DuckDB] getStationStatus for ${datetime.toISOString()} returned ${rows.length} stations (${Date.now() - startTime}ms)`);
