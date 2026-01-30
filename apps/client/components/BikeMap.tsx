@@ -313,27 +313,29 @@ export const BikeMap = () => {
     storePlay();
   }, [storePlay]);
 
-  // Layers
-  const layers = useMemo(() => {
+  // Stabilize station data for Deck.gl performance and transitions
+  const stationsData = useMemo(() => {
     if (stationStatuses.length === 0) return [];
 
-    const data = stationStatuses.slice(0, revealedCount).map(s => {
-      // Match by checking aliases via optimized map
-      const sidStr = s.station_id.toString();
-      const station = stationById.get(sidStr);
-
+    return stationStatuses.slice(0, revealedCount).map(s => {
+      const station = stationById.get(s.station_id.toString());
       if (!station) return null;
       return {
         ...s,
-        coordinates: [station.longitude, station.latitude],
+        coordinates: [station.longitude, station.latitude] as [number, number],
         percentage: s.bikes + s.docks > 0 ? s.bikes / (s.bikes + s.docks) : 0
       };
     }).filter((d): d is NonNullable<typeof d> => d !== null);
+  }, [stationStatuses, stationById, revealedCount]);
+
+  // Layers
+  const layers = useMemo(() => {
+    if (stationsData.length === 0) return [];
 
     return [
       new ScatterplotLayer({
         id: "station-pulse",
-        data,
+        data: stationsData,
         pickable: true,
         opacity: 0.8,
         stroked: true,
@@ -345,7 +347,6 @@ export const BikeMap = () => {
         getPosition: (d: any) => d.coordinates,
         getRadius: (d: any) => {
           const base = 30 + (d.percentage * 20);
-          // Subtle breathing effect (period: 4s)
           const pulse = 1 + Math.sin(simTimeMs / 636) * 0.08;
           return base * pulse;
         },
@@ -358,18 +359,14 @@ export const BikeMap = () => {
         },
         getLineColor: [0, 0, 0],
         updateTriggers: {
-          getFillColor: [stationStatuses],
-          getRadius: [stationStatuses, simTimeMs] // Update radii as time advances for pulsing
+          getFillColor: [stationsData], // Changed to depend on the memoized data content
+          getRadius: [simTimeMs] // Pulse depends on clock, base radius follows data updates smoothly via transitions
         },
-        // Animation transitions
+        // Enable smooth transitions for changes
         transitions: {
           getFillColor: 600,
-          getRadius: {
-            type: "interpolation",
-            duration: 800,
-            easing: elasticOut,
-            enter: () => [0], // Start from zero radius
-          }
+          getRadius: 600 // Smooth growth/shrink instead of jitter
+          // Note: NO 'enter' transition here to avoid the size-zero bug
         },
         onClick: (info) => {
           if (info.object) {
@@ -388,7 +385,7 @@ export const BikeMap = () => {
         }
       })
     ];
-  }, [stationStatuses, stationById, revealedCount, simTimeMs]); // Added simTimeMs to trigger pulse updates
+  }, [stationsData, simTimeMs, stationById, triggerFlyTo]);
 
   const selectedStationData = useMemo(() => {
     if (!selectedStationName) return null;
