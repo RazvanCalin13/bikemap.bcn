@@ -125,29 +125,56 @@ class DuckDBService {
     // Default to real-time JSON
     const jsonFilename = "recurs.json";
     const now = Date.now();
+
+    // Check if we have a recent local copy
     if (this.registeredFiles.has(jsonFilename) && (now - this.lastFetchTime < this.REFETCH_INTERVAL_MS)) {
       return { filename: jsonFilename, isCSV: false };
     }
 
+    // Check if a fetch is already in progress
+    if (this.currentFetchPromise) {
+      // console.log("[DuckDB] Waiting for existing fetch...");
+      try {
+        await this.currentFetchPromise;
+        return { filename: jsonFilename, isCSV: false };
+      } catch (err) {
+        // If the in-flight fetch failed, we might want to retry, but for now let's fall through
+      }
+    }
+
     const url = process.env.NEXT_PUBLIC_DATA_URL || "/api/proxy";
-    console.log(`[DuckDB] Fetching real-time snapshot: ${url}...`);
+    // console.log(`[DuckDB] Fetching real-time snapshot: ${url}...`);
+
+    this.currentFetchPromise = (async () => {
+      try {
+        console.log(`[DuckDB] Fetching real-time snapshot: ${url} (t=${now})...`);
+        const response = await fetch(`${url}?t=${now}`, { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        const { db } = this.ensureInitialized();
+        await db.registerFileBuffer(jsonFilename, new Uint8Array(arrayBuffer));
+        this.registeredFiles.add(jsonFilename);
+        this.lastFetchTime = Date.now();
+      } finally {
+        this.currentFetchPromise = null;
+      }
+    })();
 
     try {
-      const response = await fetch(`${url}?t=${now}`);
-      if (!response.ok) {
-        if (this.registeredFiles.has(jsonFilename)) return { filename: jsonFilename, isCSV: false };
-        throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
-      }
-      const arrayBuffer = await response.arrayBuffer();
-      await db.registerFileBuffer(jsonFilename, new Uint8Array(arrayBuffer));
-      this.registeredFiles.add(jsonFilename);
-      this.lastFetchTime = now;
+      await this.currentFetchPromise;
       return { filename: jsonFilename, isCSV: false };
     } catch (err) {
-      if (this.registeredFiles.has(jsonFilename)) return { filename: jsonFilename, isCSV: false };
+      if (this.registeredFiles.has(jsonFilename)) {
+        console.warn("[DuckDB] Fetch failed, using stale data.", err);
+        return { filename: jsonFilename, isCSV: false };
+      }
       throw err;
     }
   }
+
+  private currentFetchPromise: Promise<void> | null = null;
 
   /**
    * Get occupancy status for all stations at a specific time point.
