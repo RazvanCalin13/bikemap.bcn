@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 // Simple in-memory cache to prevent 429s during development hot-reloads
 let cachedData: ArrayBuffer | null = null;
 let lastFetchTime = 0;
-const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+const CACHE_TTL_MS = 30 * 1000; // 30 seconds (down from 15m for real-time)
 
 export async function GET() {
     const url = process.env.NEXT_PUBLIC_OPENDATA_URL;

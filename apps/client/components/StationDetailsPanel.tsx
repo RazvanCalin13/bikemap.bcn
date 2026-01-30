@@ -31,7 +31,7 @@ export function StationDetailsPanel({ station, position, onClose }: StationDetai
                 top: position.y - 10, // Offset to be "top-right"
             } : {
                 right: '1rem',
-                top: '5rem'
+                top: '12rem'
             }}
         >
             {/* Selection Highlight Bar */}

@@ -74,13 +74,13 @@ export const BikeMap = () => {
       for (const entry of entries) {
         setDimensions({
           width: entry.contentRect.width,
-          height: entry.contentRect.height
+          height: entry.contentRect.height,
         });
       }
     });
     observer.observe(containerRef.current);
     return () => observer.disconnect();
-  }, []);
+  }, [isMounted]);
 
   // Map Store actions (FlyTo)
   const flyToTrigger = useMapStore((s) => s.flyToTrigger);
@@ -343,7 +343,12 @@ export const BikeMap = () => {
         radiusMaxPixels: 20,
         lineWidthMinPixels: 1,
         getPosition: (d: any) => d.coordinates,
-        getRadius: (d: any) => 30 + (d.percentage * 20),
+        getRadius: (d: any) => {
+          const base = 30 + (d.percentage * 20);
+          // Subtle breathing effect (period: 4s)
+          const pulse = 1 + Math.sin(simTimeMs / 636) * 0.08;
+          return base * pulse;
+        },
         getFillColor: (d: any) => {
           const p = d.percentage;
           if (p < 0.1) return COLORS.occupancy.empty as [number, number, number];
@@ -354,7 +359,7 @@ export const BikeMap = () => {
         getLineColor: [0, 0, 0],
         updateTriggers: {
           getFillColor: [stationStatuses],
-          getRadius: [stationStatuses]
+          getRadius: [stationStatuses, simTimeMs] // Update radii as time advances for pulsing
         },
         // Animation transitions
         transitions: {
@@ -370,7 +375,12 @@ export const BikeMap = () => {
           if (info.object) {
             const station = stationById.get(info.object.station_id.toString());
             if (station) {
-              setSelectedStationName(station.name);
+              triggerFlyTo({
+                latitude: station.latitude,
+                longitude: station.longitude,
+                zoom: 16,
+                stationName: station.name
+              });
             }
           } else {
             setSelectedStationName(null);
@@ -378,7 +388,7 @@ export const BikeMap = () => {
         }
       })
     ];
-  }, [stationStatuses, stationById, revealedCount]);
+  }, [stationStatuses, stationById, revealedCount, simTimeMs]); // Added simTimeMs to trigger pulse updates
 
   const selectedStationData = useMemo(() => {
     if (!selectedStationName) return null;

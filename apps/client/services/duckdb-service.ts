@@ -1,3 +1,4 @@
+// Rebuild trigger
 import { DATA_END_DATE, DATA_START_DATE } from "@/lib/config";
 import * as duckdb from "@duckdb/duckdb-wasm";
 
@@ -74,35 +75,74 @@ class DuckDBService {
     return { conn: this.conn, db: this.db };
   }
 
+  private lastFetchTime = 0;
+  private readonly REFETCH_INTERVAL_MS = 30 * 1000; // Poll every 30 seconds
+
   /**
-   * Register the main JSON data file from the Open Data API
+   * Register a data file (CSV or JSON) based on the requested date.
    */
-  private async registerDataFile(): Promise<string> {
+  private async registerDataFile(date: Date): Promise<{ filename: string, isCSV: boolean }> {
     const { db } = this.ensureInitialized();
-    const filename = "recurs.json";
 
-    if (this.registeredFiles.has(filename)) return filename;
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const monthNum = (month + 1).toString().padStart(2, '0');
+    const monthName = MONTH_NAMES[month];
 
-    // Use environment variable for R2 (prod) or local proxy (dev)
-    const url = process.env.NEXT_PUBLIC_DATA_URL || "/api/proxy";
+    // Check if we have a historical CSV for this month
+    // Format: 2025_01_Gener_BicingNou_ESTACIONS.csv
+    const csvFilename = `${year}_${monthNum}_${monthName}_BicingNou_ESTACIONS.csv`;
+    const csvUrl = `${BASE_URL}/${csvFilename}`;
 
-    console.log(`[DuckDB] Fetching ${url}...`);
+    // We only have 2025-01 and 2025-12 in the folder based on file listing, 
+    // but we should generalize.
+    const isHistorical = (year === 2025 && (month === 0 || month === 11));
 
-    // No need to send token to client-side proxy, cookie/session (if any) or just open access
-    const response = await fetch(url);
+    if (isHistorical) {
+      if (this.registeredFiles.has(csvFilename)) return { filename: csvFilename, isCSV: true };
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+      console.log(`[DuckDB] Fetching historical CSV: ${csvUrl}...`);
+      try {
+        const response = await fetch(csvUrl);
+        if (response.ok) {
+          const arrayBuffer = await response.arrayBuffer();
+          await db.registerFileBuffer(csvFilename, new Uint8Array(arrayBuffer));
+          this.registeredFiles.add(csvFilename);
+          console.log(`[DuckDB] Registered ${csvFilename} (${(arrayBuffer.byteLength / 1024 / 1024).toFixed(2)} MB)`);
+          return { filename: csvFilename, isCSV: true };
+        } else {
+          console.warn(`[DuckDB] Historical file ${csvFilename} not found, falling back to real-time.`);
+        }
+      } catch (err) {
+        console.warn(`[DuckDB] Failed to load ${csvFilename}, falling back.`, err);
+      }
     }
 
-    const arrayBuffer = await response.arrayBuffer();
+    // Default to real-time JSON
+    const jsonFilename = "recurs.json";
+    const now = Date.now();
+    if (this.registeredFiles.has(jsonFilename) && (now - this.lastFetchTime < this.REFETCH_INTERVAL_MS)) {
+      return { filename: jsonFilename, isCSV: false };
+    }
 
-    // Register as buffer
-    await db.registerFileBuffer(filename, new Uint8Array(arrayBuffer));
-    this.registeredFiles.add(filename);
-    console.log(`[DuckDB] Registered ${filename} (${(arrayBuffer.byteLength / 1024 / 1024).toFixed(2)} MB)`);
+    const url = process.env.NEXT_PUBLIC_DATA_URL || "/api/proxy";
+    console.log(`[DuckDB] Fetching real-time snapshot: ${url}...`);
 
-    return filename;
+    try {
+      const response = await fetch(`${url}?t=${now}`);
+      if (!response.ok) {
+        if (this.registeredFiles.has(jsonFilename)) return { filename: jsonFilename, isCSV: false };
+        throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      await db.registerFileBuffer(jsonFilename, new Uint8Array(arrayBuffer));
+      this.registeredFiles.add(jsonFilename);
+      this.lastFetchTime = now;
+      return { filename: jsonFilename, isCSV: false };
+    } catch (err) {
+      if (this.registeredFiles.has(jsonFilename)) return { filename: jsonFilename, isCSV: false };
+      throw err;
+    }
   }
 
   /**
@@ -113,19 +153,34 @@ class DuckDBService {
     // Ensure initialized (wait for it if currently loading)
     await this.init();
     const { conn } = this.ensureInitialized();
-    const filename = await this.registerDataFile(); // Ensure file is loaded
+    const { filename, isCSV } = await this.registerDataFile(datetime);
 
     // Timestamp in CSV is unix seconds (based on sample: 1735685985)
-    // We query for the latest status per station <= datetime
     const targetTs = Math.floor(datetime.getTime() / 1000);
-
     const startTime = Date.now();
 
-    // arg_max(column, sort_column) finds the value of 'column' where 'sort_column' is max
-    // JSON structure: { last_updated: int, ttl: int, data: { stations: [ ... ] } }
-    // We need to read the JSON, extracting the list of stations.
-    // read_json_auto returns one row with structs.
-    const result = await conn.query(`
+    const query = isCSV ? `
+      WITH stations AS (
+        SELECT 
+          station_id::INTEGER as station_id,
+          num_bikes_available::INTEGER as bikes,
+          num_docks_available::INTEGER as docks,
+          is_charging_station::BOOLEAN as is_charging,
+          status::VARCHAR as status,
+          last_reported::BIGINT as last_reported
+        FROM read_csv_auto('${filename}', ALL_VARCHAR=true, nullstr='NA', ignore_errors=true)
+      )
+      SELECT 
+        station_id,
+        arg_max(bikes, last_reported) as bikes,
+        arg_max(docks, last_reported) as docks,
+        arg_max(is_charging, last_reported) as is_charging,
+        arg_max(status, last_reported) as status
+      FROM stations
+      WHERE station_id IS NOT NULL 
+        AND last_reported <= ${targetTs}
+      GROUP BY station_id
+    ` : `
       WITH raw_data AS (
         SELECT unnest(data.stations) as s
         FROM read_json_auto('${filename}', ignore_errors=true)
@@ -148,12 +203,19 @@ class DuckDBService {
         arg_max(status, last_reported) as status
       FROM stations
       WHERE station_id IS NOT NULL 
-        -- API returns current state, so time filtering might be redundant but keeping it for safety if schema changes
-        -- AND last_reported <= ${targetTs} 
+        AND last_reported <= ${targetTs}
       GROUP BY station_id
-    `);
+    `;
 
-    const rows = result.toArray();
+    const result = await conn.query(query);
+    let rows = result.toArray();
+
+    // Fallback if no data for this simulation time (e.g. before data starts)
+    if (rows.length === 0 && isCSV) {
+      console.log(`[DuckDB] No historical data for ${datetime.toISOString()}. Falling back to absolute latest in file.`);
+      const fallbackResult = await conn.query(`SELECT station_id, arg_max(num_bikes_available::INTEGER, last_reported::BIGINT) as bikes, arg_max(num_docks_available::INTEGER, last_reported::BIGINT) as docks, arg_max(is_charging_station::BOOLEAN, last_reported::BIGINT) as is_charging, arg_max(status, last_reported::BIGINT) as status FROM read_csv_auto('${filename}', ALL_VARCHAR=true) GROUP BY station_id`);
+      rows = fallbackResult.toArray();
+    }
     console.log(`[DuckDB] getStationStatus for ${datetime.toISOString()} returned ${rows.length} stations (${Date.now() - startTime}ms)`);
 
     return rows.map((row: any) => ({
@@ -197,25 +259,37 @@ class DuckDBService {
   async getSystemStats(datetime: Date): Promise<{ parked: number, docks: number }> {
     await this.init();
     const { conn } = this.ensureInitialized();
-    const filename = await this.registerDataFile();
+    const { filename, isCSV } = await this.registerDataFile(datetime);
 
     const targetTs = Math.floor(datetime.getTime() / 1000);
 
-    const result = await conn.query(`
+    const query = isCSV ? `
+      WITH latest_status AS (
+        SELECT
+          arg_max(num_bikes_available::INTEGER, last_reported::BIGINT) as bikes,
+          arg_max(num_docks_available::INTEGER, last_reported::BIGINT) as docks
+        FROM read_csv_auto('${filename}', ALL_VARCHAR=true)
+        WHERE station_id IS NOT NULL AND last_reported::BIGINT <= ${targetTs}
+        GROUP BY station_id
+      )
+      SELECT sum(bikes) as parked, sum(docks) as docks FROM latest_status
+    ` : `
       WITH raw_data AS (
         SELECT unnest(data.stations) as s
         FROM read_json_auto('${filename}', ignore_errors=true)
       ),
       latest_status AS (
         SELECT
-          arg_max(s.num_bikes_available, s.last_reported) as bikes,
-          arg_max(s.num_docks_available, s.last_reported) as docks
+          arg_max(s.num_bikes_available::INTEGER, s.last_reported::BIGINT) as bikes,
+          arg_max(s.num_docks_available::INTEGER, s.last_reported::BIGINT) as docks
         FROM raw_data
-        WHERE s.station_id IS NOT NULL 
+        WHERE s.station_id IS NOT NULL AND s.last_reported::BIGINT <= ${targetTs}
         GROUP BY s.station_id
       )
       SELECT sum(bikes) as parked, sum(docks) as docks FROM latest_status
-    `);
+    `;
+
+    const result = await conn.query(query);
     const row = result.toArray()[0];
     return {
       parked: row ? Number(row.parked) : 0,
