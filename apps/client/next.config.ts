@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "export",
+  reactStrictMode: false,
   webpack: (config, { webpack }) => {
     // Suppress the "Critical dependency" warning from duckdb-node.cjs
     config.ignoreWarnings = [

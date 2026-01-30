@@ -510,18 +510,23 @@ export const BikeMap = () => {
           <Kbd>R</Kbd>
         </MapControlButton>
 
-        <div className="mt-6 pointer-events-auto">
+        <div className="mt-6 pointer-events-auto hidden md:block w-[200px]">
           <NeighborhoodStats stats={districtStats} />
         </div>
       </div>
 
-      {/* Clock - Top Center */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
+      {/* Clock - Top Center (Desktop), Top Right (Mobile) */}
+      <div className="absolute top-4 z-10 right-4 md:left-1/2 md:-translate-x-1/2 md:right-auto flex flex-col w-[200px] md:w-auto items-stretch md:items-center gap-2">
         <TimeDisplay simTimeMs={simTimeMs} realWindowStartDate={animationStartDate} />
+        <div className="pointer-events-auto md:hidden">
+          <NeighborhoodStats stats={districtStats} />
+        </div>
       </div>
 
+
+
       {/* Global Stats - Top Right */}
-      <div className="absolute top-4 right-4 z-10">
+      <div className="absolute top-4 right-4 z-10 hidden md:block">
         <GlobalStatsPanel
           graphData={globalStats}
           simTimeMs={simTimeMs}
@@ -539,7 +544,7 @@ export const BikeMap = () => {
       )}
 
       {/* Legend / Info */}
-      <div className="absolute bottom-8 right-4 z-10 bg-black/80 p-4 rounded text-white text-xs">
+      <div className="absolute bottom-8 right-4 z-10 bg-black/80 p-4 rounded text-white text-xs hidden md:block">
         <div className="font-bold mb-2">Station Occupancy</div>
         <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#50C878] rounded-full"></div> High (&gt;80%)</div>
         <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#FFFF00] rounded-full"></div> Medium</div>

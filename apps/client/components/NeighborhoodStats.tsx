@@ -19,7 +19,7 @@ export const NeighborhoodStats: React.FC<NeighborhoodStatsProps> = ({ stats }) =
     const sortedStats = [...stats].sort((a, b) => b.occupancyRate - a.occupancyRate);
 
     return (
-        <div className="bg-black/80 backdrop-blur-md rounded-xl text-white w-[200px] border border-white/10 shadow-xl overflow-hidden transition-all duration-300">
+        <div className="bg-black/80 backdrop-blur-md rounded-xl text-white w-full border border-white/10 shadow-xl overflow-hidden transition-all duration-300">
             <button
                 onClick={() => setIsCollapsed(!isCollapsed)}
                 className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 transition-colors"
