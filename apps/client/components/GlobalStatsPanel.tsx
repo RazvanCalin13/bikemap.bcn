@@ -1,7 +1,9 @@
 
 import { COLORS, ESTIMATED_TOTAL_FLEET, GRAPH_MIN_SCALE, SIM_GRAPH_WINDOW_SIZE_MS } from "@/lib/config";
 import { formatNumber } from "@/lib/format";
-import { forwardRef, memo, useImperativeHandle, useMemo, useRef } from "react";
+import { forwardRef, memo, useEffect, useImperativeHandle, useMemo, useRef } from "react";
+import { useSpring, useTransform, motion } from "motion/react";
+import { useAnimationStore } from "@/lib/stores/animation-store";
 
 // Data point for the graph
 export type SystemStatsPoint = {
@@ -9,6 +11,30 @@ export type SystemStatsPoint = {
     parked: number;
     active: number; // Calculated as Total - Parked - Disabled? Or just Total - Parked.
 };
+
+function AnimatedNumber({ value, className }: { value: number, className?: string }) {
+    const speedup = useAnimationStore(s => s.speedup);
+
+    // Scale stiffness based on speedup.
+    // Base speed (300) -> stiffness 100
+    // Max speed (14400) -> stiffness ~5000 (approx 48x faster response)
+    // Formula: stiffness = 100 * (speedup / 300)
+    // Damping needs to scale too to avoid overshooting: damping = 20 * sqrt(speedup / 300)
+    const ratio = speedup / 300;
+    const stiffness = 100 * ratio;
+    const damping = 20 * Math.sqrt(ratio);
+
+    const spring = useSpring(value, { stiffness, damping });
+
+    // Update spring target when value changes
+    useEffect(() => {
+        spring.set(value);
+    }, [value, spring]);
+
+    const display = useTransform(spring, (latest) => formatNumber(Math.round(latest)));
+
+    return <motion.span className={className}>{display}</motion.span>;
+}
 
 type GlobalStatsPanelProps = {
     graphData: SystemStatsPoint[];
@@ -57,8 +83,8 @@ export const GlobalStatsPanel = memo(
             // Fitting to ESTIMATED_TOTAL_FLEET keeps context of "Total Capacity".
             // But if we want to see trends, dynamic scale is better.
             // Let's use ESTIMATED_TOTAL_FLEET as baseline max, or max of data if it exceeds.
-            const dataMax = Math.max(...windowData.map(d => Math.max(d.parked, d.active)));
-            const maxVal = Math.max(ESTIMATED_TOTAL_FLEET, dataMax, GRAPH_MIN_SCALE);
+            const dataMax = Math.max(...windowData.map(d => d.active));
+            const maxVal = Math.max(dataMax * 1.2, GRAPH_MIN_SCALE);
 
             const chartWidth = GRAPH_WIDTH - PADDING.left - PADDING.right;
             const chartHeight = GRAPH_HEIGHT - PADDING.top - PADDING.bottom;
@@ -79,12 +105,11 @@ export const GlobalStatsPanel = memo(
                 return { line, area };
             };
 
-            const parkedPaths = generatePath(d => d.parked);
             const activePaths = generatePath(d => d.active);
 
             return {
-                linePaths: { parked: parkedPaths.line, active: activePaths.line },
-                areaPaths: { parked: parkedPaths.area, active: activePaths.area },
+                linePaths: { parked: "", active: activePaths.line },
+                areaPaths: { parked: "", active: activePaths.area },
                 maxY: maxVal
             };
         }, [graphData, simTimeMs]);
@@ -112,16 +137,18 @@ export const GlobalStatsPanel = memo(
                 <div className="flex flex-col gap-1 mt-0.5 relative z-10">
                     {/* Active Bikes */}
                     <div className="flex items-baseline gap-1.5 text-left">
-                        <span ref={activeRef} className="text-xl font-semibold tabular-nums tracking-tight text-[#50C878]">
-                            {formatNumber(currentStats.active)}
-                        </span>
+                        <AnimatedNumber
+                            value={currentStats.active}
+                            className="text-xl font-semibold tabular-nums tracking-tight text-[#50C878]"
+                        />
                         <span className="text-[10px] tracking-wide text-white/70">IN USE</span>
                     </div>
                     {/* Parked Bikes */}
                     <div className="flex items-baseline gap-1.5 text-left">
-                        <span ref={parkedRef} className="text-md font-medium tabular-nums tracking-tight text-[#FF3232]">
-                            {formatNumber(currentStats.parked)}
-                        </span>
+                        <AnimatedNumber
+                            value={currentStats.parked}
+                            className="text-md font-medium tabular-nums tracking-tight text-[#FF3232]"
+                        />
                         <span className="text-[10px] tracking-wide text-white/70">PARKED</span>
                     </div>
                 </div>
@@ -148,7 +175,7 @@ export const GlobalStatsPanel = memo(
 
                         {/* Time Axis */}
                         <g opacity="0.4" fontSize="8" fill="white">
-                            <text x={PADDING.left} y={GRAPH_HEIGHT - 2}>-3h</text>
+                            <text x={PADDING.left} y={GRAPH_HEIGHT - 2}>-6h</text>
                             <text x={GRAPH_WIDTH - PADDING.right} y={GRAPH_HEIGHT - 2} textAnchor="end">Now</text>
                         </g>
 
@@ -159,12 +186,7 @@ export const GlobalStatsPanel = memo(
                                 <path d={linePaths.active} fill="none" stroke="#50C878" strokeWidth="1.5" strokeLinecap="round" />
                             </>
                         )}
-                        {linePaths.parked && (
-                            <>
-                                <path d={areaPaths.parked} fill="url(#grad-parked)" />
-                                <path d={linePaths.parked} fill="none" stroke="#FF3232" strokeWidth="1.5" strokeLinecap="round" />
-                            </>
-                        )}
+
 
                     </svg>
                 </div>

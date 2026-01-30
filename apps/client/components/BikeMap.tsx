@@ -479,6 +479,8 @@ export const BikeMap = () => {
         <MapboxMap
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
           mapStyle="mapbox://styles/mapbox/dark-v11"
+          attributionControl={false}
+          logoPosition="bottom-right"
         />
       </DeckGL>
 
@@ -544,7 +546,7 @@ export const BikeMap = () => {
       )}
 
       {/* Legend / Info */}
-      <div className="absolute bottom-8 right-4 z-10 bg-black/80 p-4 rounded text-white text-xs hidden md:block">
+      <div className="absolute bottom-4 right-4 z-10 bg-black/80 p-4 rounded text-white text-xs hidden md:block">
         <div className="font-bold mb-2">Station Occupancy</div>
         <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#50C878] rounded-full"></div> High (&gt;80%)</div>
         <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#FFFF00] rounded-full"></div> Medium</div>

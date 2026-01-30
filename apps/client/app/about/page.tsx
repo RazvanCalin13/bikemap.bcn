@@ -3,7 +3,7 @@
 import { Kbd } from "@/components/ui/kbd";
 import { COLORS, DEFAULT_SPEEDUP, SIM_BATCH_SIZE_MS } from "@/lib/config";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Coffee, Github } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -81,16 +81,7 @@ const LegendItem = ({ color, label, showTrailOnHover = true, glowIntensity = "no
   );
 };
 
-const XIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 16 16"
-    fill="currentColor"
-    className={className}
-  >
-    <path d="M12.6.75h2.454l-5.36 6.142L16 15.25h-4.937l-3.867-5.07-4.425 5.07H.316l5.733-6.57L0 .75h5.063l3.495 4.633L12.601.75Zm-.86 13.028h1.36L4.323 2.145H2.865z" />
-  </svg>
-);
+
 
 export default function AboutPage() {
   const router = useRouter();
@@ -133,27 +124,21 @@ export default function AboutPage() {
           <p>
             bikemap.bcn is a visualization of the entire history of{" "}
             <a
-              href="https://citibikenyc.com"
+              href="https://www.bicing.barcelona/"
               className="text-zinc-300 font-medium hover:text-zinc-100 underline underline-offset-4"
             >
-              Citi Bike
+              Bicing
             </a>
-            , the largest bike-sharing system in the US.
+            , the bike-sharing system in Barcelona.
           </p>
 
           <p>
-            Each moving arrow represents a real bike ride, based on anonymized{" "}
-            <a
-              href="https://citibikenyc.com/system-data"
-              className="text-zinc-300 font-medium hover:text-zinc-100 underline underline-offset-4"
-            >
-              historical system data
-            </a>{" "}
-            {`published by Lyft. The animation plays at ${DEFAULT_SPEEDUP}x normal speed and covers 291.2 million trips in New York City since 2013.`}
+            Each dot represents a bike station of Bicing in Barcelona,
+            {`published by the City of Barcelona via OpenData. The animation plays at ${DEFAULT_SPEEDUP}x normal speed but can be accelerated in incremental steps.`}
           </p>
 
           <p>
-            If you have ever used Citi Bike, you are part of the art. Use your Citi Bike receipt to find your ride.
+            If you have ever used Bicing, you are part of this visualization.
           </p>
 
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
@@ -162,29 +147,6 @@ export default function AboutPage() {
             <LegendItem color={COLORS.fadeIn} label="Bike unlocked" showTrailOnHover={false} glowIntensity="intense" />
             <LegendItem color={COLORS.fadeOut} label="Bike docked" showTrailOnHover={false} glowIntensity="intense" />
           </div>
-
-          <hr className="border-white/10" />
-
-          <h2 className="text-lg font-medium text-white">Limitations</h2>
-
-          <p>
-            The data only contains the start and end station for each trip, but
-            does not contain the full path. Route geometries are computed for each (start station, end station) pair using the shortest path from{" "}
-            <a
-              href="https://project-osrm.org/"
-
-              className="text-zinc-300 font-medium hover:text-zinc-100 underline underline-offset-4"
-            >
-              OSRM
-            </a>
-            .
-          </p>
-
-          <p>
-            This means that the computed routes are directionally correct
-            but inexact. Trips that start and end at the same station are
-            filtered out since the route geometry is ambiguous.
-          </p>
 
           <hr className="border-white/10" />
 
@@ -213,63 +175,6 @@ export default function AboutPage() {
 
           <h2 className="text-lg font-medium text-white">Why</h2>
 
-          <p>
-            {"I built this project because I think it is cool and beautiful... and I was "}
-            <a
-              href="https://x.com/freemanjiangg/status/1996111445642096920"
-              className="text-zinc-300 font-medium hover:text-zinc-100 underline underline-offset-4"
-            >
-              procrastinating
-            </a>
-            {" my exams."}
-          </p>
-
-          <p>
-            I&apos;m open-sourcing the entire data processing pipeline and visualization code at {" "}
-            <a
-              href="https://github.com/freeman-jiang/bikemap.nyc"
-
-              className="inline-flex items-baseline gap-1 text-zinc-300 font-medium hover:text-zinc-100 border-b border-current pb-px"
-            >
-              <Github className="size-4 self-center" />
-              freeman-jiang/bikemap.nyc
-            </a>.
-          </p>
-
-          <p>
-            {"I hope to keep this project running indefinitely, but I'm paying for Mapbox and hosting costs out of pocket. If you'd like to support me, please consider "}
-            <a
-              href="https://buymeacoffee.com/freemanjiang"
-
-              className="inline-flex items-baseline gap-1 text-zinc-300 font-medium hover:text-zinc-100 border-b border-current pb-px"
-            >
-              <Coffee className="size-4 self-center" />
-              buying me a coffee
-            </a>
-            !
-          </p>
-
-          <hr className="border-white/10" />
-
-          <p className="flex items-center gap-2">
-            <a
-              href="https://github.com/freeman-jiang"
-
-              className="inline-flex items-center gap-1.5 text-white/70 hover:text-white transition-colors border-b border-current pb-0.5"
-            >
-              <Github className="size-4" />
-              freeman-jiang
-            </a>
-            <span className="text-white/30">·</span>
-            <a
-              href="https://x.com/freemanjiangg"
-
-              className="inline-flex items-center gap-1.5 text-white/70 hover:text-white transition-colors border-b border-current pb-0.5"
-            >
-              <XIcon className="size-3.5" />
-              @freemanjiangg
-            </a>
-          </p>
         </div>
       </main>
     </div>

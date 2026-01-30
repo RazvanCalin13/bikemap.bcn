@@ -69,7 +69,7 @@ export const useAnimationStore = create<AnimationStore>((set) => ({
   dateSelectionKey: 0,
 
   // Config actions (reset playback when config changes)
-  setSpeedup: (speedup) => set({ speedup, isPlaying: false, simCurrentTimeMs: 0 }),
+  setSpeedup: (speedup) => set({ speedup }),
   setAnimationStartDate: (animationStartDate) => set((state) => ({
     animationStartDate,
     isPlaying: false,

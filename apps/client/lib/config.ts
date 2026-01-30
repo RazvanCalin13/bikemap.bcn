@@ -13,7 +13,14 @@ export const DATA_START_DATE = new Date("2019-01-01T00:00:00+01:00"); // CET
 export const DATA_END_DATE = new Date("2026-12-31T23:59:59+01:00");   // CET
 
 // Default speedup multiplier for animation
-export const DEFAULT_SPEEDUP = 150 * 1;
+export const DEFAULT_SPEEDUP = 300; // 5 minutes per second (300x)
+
+// Playback speed levels (simulation milliseconds per real second)
+// 300 = 5 min/s
+// 900 = 15 min/s
+// 3600 = 1 hour/s
+// 14400 = 4 hours/s
+export const SPEED_LEVELS = [300, 900, 3600, 14400];
 
 // =============================================================================
 // Data Pipeline (batch/chunk sizing) - simulation time
@@ -64,7 +71,7 @@ export const INITIAL_VIEW_STATE: MapViewState = {
 // Graph Configuration
 // =============================================================================
 
-export const SIM_GRAPH_WINDOW_SIZE_MS = 3 * 60 * 60 * 1000; // 3-hour rolling window (simulation time)
+export const SIM_GRAPH_WINDOW_SIZE_MS = 6 * 60 * 60 * 1000; // 6-hour rolling window (simulation time)
 export const GRAPH_MIN_SCALE = 100; // Minimum Y-axis scale (avoid jitter)
 
 // =============================================================================
