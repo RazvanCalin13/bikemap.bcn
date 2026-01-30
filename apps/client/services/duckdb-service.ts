@@ -101,20 +101,24 @@ class DuckDBService {
     if (isHistorical) {
       if (this.registeredFiles.has(csvFilename)) return { filename: csvFilename, isCSV: true };
 
-      console.log(`[DuckDB] Fetching historical CSV: ${csvUrl}...`);
-      try {
-        const response = await fetch(csvUrl);
-        if (response.ok) {
-          const arrayBuffer = await response.arrayBuffer();
-          await db.registerFileBuffer(csvFilename, new Uint8Array(arrayBuffer));
-          this.registeredFiles.add(csvFilename);
-          console.log(`[DuckDB] Registered ${csvFilename} (${(arrayBuffer.byteLength / 1024 / 1024).toFixed(2)} MB)`);
-          return { filename: csvFilename, isCSV: true };
-        } else {
-          console.warn(`[DuckDB] Historical file ${csvFilename} not found, falling back to real-time.`);
+      if (!this.missingFiles.has(csvFilename)) {
+        console.log(`[DuckDB] Fetching historical CSV: ${csvUrl}...`);
+        try {
+          const response = await fetch(csvUrl);
+          if (response.ok) {
+            const arrayBuffer = await response.arrayBuffer();
+            await db.registerFileBuffer(csvFilename, new Uint8Array(arrayBuffer));
+            this.registeredFiles.add(csvFilename);
+            console.log(`[DuckDB] Registered ${csvFilename} (${(arrayBuffer.byteLength / 1024 / 1024).toFixed(2)} MB)`);
+            return { filename: csvFilename, isCSV: true };
+          } else {
+            console.warn(`[DuckDB] Historical file ${csvFilename} not found, falling back to real-time.`);
+            this.missingFiles.add(csvFilename);
+          }
+        } catch (err) {
+          console.warn(`[DuckDB] Failed to load ${csvFilename}, falling back.`, err);
+          this.missingFiles.add(csvFilename);
         }
-      } catch (err) {
-        console.warn(`[DuckDB] Failed to load ${csvFilename}, falling back.`, err);
       }
     }
 
