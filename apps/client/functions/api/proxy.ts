@@ -1,4 +1,13 @@
-export async function onRequestGet(context) {
+interface Env {
+    NEXT_PUBLIC_OPENDATA_URL: string;
+    NEXT_PUBLIC_OPENDATA_TOKEN?: string;
+}
+
+interface EventContext {
+    env: Env;
+}
+
+export async function onRequestGet(context: EventContext): Promise<Response> {
     const { env } = context;
     const url = env.NEXT_PUBLIC_OPENDATA_URL;
     const token = env.NEXT_PUBLIC_OPENDATA_TOKEN;
@@ -11,7 +20,7 @@ export async function onRequestGet(context) {
     }
 
     try {
-        const headers = {
+        const headers: Record<string, string> = {
             'User-Agent': 'BikeMap/1.0',
         };
 
@@ -39,14 +48,14 @@ export async function onRequestGet(context) {
             headers: {
                 'Content-Type': contentType,
                 'Cache-Control': 'no-store, max-age=0',
-                'Access-Control-Allow-Origin': '*', // Optional: allow CORS if needed
+                'Access-Control-Allow-Origin': '*',
             }
         });
 
-    } catch (error) {
+    } catch (error: any) {
         return new Response(JSON.stringify({
             error: 'Failed to fetch external data',
-            message: error.message
+            message: error instanceof Error ? error.message : String(error)
         }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
