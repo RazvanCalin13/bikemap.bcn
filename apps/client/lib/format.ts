@@ -40,9 +40,9 @@ export function formatDateTime(date: Date): string {
     day: "numeric",
     month: "long",
     year: "numeric",
-    hour: "numeric",
+    hour: "2-digit",
     minute: "2-digit",
-    hour12: true,
+    hour12: false,
     timeZone: "Europe/Madrid",
   });
 }
@@ -53,9 +53,9 @@ export function formatDateTimeShort(date: Date): string {
     day: "numeric",
     month: "short",
     year: "numeric",
-    hour: "numeric",
+    hour: "2-digit",
     minute: "2-digit",
-    hour12: true,
+    hour12: false,
     timeZone: "Europe/Madrid",
   });
 }
@@ -70,9 +70,9 @@ export function formatDateTimeFull(data: { startDate: Date; endDate?: Date }): s
       month: "short",
       day: "numeric",
       year: "numeric",
-      hour: "numeric",
+      hour: "2-digit",
       minute: "2-digit",
-      hour12: true,
+      hour12: false,
       timeZone: "Europe/Madrid",
     });
   }
@@ -86,16 +86,16 @@ export function formatDateTimeFull(data: { startDate: Date; endDate?: Date }): s
   });
 
   const startTime = startDate.toLocaleString("en-US", {
-    hour: "numeric",
+    hour: "2-digit",
     minute: "2-digit",
     hour12: false,
     timeZone: "Europe/Madrid",
   });
 
   const endTime = endDate.toLocaleString("en-US", {
-    hour: "numeric",
+    hour: "2-digit",
     minute: "2-digit",
-    hour12: true,
+    hour12: false,
     timeZone: "Europe/Madrid",
   });
 
@@ -107,9 +107,9 @@ export function formatTime(ms: number): string {
   return new Date(ms).toLocaleString("en-US", {
     month: "short",
     day: "numeric",
-    hour: "numeric",
+    hour: "2-digit",
     minute: "2-digit",
-    hour12: true,
+    hour12: false,
     timeZone: "Europe/Madrid",
   });
 }
@@ -117,10 +117,10 @@ export function formatTime(ms: number): string {
 // Format just the time portion (NYC timezone)
 export function formatTimeOnly(ms: number): string {
   return new Date(ms).toLocaleString("en-US", {
-    hour: "numeric",
+    hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
-    hour12: true,
+    hour12: false,
     timeZone: "Europe/Madrid",
   });
 }
@@ -128,9 +128,9 @@ export function formatTimeOnly(ms: number): string {
 // Format a time range (NYC timezone)
 export function formatTimeRange(startedAt: Date, endedAt: Date): string {
   const options: Intl.DateTimeFormatOptions = {
-    hour: "numeric",
+    hour: "2-digit",
     minute: "2-digit",
-    hour12: true,
+    hour12: false,
     timeZone: "Europe/Madrid",
   };
   const start = startedAt.toLocaleTimeString("en-US", options);
