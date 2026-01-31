@@ -27,9 +27,6 @@ export type TripWithRoute = {
   startLng: number;
   endLat: number | null;
   endLng: number | null;
-  // From routes.db (polyline6 encoded for network efficiency)
-  routeGeometry: string | null; // Polyline6 encoded path
-  routeDistance: number | null; // Distance in meters
 };
 
 // ============================================================================
@@ -72,7 +69,6 @@ export type ProcessedTrip = {
   endStationName: string;
   realStartedAtMs: number;
   realEndedAtMs: number;
-  routeDistance: number | null;
 };
 
 // ============================================================================

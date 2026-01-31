@@ -11,8 +11,8 @@ export type SelectedTripInfo = {
   startNeighborhood: string | null;
   endNeighborhood: string | null;
   startedAt: Date;
+
   endedAt: Date;
-  routeDistance: number | null;
 };
 
 type AnimationStore = {

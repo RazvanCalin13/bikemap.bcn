@@ -21,8 +21,7 @@ There is no traditional backend. The client uses [DuckDB WASM](https://duckdb.or
 1. **Raw Data**: Anonymized trip data from [Open Data BCN](https://opendata-ajuntament.barcelona.cat/).
 2. **Processing Pipeline**: 
    - **Station Clustering**: Unifies station names and coordinates.
-   - **Routing**: Queries [OSRM](https://project-osrm.org/) for bike routes between all station pairs.
-   - **Parquet Export**: Generates daily parquet files with embedded route geometries (polyline6).
+   - **Parquet Export**: Generates daily parquet files.
 3. **Client**: 
    - Queries parquets limits via DuckDB WASM.
    - Decodes geometries and animates rides using deck.gl.
@@ -66,26 +65,8 @@ If you want to generate your own data tiles or run the processing scripts, you n
 - [Docker](https://www.docker.com/) (for OSRM routing server)
 - `wget` or `curl`
 
-### 1. Set Up OSRM Routing Server
-The pipeline needs a local OSRM server.
-
-```bash
-cd packages/processing/osrm
-
-# 1. Download Barcelona OSM data (~20MB)
-curl -O https://download.bbbike.org/osm/bbbike/Barcelona/Barcelona.osm.pbf
-
-# 2. Build routing graph (one-time, ~1 min)
-docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-extract -p /data/bicycle-no-ferry.lua /data/Barcelona.osm.pbf
-docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-partition /data/Barcelona.osrm
-docker run -t -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-customize /data/Barcelona.osrm
-
-# 3. Start server (runs on localhost:5000)
-docker run --rm -p 5000:5000 -v "${PWD}:/data" ghcr.io/project-osrm/osrm-backend osrm-routed --algorithm mld /data/Barcelona.osrm
-```
-
-### 2. Run Processing Scripts
-Once OSRM is running on port 5000:
+### 1. Run Processing Scripts
+Once your data is in place:
 
 ```bash
 cd packages/processing
@@ -93,16 +74,12 @@ cd packages/processing
 # 1. Update station list from live API
 bun run fetch-bicing-stations.ts
 
-# 2. Build route cache from OSRM
-bun run build-routes.ts
-
-# 3. Build trips parquet with embedded route geometries
+# 2. Build trips parquet
 bun run build-parquet.ts
 ```
 
 ### Outputs
 - `apps/client/public/stations.json`: Station index.
-- `output/routes.db`: SQLite cache of routes.
 - `output/parquets/<year>-<month>-<day>.parquet`: Final data files.
 
 ### 🔄 Workflow: Updating Data
@@ -132,10 +109,7 @@ To update the dataset (e.g., removing months, adding others):
    # 1. Update station list
    bun run fetch-bicing-stations.ts
 
-   # 2. Update routes (requires OSRM server running)
-   bun run build-routes.ts
-
-   # 3. Build trip parquets
+   # 2. Build trip parquets
    bun run build-parquet.ts
    ```
 
@@ -161,7 +135,7 @@ size scales with absolute bike availability.
 | `id` | string | Trip ID |
 | `startStationName` | string | Canonical station name |
 | `startedAt` | timestamp | Trip start (UTC) |
-| `routeGeometry` | string | Polyline6-encoded route |
+
 | ... | ... | See `packages/processing/README.md` history for full details |
 
 **Timezone Handling**:

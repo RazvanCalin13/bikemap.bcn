@@ -49,16 +49,6 @@ export function SelectedTripPanel({ info }: SelectedTripPanelProps) {
         </div>
         <div className="flex items-center gap-3 text-white/70 mt-0.5">
           <span>{formatDurationMinutes(info.startedAt, info.endedAt)}</span>
-          {info.routeDistance && <span>{formatDistance(info.routeDistance)}</span>}
-          {info.routeDistance && (
-            <span>
-              {formatSpeedKmh({
-                distanceMeters: info.routeDistance,
-                startedAt: info.startedAt,
-                endedAt: info.endedAt,
-              })}
-            </span>
-          )}
         </div>
       </div>
 

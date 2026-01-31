@@ -37,7 +37,6 @@ type Trip = {
   endedAt: Date
   bikeType: string
   memberCasual: string
-  routeDistance: number | null
 }
 
 const MAX_RESULTS = 15
@@ -438,7 +437,6 @@ export function Search() {
         endNeighborhood: endStation.neighborhood,
         startedAt: trip.startedAt,
         endedAt: trip.endedAt,
-        routeDistance: trip.routeDistance,
       },
     })
 
@@ -721,7 +719,7 @@ export function Search() {
                             </span>
                             <span className="text-sm text-muted-foreground whitespace-nowrap">
                               <span className="hidden sm:inline">
-                                {formatDateTimeFull({ startDate: trip.startedAt, endDate: trip.endedAt })}{trip.routeDistance && ` · ${formatDistance(trip.routeDistance)}`}
+                                {formatDateTimeFull({ startDate: trip.startedAt, endDate: trip.endedAt })}
                               </span>
                               <span className="sm:hidden">
                                 {formatTimeRange(trip.startedAt, trip.endedAt)}

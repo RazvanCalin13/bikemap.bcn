@@ -7,7 +7,7 @@
 //
 // Prerequisites:
 // - CSV files in data/**/*.csv
-// - output/routes.db (from build-routes.ts)
+
 // - apps/client/public/stations.json (from build-stations.ts)
 //
 // Output:
@@ -18,7 +18,7 @@ import { mkdir, readdir, rename, rm, rmdir, stat } from "node:fs/promises";
 import path from "path";
 import { csvGlob, dataDir, formatHumanReadableBytes, gitRoot, MAP_BOUNDS, outputDir } from "./utils";
 
-const routesDbPath = path.join(outputDir, "routes.db");
+
 
 type ValidationResult = {
   total_rows: bigint;
@@ -291,24 +291,7 @@ async function main() {
   // Print validation warnings
   printValidationWarnings(validation);
 
-  // 3. Load routes from SQLite into DuckDB
-  console.log("\nLoading routes from SQLite...");
-  if (!(await Bun.file(routesDbPath).exists())) {
-    throw new Error(`routes.db not found at ${routesDbPath}. Run build-routes.ts first.`);
-  }
-  await connection.run(`
-    INSTALL sqlite;
-    LOAD sqlite;
-  `);
-  await connection.run(`
-    CREATE TABLE routes AS
-    SELECT * FROM sqlite_scan('${routesDbPath}', 'routes')
-  `);
-  const routeCountReader = await connection.runAndReadAll(`SELECT COUNT(*) as count FROM routes`);
-  const routeCount = Number((routeCountReader.getRowObjects()[0] as { count: bigint }).count);
-  console.log(`  ${routeCount} routes loaded`);
-
-  // Load station data from stations.json for route matching
+  // 3. Load station data from stations.json for route matching
   // Routes are keyed by station NAME (not ID) because station IDs change between years
   const stationsJsonPath = path.join(gitRoot, "apps/client/public/stations.json");
   if (!(await Bun.file(stationsJsonPath).exists())) {
@@ -389,18 +372,12 @@ async function main() {
         t.start_lng as startLng,
         t.end_lat as endLat,
         t.end_lng as endLng,
-        r.geometry as routeGeometry,
-        r.distance as routeDistance,
         t.output_day
       FROM deduped t
       LEFT JOIN station_name_lookup snl_start
         ON t.start_station_name = snl_start.any_name
       LEFT JOIN station_name_lookup snl_end
         ON t.end_station_name = snl_end.any_name
-      LEFT JOIN routes r
-        ON r.start_station_name = COALESCE(snl_start.canonical_name, t.start_station_name)
-        AND r.end_station_name = COALESCE(snl_end.canonical_name, t.end_station_name)
-      WHERE r.geometry IS NOT NULL
       ORDER BY t.output_day, startedAt
     )
     TO '${parquetsDir}' (FORMAT PARQUET, PARTITION_BY (output_day), COMPRESSION ZSTD, ROW_GROUP_SIZE 2048)
@@ -449,11 +426,6 @@ async function main() {
 
   // 7. Compute final stats
   console.log("\nComputing final statistics...");
-  const statsReader = await connection.runAndReadAll(`
-    SELECT COUNT(*) as total_with_route
-    FROM read_parquet('${parquetsDir}/*.parquet')
-  `);
-  const totalWithRoute = Number((statsReader.getRowObjects()[0] as { total_with_route: bigint }).total_with_route);
 
   // Get total parquet size
   let totalParquetBytes = 0;
@@ -469,15 +441,12 @@ async function main() {
   const totalTripCount = dedupedCount;
 
   // Final summary
-  const totalWithoutRoute = totalTripCount - totalWithRoute;
   const droppedCount = Number(validation.total_rows) - totalTripCount;
   const droppedPct = ((droppedCount / Number(validation.total_rows)) * 100).toFixed(2);
   console.warn(`\nTotal data loss: ${droppedCount} rows (${droppedPct}%) dropped`);
 
   console.log(`\nTotal Parquet output: ${(totalParquetBytes / 1024 / 1024).toFixed(1)} MB`);
   console.log(`  ${totalTripCount} trips total`);
-  console.log(`  ${totalWithRoute} with routes (${((totalWithRoute / totalTripCount) * 100).toFixed(1)}%)`);
-  console.log(`  ${totalWithoutRoute} without routes`);
 
   connection.closeSync();
 

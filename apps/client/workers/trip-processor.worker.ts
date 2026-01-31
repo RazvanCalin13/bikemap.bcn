@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import polyline from "@mapbox/polyline";
+
 import distance from "@turf/distance";
 import { point } from "@turf/helpers";
 import {
@@ -75,38 +75,25 @@ function prepareTripsForDeck(data: {
 }): ProcessedTrip[] {
   const { trips, realWindowStartMs: winStart, realFadeDurationMs: fadeDur } = data;
 
-  // Filter trips (must have routeGeometry)
-  const validTrips = filterTrips(trips) as Array<
-    TripWithRoute & { routeGeometry: string }
-  >;
-
-  const prepared = validTrips
+  const prepared = trips
     .map((trip) => {
-      // Decode polyline6 - returns [lat, lng][], flip to [lng, lat]
-      const decoded = polyline.decode(trip.routeGeometry, 6);
-      const coordinates = decoded.map(
-        ([lat, lng]) => [lng, lat] as [number, number]
-      );
+      // Straigh-line fallback: [start, end]
+      // Trip must have valid end coordinates
+      if (trip.endLat === null || trip.endLng === null) return null;
 
-      if (coordinates.length < 2) return null;
-
-      coordinates[0] = [trip.startLng, trip.startLat];
-      if (trip.endLat && trip.endLng) {
-        coordinates[coordinates.length - 1] = [trip.endLng, trip.endLat];
-      }
+      const coordinates: [number, number][] = [
+        [trip.startLng, trip.startLat],
+        [trip.endLng, trip.endLat],
+      ];
 
       // Calculate cumulative distances
-      const cumulativeDistances: number[] = [0];
-      for (let i = 1; i < coordinates.length; i++) {
-        const segmentDist = distance(
-          point(coordinates[i - 1]),
-          point(coordinates[i]),
-          { units: "meters" }
-        );
-        cumulativeDistances.push(cumulativeDistances[i - 1] + segmentDist);
-      }
+      const totalDistance = distance(
+        point(coordinates[0]),
+        point(coordinates[1]),
+        { units: "meters" }
+      );
 
-      const totalDistance = cumulativeDistances[cumulativeDistances.length - 1];
+      const cumulativeDistances: number[] = [0, totalDistance];
 
       // Convert to simulation ms from window start
       const simTripStartMs = trip.startedAt.getTime() - winStart;
@@ -188,7 +175,6 @@ function prepareTripsForDeck(data: {
         endStationName: trip.endStationName,
         realStartedAtMs: trip.startedAt.getTime(),
         realEndedAtMs: trip.endedAt.getTime(),
-        routeDistance: trip.routeDistance,
       };
     })
     .filter((trip): trip is ProcessedTrip => trip !== null);

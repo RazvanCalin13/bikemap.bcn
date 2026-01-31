@@ -10,12 +10,10 @@ export interface Trip {
   endedAt: Date;
   bikeType: string;
   memberCasual: string;
-  routeDistance: number | null;
   startLat: number;
   startLng: number;
   endLat: number | null;
   endLng: number | null;
-  routeGeometry: string | null;
 }
 
 export interface StationStatus {
