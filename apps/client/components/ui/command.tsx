@@ -30,8 +30,8 @@ function Command({
 }
 
 function CommandDialog({
-  title = "Command Palette",
-  description = "Search for a command to run...",
+  title = "Search stations and time",
+  description = "Search for a bike station or jump to a specific time...",
   children,
   className,
   showCloseButton = true,

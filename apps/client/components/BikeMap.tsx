@@ -21,6 +21,7 @@ import { Info, Pause, Play, Search, Shuffle } from "lucide-react";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Map as MapboxMap } from "react-map-gl/mapbox";
+import { useRouter } from "next/navigation";
 import { MapControlButton } from "./MapControlButton";
 import { TimeDisplay } from "./TimeDisplay";
 import { GlobalStatsPanel, type GlobalStatsPanelRef, type SystemStatsPoint } from "./GlobalStatsPanel";
@@ -50,6 +51,7 @@ const elasticOut = (t: number) => {
 };
 
 export const BikeMap = () => {
+  const router = useRouter();
   // Animation store
   const speedup = useAnimationStore((s) => s.speedup);
   const animationStartDate = useAnimationStore((s) => s.animationStartDate);
@@ -58,7 +60,6 @@ export const BikeMap = () => {
   const storePause = useAnimationStore((s) => s.pause);
   const isPlaying = useAnimationStore((s) => s.isPlaying);
   const advanceSimTime = useAnimationStore((s) => s.advanceSimTime);
-  const setSimCurrentTimeMs = useAnimationStore((s) => s.setSimCurrentTimeMs);
   const dateSelectionKey = useAnimationStore((s) => s.dateSelectionKey);
 
 
@@ -148,25 +149,28 @@ export const BikeMap = () => {
     return map;
   }, [stations]);
 
-  // Global System Stats
-  const [globalStats, setGlobalStats] = useState<SystemStatsPoint[]>([]);
-  const [currentStats, setCurrentStats] = useState({ parked: 0, active: 0 });
-
   // Calculate current stats whenever statuses update
+  const currentStats = useMemo(() => {
+    const totalParked = stationStatuses.reduce((acc, s) => acc + s.bikes, 0);
+    const active = Math.max(0, ESTIMATED_TOTAL_FLEET - totalParked);
+    return { parked: totalParked, active };
+  }, [stationStatuses]);
+
+  // Global System Stats history
+  const [globalStats, setGlobalStats] = useState<SystemStatsPoint[]>([]);
+
+  // Global System Stats history collection
+  // Only record points occasionally to build the graph
   useEffect(() => {
     if (stationStatuses.length === 0) return;
 
-    // Sum parked bikes across all known stations
-    const totalParked = stationStatuses.reduce((acc, s) => acc + s.bikes, 0);
-    const active = Math.max(0, ESTIMATED_TOTAL_FLEET - totalParked);
-
-    setCurrentStats({ parked: totalParked, active });
-
-    // Append to graph history (debounced by sim time)
     setGlobalStats(prev => {
       const last = prev[prev.length - 1];
       // Only add point if >1 min simulation time has passed since last point to avoid too much data
       if (last && (simTimeMs - last.simTimeMs) < 60 * 1000) return prev;
+
+      const totalParked = stationStatuses.reduce((acc, s) => acc + s.bikes, 0);
+      const active = Math.max(0, ESTIMATED_TOTAL_FLEET - totalParked);
 
       const newPoint: SystemStatsPoint = {
         simTimeMs,
@@ -174,12 +178,10 @@ export const BikeMap = () => {
         active
       };
 
-      // Keep only recent window
       const windowStart = simTimeMs - SIM_GRAPH_WINDOW_SIZE_MS;
       const filtered = prev.filter(p => p.simTimeMs > windowStart);
       return [...filtered, newPoint];
     });
-
   }, [stationStatuses, simTimeMs]);
 
   // District Stats Aggregation (Restored)
@@ -280,7 +282,7 @@ export const BikeMap = () => {
     prevStationStatusesRef.current = newMap;
 
     // Global Rate Limiter: Max 1 pulse per second
-    if (potentialEvents.length > 0 && (now - lastGlobalPulseTimeRef.current >= 1000)) {
+    if (potentialEvents.length > 0 && (now - lastGlobalPulseTimeRef.current >= 2000)) {
       // Pick ONE event at random to show "activity" without overwhelming
       const randomEvent = potentialEvents[Math.floor(Math.random() * potentialEvents.length)];
 
@@ -319,11 +321,8 @@ export const BikeMap = () => {
     const timer = setInterval(() => {
       setRevealedCount(prev => {
         // Reveal in chunks to be snappy but still animated
-        // 500 stations revealed 15 at a time = ~33 steps. 
-        // At 16ms interval = ~0.5s total reveal time.
         const next = prev + 15;
         if (next >= stationStatuses.length) {
-          clearInterval(timer);
           return stationStatuses.length;
         }
         return next;
@@ -331,7 +330,8 @@ export const BikeMap = () => {
     }, 16);
 
     return () => clearInterval(timer);
-  }, [stationStatuses, revealedCount]);
+    // Note: removed revealedCount from dependencies to avoid interval thrashing
+  }, [stationStatuses.length]);
 
   // Animation Loop
   useEffect(() => {
@@ -587,28 +587,35 @@ export const BikeMap = () => {
       <StationFocusOverlay point={focusPoint} color={focusColor} />
 
       {/* HUD Controls */}
-      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 w-[200px]">
         {/* MapControlButton handles children, not icon prop */}
-        <MapControlButton onClick={togglePlayPause} >
+        <MapControlButton onClick={togglePlayPause} className="w-full" >
           <div className="flex items-center gap-2">
             {isMounted && isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
             <span>{isMounted && isPlaying ? "Pause" : "Play"}</span>
           </div>
           <Kbd>Space</Kbd>
         </MapControlButton>
-        <MapControlButton onClick={openSearch} >
+        <MapControlButton onClick={openSearch} className="w-full" >
           <div className="flex items-center gap-2">
             <Search className="w-4 h-4" />
             <span>Search</span>
           </div>
           <Kbd>/</Kbd>
         </MapControlButton>
-        <MapControlButton onClick={handleRandom} >
+        <MapControlButton onClick={handleRandom} className="w-full" >
           <div className="flex items-center gap-2">
             <Shuffle className="w-4 h-4" />
             <span>Random</span>
           </div>
           <Kbd>R</Kbd>
+        </MapControlButton>
+
+        <MapControlButton onClick={() => router.push("/about")} className="w-[100px] justify-center" >
+          <div className="flex items-center gap-2">
+            <Info className="w-4 h-4" />
+            <span>About</span>
+          </div>
         </MapControlButton>
 
         <div className="mt-6 pointer-events-auto hidden md:block w-[200px]">

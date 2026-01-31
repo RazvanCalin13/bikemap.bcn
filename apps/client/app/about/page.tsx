@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 const ArrowIcon = ({ color, showTrail = false }: { color: readonly [number, number, number]; showTrail?: boolean }) => {
@@ -62,8 +63,8 @@ const LIcon = ({ className }: { className?: string }) => (
     height="24"
     viewBox="0 0 24 24"
     fill="none"
-    stroke="#0a66c2" stroke-width="1"
-    stroke-linecap="round" stroke-linejoin="round">
+    stroke="#0a66c2" strokeWidth="1"
+    strokeLinecap="round" strokeLinejoin="round">
     <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
     <rect width="4" height="12" x="2" y="9" /><circle cx="4" cy="4" r="2" />
   </svg>
@@ -106,6 +107,8 @@ export default function AboutPage() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
         router.replace("/");
       }
     };
@@ -117,7 +120,7 @@ export default function AboutPage() {
     <div className="min-h-dvh bg-background font-mono">
       <main className="max-w-152 mx-auto px-6 py-12 md:py-24">
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-        <a
+        <Link
           href="/"
           className="flex items-center gap-0.5 group mb-8 md:fixed md:top-6 md:left-6 md:mb-0"
         >
@@ -125,13 +128,13 @@ export default function AboutPage() {
           <Kbd className="bg-transparent text-white/50 group-hover:text-white transition-colors">
             Back (ESC)
           </Kbd>
-        </a>
+        </Link>
         <h1 className="text-3xl font-semibold text-zinc-100 mb-8">
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-          <a href="/" className="inline-flex items-center gap-2.5 hover:text-white transition-colors">
+          <Link href="/" className="inline-flex items-center gap-2.5 hover:text-white transition-colors">
             <img src="/logo.png" alt="" width={30} height={30} />
             <span>bikemap.bcn</span>
-          </a>
+          </Link>
         </h1>
 
         <h2 className="text-lg font-medium text-white mb-6">About</h2>
@@ -150,11 +153,8 @@ export default function AboutPage() {
 
           <p>
             Each colored dot represents one of the 544 bike docking stations,
-            {` from information published by the City of Barcelona. The animation plays at ${DEFAULT_SPEEDUP}x normal time but can be manipulated with incremental steps.`}
-          </p>
-
-          <p>
-            If you have ever used Bicing, you might be able to watch yourself starting or ending a trip.
+            {` from information published by the City of Barcelona. The dot's color and size indicate the station's occupancy at a given time and a sublte 'pulse' animation
+            indicates every time a station gains or loses a bike.`}
           </p>
 
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm">
@@ -164,6 +164,12 @@ export default function AboutPage() {
             <LegendItem color={COLORS.occupancy.low as [number, number, number]} label="10-50% Station Capacity" />
             <LegendItem color={COLORS.occupancy.empty as [number, number, number]} label="-10% Station Capacity" />
           </div>
+
+          <br />
+
+          <p>
+            The simulation starts at <strong>{DEFAULT_SPEEDUP}x normal speed</strong> by default but you can change the date and time to the past and manipulate time in incremental steps.
+          </p>
 
           <hr className="border-white/10" />
 
@@ -197,7 +203,7 @@ export default function AboutPage() {
           <h2 className="text-lg font-medium text-white">Reasoning</h2>
 
           <p>
-            I did this as a weekend project because I love the city and use Bicing myself.
+            I did this as a weekend project because I love the city and enjoy using Bicing myself.
           </p>
 
           <p className="flex items-center gap-2">

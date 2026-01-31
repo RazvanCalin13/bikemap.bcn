@@ -28,7 +28,14 @@ type StationWithDistance = Station & { distance: number }
 const MAX_RESULTS = 15
 
 export function Search() {
-  const { isOpen, open: openSearch, toggle, close, step, setStep, datetimeHistory, addToHistory } = useSearchStore()
+  const isOpen = useSearchStore((s) => s.isOpen);
+  const openSearch = useSearchStore((s) => s.open);
+  const toggle = useSearchStore((s) => s.toggle);
+  const close = useSearchStore((s) => s.close);
+  const step = useSearchStore((s) => s.step);
+  const setStep = useSearchStore((s) => s.setStep);
+  const datetimeHistory = useSearchStore((s) => s.datetimeHistory);
+  const addToHistory = useSearchStore((s) => s.addToHistory);
   const [search, setSearch] = React.useState("")
 
   // Mode switching (ride search vs time jump)
@@ -43,8 +50,11 @@ export function Search() {
   const [savedInput, setSavedInput] = React.useState("")
 
   const { pickedLocation, startPicking } = usePickerStore()
-  const { animationStartDate, simCurrentTimeMs } = useAnimationStore()
-  const { stations, load: loadStations } = useStationsStore()
+  const animationStartDate = useAnimationStore((s) => s.animationStartDate);
+  const simCurrentTimeMs = useAnimationStore((s) => isOpen ? s.simCurrentTimeMs : 0);
+  const stations = useStationsStore((s) => s.stations);
+  const loadStations = useStationsStore((s) => s.load);
+
   const { triggerFlyTo } = useMapStore()
 
   const formattedMonths = React.useMemo(() => {
@@ -148,6 +158,7 @@ export function Search() {
 
   // Reset state when dialog closes
   const handleOpenChange = (newOpen: boolean) => {
+    if (newOpen === isOpen) return;
     if (newOpen) {
       openSearch()
     } else {
@@ -360,6 +371,9 @@ export function Search() {
     setDatetimeInput(value)
     setHistoryIndex(-1)
   }
+
+  // Render logic
+  if (!isOpen) return null;
 
   // Render datetime step (first step - no station selected yet)
   if (step === "datetime") {
