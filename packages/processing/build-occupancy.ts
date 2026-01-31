@@ -84,7 +84,7 @@ async function main() {
                         COALESCE(num_docks_available, 0)::INTEGER as docks,
                         is_charging_station::BOOLEAN as is_charging,
                         status
-                    FROM read_csv_auto('${msgPath}', HEADER=TRUE, normalize_names=true)
+                    FROM read_csv_auto('${msgPath}', HEADER=TRUE, normalize_names=true, nullstr='NA')
                     WHERE ${lastReportedCol} IS NOT NULL
                 ) TO '${outPath}' (FORMAT 'parquet', CODEC 'SNAPPY');
             `);

@@ -9,7 +9,7 @@
     "longitude": 2.1622548,
     "borough": "Gràcia",
     "neighborhood": "la Vila de Gràcia",
-    "capacity": 17
+    "capacity": 13
   },
   {
     "name": "C/ SARDENYA, 178",
@@ -21,7 +21,7 @@
     "longitude": 2.1825085,
     "borough": "Eixample",
     "neighborhood": "el Fort Pienc",
-    "capacity": 34
+    "capacity": 30
   },
   {
     "name": "PL. CATALUNYA, 7",
@@ -33,7 +33,7 @@
     "longitude": 2.169427,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 23
+    "capacity": 27
   },
   {
     "name": "C/ VILADOMAT, 200",
@@ -45,7 +45,7 @@
     "longitude": 2.1508071246452154,
     "borough": "Eixample",
     "neighborhood": "la Nova Esquerra de l'Eixample",
-    "capacity": 24
+    "capacity": 23
   },
   {
     "name": "C/ DEL DOCTOR TRUETA, 222",
@@ -69,7 +69,7 @@
     "longitude": 2.1786224,
     "borough": "Sant Andreu",
     "neighborhood": "el Congrés i els Indians",
-    "capacity": 23
+    "capacity": 24
   },
   {
     "name": "C/ BAC DE RODA, 11",
@@ -81,7 +81,7 @@
     "longitude": 2.2105777,
     "borough": "Sant Martí",
     "neighborhood": "Diagonal Mar i el Front Marítim del Poblenou",
-    "capacity": 17
+    "capacity": 19
   },
   {
     "name": "PG. PUJADES, 2",
@@ -105,7 +105,7 @@
     "longitude": 2.1709386,
     "borough": "Ciutat Vella",
     "neighborhood": "el Raval",
-    "capacity": 12
+    "capacity": 14
   },
   {
     "name": "AV. PARAL·LEL, 146 BIS",
@@ -129,7 +129,7 @@
     "longitude": 2.1606534,
     "borough": "Eixample",
     "neighborhood": "Sant Antoni",
-    "capacity": 31
+    "capacity": 30
   },
   {
     "name": "C/ SARDENYA, 362",
@@ -141,7 +141,7 @@
     "longitude": 2.1706498,
     "borough": "Eixample",
     "neighborhood": "la Sagrada Família",
-    "capacity": 20
+    "capacity": 21
   },
   {
     "name": "AV. RASOS DE PEGUERA, 10",
@@ -165,7 +165,7 @@
     "longitude": 2.1896502,
     "borough": "Sant Andreu",
     "neighborhood": "Sant Andreu",
-    "capacity": 22
+    "capacity": 21
   },
   {
     "name": "C/ PALLARS, 182",
@@ -177,7 +177,7 @@
     "longitude": 2.1969105,
     "borough": "Sant Martí",
     "neighborhood": "el Poblenou",
-    "capacity": 28
+    "capacity": 30
   },
   {
     "name": "PL. TETUAN",
@@ -189,7 +189,7 @@
     "longitude": 2.1751709,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 20
+    "capacity": 19
   },
   {
     "name": "C/ ROSSELLÓ, 108-110",
@@ -201,7 +201,7 @@
     "longitude": 2.150878,
     "borough": "Eixample",
     "neighborhood": "l'Antiga Esquerra de l'Eixample",
-    "capacity": 17
+    "capacity": 15
   },
   {
     "name": "C/ CONSELL DE CENT, 566",
@@ -213,7 +213,7 @@
     "longitude": 2.183145,
     "borough": "Eixample",
     "neighborhood": "la Sagrada Família",
-    "capacity": 38
+    "capacity": 37
   },
   {
     "name": "C/ BRUC, 88",
@@ -225,7 +225,7 @@
     "longitude": 2.169295,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 15
+    "capacity": 16
   },
   {
     "name": "C/ PAU ALSINA, 54",
@@ -285,7 +285,7 @@
     "longitude": 2.176971,
     "borough": "Ciutat Vella",
     "neighborhood": "el Raval",
-    "capacity": 17
+    "capacity": 18
   },
   {
     "name": "C/ ALT DE GIRONELLA, 13",
@@ -309,7 +309,7 @@
     "longitude": 2.1777274,
     "borough": "Horta-Guinardó",
     "neighborhood": "el Guinardó",
-    "capacity": 27
+    "capacity": 25
   },
   {
     "name": "AV. DIAGONAL, 668",
@@ -345,7 +345,7 @@
     "longitude": 2.143411,
     "borough": "Sarrià-Sant Gervasi",
     "neighborhood": "Sant Gervasi - Galvany",
-    "capacity": 20
+    "capacity": 14
   },
   {
     "name": "C/ J. MAYNARD KEYNES, 2|AV. DGNAL.",
@@ -369,7 +369,7 @@
     "longitude": 2.2122054,
     "borough": "Sant Martí",
     "neighborhood": "Diagonal Mar i el Front Marítim del Poblenou",
-    "capacity": 21
+    "capacity": 20
   },
   {
     "name": "AV. MERIDIANA, 47 (D)",
@@ -381,7 +381,7 @@
     "longitude": 2.1866517,
     "borough": "Eixample",
     "neighborhood": "el Fort Pienc",
-    "capacity": 37
+    "capacity": 38
   },
   {
     "name": "C/ BILBAO, 2",
@@ -405,7 +405,7 @@
     "longitude": 2.1996179,
     "borough": "Sant Andreu",
     "neighborhood": "el Bon Pastor",
-    "capacity": 27
+    "capacity": 26
   },
   {
     "name": "C/ SARDENYA, 292",
@@ -453,7 +453,7 @@
     "longitude": 2.1610515,
     "borough": "Eixample",
     "neighborhood": "l'Antiga Esquerra de l'Eixample",
-    "capacity": 26
+    "capacity": 25
   },
   {
     "name": "C/ PUJADES, 57B",
@@ -477,7 +477,7 @@
     "longitude": 2.1469336,
     "borough": "Eixample",
     "neighborhood": "la Nova Esquerra de l'Eixample",
-    "capacity": 30
+    "capacity": 28
   },
   {
     "name": "C/ NÀPOLS, 125",
@@ -489,7 +489,7 @@
     "longitude": 2.1787074,
     "borough": "Eixample",
     "neighborhood": "el Fort Pienc",
-    "capacity": 30
+    "capacity": 31
   },
   {
     "name": "PG. FABRA I PUIG, 385",
@@ -513,7 +513,7 @@
     "longitude": 2.1718497,
     "borough": "Horta-Guinardó",
     "neighborhood": "el Guinardó",
-    "capacity": 13
+    "capacity": 12
   },
   {
     "name": "C/ DIPUTACIÓ, 272",
@@ -561,7 +561,7 @@
     "longitude": 2.1932159,
     "borough": "Sant Andreu",
     "neighborhood": "Sant Andreu",
-    "capacity": 25
+    "capacity": 28
   },
   {
     "name": "AV. DIAGONAL, 672",
@@ -585,7 +585,7 @@
     "longitude": 2.1720191,
     "borough": "Nou Barris",
     "neighborhood": "Vilapicina i la Torre Llobeta",
-    "capacity": 10
+    "capacity": 9
   },
   {
     "name": "C/ TARRAGONA, 141",
@@ -597,7 +597,7 @@
     "longitude": 2.1450491,
     "borough": "Sants-Montjuïc",
     "neighborhood": "Hostafrancs",
-    "capacity": 19
+    "capacity": 18
   },
   {
     "name": "AV. JOSEP TARRADELLAS, 58",
@@ -633,7 +633,7 @@
     "longitude": 2.1542277,
     "borough": "Eixample",
     "neighborhood": "l'Antiga Esquerra de l'Eixample",
-    "capacity": 31
+    "capacity": 27
   },
   {
     "name": "C/ MINERIA, 30",
@@ -645,7 +645,7 @@
     "longitude": 2.138599,
     "borough": "Sants-Montjuïc",
     "neighborhood": "la Marina de Port",
-    "capacity": 16
+    "capacity": 17
   },
   {
     "name": "C/ CÒRSEGA, 216",
@@ -657,7 +657,7 @@
     "longitude": 2.1532163,
     "borough": "Eixample",
     "neighborhood": "l'Antiga Esquerra de l'Eixample",
-    "capacity": 27
+    "capacity": 25
   },
   {
     "name": "C/ JOSÉ DE AGULLÓ, 9",
@@ -669,7 +669,7 @@
     "longitude": 2.1334873,
     "borough": "Sarrià-Sant Gervasi",
     "neighborhood": "les Tres Torres",
-    "capacity": 25
+    "capacity": 24
   },
   {
     "name": "C/ VALLESPIR, 49",
@@ -693,7 +693,7 @@
     "longitude": 2.1661852,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 26
+    "capacity": 27
   },
   {
     "name": "C/ SAGUÉS, 1",
@@ -705,7 +705,7 @@
     "longitude": 2.1455022,
     "borough": "Sarrià-Sant Gervasi",
     "neighborhood": "Sant Gervasi - Galvany",
-    "capacity": 26
+    "capacity": 27
   },
   {
     "name": "AV. RIO DE JANEIRO, 96",
@@ -741,7 +741,7 @@
     "longitude": 2.1288753,
     "borough": "Les Corts",
     "neighborhood": "les Corts",
-    "capacity": 24
+    "capacity": 22
   },
   {
     "name": "C/ SANCHO DE ÁVILA, 104 - C/ BADAJOZ",
@@ -753,7 +753,7 @@
     "longitude": 2.1924144,
     "borough": "Sant Martí",
     "neighborhood": "el Parc i la Llacuna del Poblenou",
-    "capacity": 50
+    "capacity": 52
   },
   {
     "name": "C/ SANCHO DE ÁVILA, 170 / LLACUNA",
@@ -765,7 +765,7 @@
     "longitude": 2.1956161,
     "borough": "Sant Martí",
     "neighborhood": "el Parc i la Llacuna del Poblenou",
-    "capacity": 24
+    "capacity": 27
   },
   {
     "name": "PL. PAU VILA (D)",
@@ -777,7 +777,7 @@
     "longitude": 2.186576,
     "borough": "Ciutat Vella",
     "neighborhood": "la Barceloneta",
-    "capacity": 43
+    "capacity": 38
   },
   {
     "name": "AV. PARAL.LEL 164",
@@ -789,7 +789,7 @@
     "longitude": 2.1568773,
     "borough": "Eixample",
     "neighborhood": "Sant Antoni",
-    "capacity": 15
+    "capacity": 13
   },
   {
     "name": "C/ DE BONAVISTA, 14",
@@ -801,7 +801,7 @@
     "longitude": 2.1598243,
     "borough": "Gràcia",
     "neighborhood": "la Vila de Gràcia",
-    "capacity": 32
+    "capacity": 29
   },
   {
     "name": "C/ ENRIC GRANADOS, 93",
@@ -837,7 +837,7 @@
     "longitude": 2.194735,
     "borough": "Ciutat Vella",
     "neighborhood": "la Barceloneta",
-    "capacity": 21
+    "capacity": 26
   },
   {
     "name": "C/ LEPANT, 278",
@@ -849,7 +849,7 @@
     "longitude": 2.1765126,
     "borough": "Eixample",
     "neighborhood": "la Sagrada Família",
-    "capacity": 21
+    "capacity": 19
   },
   {
     "name": "C/ MEJÍA LEQUERICA, 2",
@@ -861,7 +861,7 @@
     "longitude": 2.1268625,
     "borough": "Les Corts",
     "neighborhood": "la Maternitat i Sant Ramon",
-    "capacity": 26
+    "capacity": 25
   },
   {
     "name": "AV.LITORAL, 84",
@@ -873,7 +873,7 @@
     "longitude": 2.2088454,
     "borough": "Sant Martí",
     "neighborhood": "el Poblenou",
-    "capacity": 25
+    "capacity": 26
   },
   {
     "name": "PG. JOAN DE BORBÓ, 42",
@@ -885,7 +885,7 @@
     "longitude": 2.1884228,
     "borough": "Ciutat Vella",
     "neighborhood": "la Barceloneta",
-    "capacity": 15
+    "capacity": 14
   },
   {
     "name": "GRAN VIA CORTS CATALANES, 760",
@@ -897,7 +897,7 @@
     "longitude": 2.1801069,
     "borough": "Eixample",
     "neighborhood": "el Fort Pienc",
-    "capacity": 44
+    "capacity": 46
   },
   {
     "name": "AV. PARAL.LEL, 132",
@@ -909,7 +909,7 @@
     "longitude": 2.1613897,
     "borough": "Eixample",
     "neighborhood": "Sant Antoni",
-    "capacity": 26
+    "capacity": 27
   },
   {
     "name": "C/ CAMÈLIES, 73",
@@ -945,7 +945,7 @@
     "longitude": 2.131524,
     "borough": "Sarrià-Sant Gervasi",
     "neighborhood": "les Tres Torres",
-    "capacity": 24
+    "capacity": 25
   },
   {
     "name": "RBLA. CATALUNYA, 47",
@@ -969,7 +969,7 @@
     "longitude": 2.1730023,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 27
+    "capacity": 26
   },
   {
     "name": "C/ DE LA SANTACREU, 2 (PL. DE LA VIRREINA)",
@@ -981,7 +981,7 @@
     "longitude": 2.1569161,
     "borough": "Gràcia",
     "neighborhood": "la Vila de Gràcia",
-    "capacity": 24
+    "capacity": 22
   },
   {
     "name": "C/ PUJADES, 173/RBLA POBLE NOU",
@@ -993,7 +993,7 @@
     "longitude": 2.20077,
     "borough": "Sant Martí",
     "neighborhood": "el Poblenou",
-    "capacity": 22
+    "capacity": 23
   },
   {
     "name": "PL. DEL NORD, 5",
@@ -1005,7 +1005,7 @@
     "longitude": 2.1558354,
     "borough": "Gràcia",
     "neighborhood": "la Vila de Gràcia",
-    "capacity": 15
+    "capacity": 13
   },
   {
     "name": "PG. VALLDAURA, 171",
@@ -1029,7 +1029,7 @@
     "longitude": 2.1592566,
     "borough": "Eixample",
     "neighborhood": "l'Antiga Esquerra de l'Eixample",
-    "capacity": 25
+    "capacity": 23
   },
   {
     "name": "AV. PARAL.LEL, 98",
@@ -1041,7 +1041,7 @@
     "longitude": 2.1658972,
     "borough": "Eixample",
     "neighborhood": "Sant Antoni",
-    "capacity": 14
+    "capacity": 15
   },
   {
     "name": "PL. DELS JARDINS D'ALFÀBIA, 1",
@@ -1077,7 +1077,7 @@
     "longitude": 2.1751572,
     "borough": "Nou Barris",
     "neighborhood": "Vilapicina i la Torre Llobeta",
-    "capacity": 27
+    "capacity": 26
   },
   {
     "name": "C/ SARDENYA, 494",
@@ -1101,7 +1101,7 @@
     "longitude": 2.1763994,
     "borough": "Horta-Guinardó",
     "neighborhood": "el Guinardó",
-    "capacity": 21
+    "capacity": 19
   },
   {
     "name": "C/ TARRAGONA, 159-173",
@@ -1113,7 +1113,7 @@
     "longitude": 2.143868,
     "borough": "Sants-Montjuïc",
     "neighborhood": "Hostafrancs",
-    "capacity": 20
+    "capacity": 18
   },
   {
     "name": "C/ ROSSELLÓ, 497 (xamfrà)",
@@ -1137,7 +1137,7 @@
     "longitude": 2.1793035,
     "borough": "Ciutat Vella",
     "neighborhood": "Sant Pere, Santa Caterina i la Ribera",
-    "capacity": 25
+    "capacity": 22
   },
   {
     "name": "C/ BERLÍN, 38",
@@ -1161,7 +1161,7 @@
     "longitude": 2.1232547,
     "borough": "Sants-Montjuïc",
     "neighborhood": "Sants - Badal",
-    "capacity": 29
+    "capacity": 27
   },
   {
     "name": "C/ ESTEVE TERRADAS, 42",
@@ -1173,7 +1173,7 @@
     "longitude": 2.1402433,
     "borough": "Gràcia",
     "neighborhood": "Vallcarca i els Penitents",
-    "capacity": 24
+    "capacity": 25
   },
   {
     "name": "PG. FABRA I PUIG, 449",
@@ -1197,7 +1197,7 @@
     "longitude": 2.1821917,
     "borough": "Ciutat Vella",
     "neighborhood": "el Barri Gòtic",
-    "capacity": 28
+    "capacity": 27
   },
   {
     "name": "C/ TARRAGONA, 103-115",
@@ -1209,7 +1209,7 @@
     "longitude": 2.1473272,
     "borough": "Sants-Montjuïc",
     "neighborhood": "Hostafrancs",
-    "capacity": 33
+    "capacity": 30
   },
   {
     "name": "C/ BAC DE RODA, 157",
@@ -1221,7 +1221,7 @@
     "longitude": 2.1987258,
     "borough": "Sant Martí",
     "neighborhood": "Provençals del Poblenou",
-    "capacity": 17
+    "capacity": 19
   },
   {
     "name": "C/ LAFORJA, 74-76",
@@ -1270,6 +1270,18 @@
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
     "capacity": 31
+  },
+  {
+    "name": "C/ PAMPLONA, 116 (xamfrà)",
+    "aliases": [
+      "2b7e06d5817b25f553679395011780ae",
+      "608"
+    ],
+    "latitude": 41.399087231074645,
+    "longitude": 2.1883941429222054,
+    "borough": "Sant Martí",
+    "neighborhood": "el Parc i la Llacuna del Poblenou",
+    "capacity": 24
   },
   {
     "name": "C/ GRAN DE GRÀCIA, 91",
@@ -1377,7 +1389,7 @@
     "longitude": 2.2206913,
     "borough": "Sant Martí",
     "neighborhood": "el Besòs i el Maresme",
-    "capacity": 54
+    "capacity": 52
   },
   {
     "name": "AV. D'EDUARD MARISTANY, 1 /FORUM",
@@ -1401,7 +1413,7 @@
     "longitude": 2.1820675,
     "borough": "Ciutat Vella",
     "neighborhood": "el Barri Gòtic",
-    "capacity": 23
+    "capacity": 21
   },
   {
     "name": "C/ JOSEP SAMITIER | AV. JOAN XXIII",
@@ -1413,7 +1425,7 @@
     "longitude": 2.1190863,
     "borough": "Les Corts",
     "neighborhood": "la Maternitat i Sant Ramon",
-    "capacity": 24
+    "capacity": 22
   },
   {
     "name": "AV. LITORAL, 40 (D)",
@@ -1425,7 +1437,7 @@
     "longitude": 2.1999572,
     "borough": "Sant Martí",
     "neighborhood": "la Vila Olímpica del Poblenou",
-    "capacity": 52
+    "capacity": 51
   },
   {
     "name": "C/ LLACUNA, 86",
@@ -1437,7 +1449,7 @@
     "longitude": 2.1976297,
     "borough": "Sant Martí",
     "neighborhood": "el Poblenou",
-    "capacity": 28
+    "capacity": 31
   },
   {
     "name": "C/ D'ALACANT, 12",
@@ -1449,7 +1461,7 @@
     "longitude": 2.1326911,
     "borough": "Sarrià-Sant Gervasi",
     "neighborhood": "les Tres Torres",
-    "capacity": 26
+    "capacity": 25
   },
   {
     "name": "C/ LISBOA, 128",
@@ -1485,7 +1497,7 @@
     "longitude": 2.1689592,
     "borough": "Ciutat Vella",
     "neighborhood": "el Raval",
-    "capacity": 23
+    "capacity": 21
   },
   {
     "name": "C/ NOU DE LA RAMBLA, 164",
@@ -1509,7 +1521,7 @@
     "longitude": 2.1841014,
     "borough": "Nou Barris",
     "neighborhood": "Porta",
-    "capacity": 31
+    "capacity": 28
   },
   {
     "name": "PL. JEAN GENET, 1",
@@ -1521,7 +1533,7 @@
     "longitude": 2.1740082,
     "borough": "Ciutat Vella",
     "neighborhood": "el Raval",
-    "capacity": 18
+    "capacity": 20
   },
   {
     "name": "C/ MARINA, 199",
@@ -1533,7 +1545,7 @@
     "longitude": 2.1788855,
     "borough": "Eixample",
     "neighborhood": "el Fort Pienc",
-    "capacity": 38
+    "capacity": 37
   },
   {
     "name": "PL. CATALUNYA, 10-11 (PG. DE GRÀCIA)",
@@ -1545,7 +1557,7 @@
     "longitude": 2.1696543,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 18
+    "capacity": 16
   },
   {
     "name": "ALDI Mercat Montserrat-C/ NOU BARRIS, 23",
@@ -1569,7 +1581,7 @@
     "longitude": 2.1977119,
     "borough": "Sant Martí",
     "neighborhood": "el Poblenou",
-    "capacity": 23
+    "capacity": 27
   },
   {
     "name": "C/ ROC BORONAT, 134",
@@ -1581,7 +1593,7 @@
     "longitude": 2.1936584,
     "borough": "Sant Martí",
     "neighborhood": "el Parc i la Llacuna del Poblenou",
-    "capacity": 41
+    "capacity": 40
   },
   {
     "name": "PG. BONANOVA, 100",
@@ -1605,7 +1617,7 @@
     "longitude": 2.1949461,
     "borough": "Sant Martí",
     "neighborhood": "Provençals del Poblenou",
-    "capacity": 23
+    "capacity": 20
   },
   {
     "name": "C/ ROSSELLÓ, 453",
@@ -1629,7 +1641,7 @@
     "longitude": 2.1552902,
     "borough": "Eixample",
     "neighborhood": "l'Antiga Esquerra de l'Eixample",
-    "capacity": 26
+    "capacity": 25
   },
   {
     "name": "C/ SANTALÓ, 165",
@@ -1653,7 +1665,7 @@
     "longitude": 2.1323612,
     "borough": "Les Corts",
     "neighborhood": "les Corts",
-    "capacity": 18
+    "capacity": 17
   },
   {
     "name": "C/ JUAN GRIS, 28",
@@ -1665,7 +1677,7 @@
     "longitude": 2.1331357,
     "borough": "Sants-Montjuïc",
     "neighborhood": "la Bordeta",
-    "capacity": 32
+    "capacity": 29
   },
   {
     "name": "C/ ARGENTERA, 23",
@@ -1677,7 +1689,7 @@
     "longitude": 2.1453424,
     "borough": "Gràcia",
     "neighborhood": "Vallcarca i els Penitents",
-    "capacity": 23
+    "capacity": 22
   },
   {
     "name": "PG. FABRA I PUIG, 411",
@@ -1701,7 +1713,7 @@
     "longitude": 2.13862,
     "borough": "Les Corts",
     "neighborhood": "les Corts",
-    "capacity": 24
+    "capacity": 23
   },
   {
     "name": "C/ PERE IV, 488",
@@ -1713,7 +1725,7 @@
     "longitude": 2.207186,
     "borough": "Sant Martí",
     "neighborhood": "Provençals del Poblenou",
-    "capacity": 20
+    "capacity": 21
   },
   {
     "name": "C/ LOPE DE VEGA, 79",
@@ -1725,7 +1737,7 @@
     "longitude": 2.2041137,
     "borough": "Sant Martí",
     "neighborhood": "el Poblenou",
-    "capacity": 25
+    "capacity": 22
   },
   {
     "name": "C/ PALLARS, 504",
@@ -1737,7 +1749,7 @@
     "longitude": 2.2150487,
     "borough": "Sant Martí",
     "neighborhood": "el Besòs i el Maresme",
-    "capacity": 23
+    "capacity": 21
   },
   {
     "name": "C/ VIRIAT, 53",
@@ -1785,7 +1797,7 @@
     "longitude": 2.1679313,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 14
+    "capacity": 13
   },
   {
     "name": "C/ ANDREU NIN, 22",
@@ -1797,7 +1809,7 @@
     "longitude": 2.1817718,
     "borough": "Nou Barris",
     "neighborhood": "Porta",
-    "capacity": 30
+    "capacity": 31
   },
   {
     "name": "AV. MERIDIANA, 40",
@@ -1809,7 +1821,7 @@
     "longitude": 2.1871959,
     "borough": "Sant Martí",
     "neighborhood": "el Parc i la Llacuna del Poblenou",
-    "capacity": 17
+    "capacity": 14
   },
   {
     "name": "C/ NÀPOLS, 344",
@@ -1821,7 +1833,7 @@
     "longitude": 2.1663172,
     "borough": "Gràcia",
     "neighborhood": "el Camp d'en Grassot i Gràcia Nova",
-    "capacity": 32
+    "capacity": 33
   },
   {
     "name": "GRAN VIA DE LES CORTS CATALANES, 609",
@@ -1833,7 +1845,7 @@
     "longitude": 2.1678388,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 13
+    "capacity": 14
   },
   {
     "name": "GRAN VIA DE LES CORTS CATALANES, 981",
@@ -1845,7 +1857,7 @@
     "longitude": 2.1972673,
     "borough": "Sant Martí",
     "neighborhood": "Sant Martí de Provençals",
-    "capacity": 21
+    "capacity": 20
   },
   {
     "name": "C/ ESPRONCEDA, 124",
@@ -1857,7 +1869,7 @@
     "longitude": 2.203028,
     "borough": "Sant Martí",
     "neighborhood": "el Poblenou",
-    "capacity": 27
+    "capacity": 22
   },
   {
     "name": "AV. DE LA CATEDRAL, 6",
@@ -1869,7 +1881,7 @@
     "longitude": 2.1766834,
     "borough": "Ciutat Vella",
     "neighborhood": "el Barri Gòtic",
-    "capacity": 18
+    "capacity": 20
   },
   {
     "name": "C/ SANT OLEGUER, 2",
@@ -1881,7 +1893,7 @@
     "longitude": 2.1707321,
     "borough": "Ciutat Vella",
     "neighborhood": "el Raval",
-    "capacity": 16
+    "capacity": 14
   },
   {
     "name": "PL. URQUINAONA, 3",
@@ -1893,7 +1905,7 @@
     "longitude": 2.1727457,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 21
+    "capacity": 24
   },
   {
     "name": "PG. ZONA FRANCA, 54",
@@ -1917,7 +1929,7 @@
     "longitude": 2.181199,
     "borough": "Eixample",
     "neighborhood": "la Sagrada Família",
-    "capacity": 33
+    "capacity": 34
   },
   {
     "name": "AV. JOSEP TARRADELLAS, 133",
@@ -1929,7 +1941,7 @@
     "longitude": 2.1432105,
     "borough": "Les Corts",
     "neighborhood": "les Corts",
-    "capacity": 11
+    "capacity": 13
   },
   {
     "name": "C/ PROVENÇA, 317",
@@ -1941,7 +1953,7 @@
     "longitude": 2.166735224916682,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 17
+    "capacity": 18
   },
   {
     "name": "AV. ROMA, 136",
@@ -1965,7 +1977,7 @@
     "longitude": 2.184171,
     "borough": "Ciutat Vella",
     "neighborhood": "Sant Pere, Santa Caterina i la Ribera",
-    "capacity": 21
+    "capacity": 19
   },
   {
     "name": "C/ ALEXANDRE GALÍ, 1-5",
@@ -1989,7 +2001,7 @@
     "longitude": 2.1801094,
     "borough": "Horta-Guinardó",
     "neighborhood": "el Guinardó",
-    "capacity": 32
+    "capacity": 31
   },
   {
     "name": "PTGE. MALUQUER, 16",
@@ -2025,7 +2037,7 @@
     "longitude": 2.1860256,
     "borough": "Eixample",
     "neighborhood": "el Fort Pienc",
-    "capacity": 23
+    "capacity": 25
   },
   {
     "name": "C/ ROGER, 24",
@@ -2037,7 +2049,7 @@
     "longitude": 2.1269152,
     "borough": "Sants-Montjuïc",
     "neighborhood": "Sants - Badal",
-    "capacity": 25
+    "capacity": 23
   },
   {
     "name": "C/ SARDENYA, 465",
@@ -2049,7 +2061,7 @@
     "longitude": 2.1656378,
     "borough": "Gràcia",
     "neighborhood": "el Camp d'en Grassot i Gràcia Nova",
-    "capacity": 25
+    "capacity": 23
   },
   {
     "name": "PL. UNIVERSITAT",
@@ -2061,7 +2073,7 @@
     "longitude": 2.1634768,
     "borough": "Eixample",
     "neighborhood": "Sant Antoni",
-    "capacity": 22
+    "capacity": 20
   },
   {
     "name": "SEU DEL DISTRICTE (NOU BARRIS)",
@@ -2085,7 +2097,7 @@
     "longitude": 2.1906339,
     "borough": "Sant Martí",
     "neighborhood": "la Vila Olímpica del Poblenou",
-    "capacity": 18
+    "capacity": 19
   },
   {
     "name": "C/ LONDRES, 101-103",
@@ -2097,7 +2109,7 @@
     "longitude": 2.1507739,
     "borough": "Eixample",
     "neighborhood": "l'Antiga Esquerra de l'Eixample",
-    "capacity": 13
+    "capacity": 14
   },
   {
     "name": "RAMBLA PRIM, 79",
@@ -2109,7 +2121,7 @@
     "longitude": 2.2124993,
     "borough": "Sant Martí",
     "neighborhood": "el Besòs i el Maresme",
-    "capacity": 32
+    "capacity": 31
   },
   {
     "name": "C/ PROVENÇA, 445",
@@ -2121,7 +2133,7 @@
     "longitude": 2.174799,
     "borough": "Eixample",
     "neighborhood": "la Sagrada Família",
-    "capacity": 17
+    "capacity": 18
   },
   {
     "name": "C/ VILLENA, 1",
@@ -2133,7 +2145,7 @@
     "longitude": 2.1921945084594707,
     "borough": "Sant Martí",
     "neighborhood": "la Vila Olímpica del Poblenou",
-    "capacity": 53
+    "capacity": 54
   },
   {
     "name": "PLAÇA ALFONS X EL SAVI / RONDA DEL GUINARDO",
@@ -2145,7 +2157,7 @@
     "longitude": 2.1652216,
     "borough": "Horta-Guinardó",
     "neighborhood": "el Baix Guinardó",
-    "capacity": 22
+    "capacity": 24
   },
   {
     "name": "C/ EDUARD TODA, 33 | C/ DOCTOR LETAMENDI",
@@ -2169,7 +2181,7 @@
     "longitude": 2.1571646,
     "borough": "Eixample",
     "neighborhood": "la Nova Esquerra de l'Eixample",
-    "capacity": 24
+    "capacity": 22
   },
   {
     "name": "C/ ROSSELLÓ, 354",
@@ -2181,7 +2193,7 @@
     "longitude": 2.1707947,
     "borough": "Eixample",
     "neighborhood": "la Sagrada Família",
-    "capacity": 28
+    "capacity": 30
   },
   {
     "name": "RAMBLA DE GUIPÚSCOA, 103 /CANTÀBRIA",
@@ -2241,7 +2253,7 @@
     "longitude": 2.2017694,
     "borough": "Sant Martí",
     "neighborhood": "el Poblenou",
-    "capacity": 30
+    "capacity": 29
   },
   {
     "name": "PG. DE LLUIS COMPANYS (ARC DE TRIOMF)",
@@ -2253,7 +2265,7 @@
     "longitude": 2.1808391,
     "borough": "Ciutat Vella",
     "neighborhood": "Sant Pere, Santa Caterina i la Ribera",
-    "capacity": 31
+    "capacity": 32
   },
   {
     "name": "C/ CRISTÓBAL DE MOURA, 163 (xamfrà)",
@@ -2265,7 +2277,7 @@
     "longitude": 2.2093559,
     "borough": "Sant Martí",
     "neighborhood": "Provençals del Poblenou",
-    "capacity": 17
+    "capacity": 16
   },
   {
     "name": "PL. TERESA DE CLARAMUNT/C/ DELS FERROCARILS",
@@ -2277,7 +2289,7 @@
     "longitude": 2.1398322,
     "borough": "Sants-Montjuïc",
     "neighborhood": "la Marina de Port",
-    "capacity": 30
+    "capacity": 29
   },
   {
     "name": "C/ DIPUTACIÓ, 22",
@@ -2301,7 +2313,7 @@
     "longitude": 2.1692556,
     "borough": "Ciutat Vella",
     "neighborhood": "el Raval",
-    "capacity": 17
+    "capacity": 12
   },
   {
     "name": "C/ MARINA, 25-33",
@@ -2313,7 +2325,7 @@
     "longitude": 2.195551,
     "borough": "Sant Martí",
     "neighborhood": "la Vila Olímpica del Poblenou",
-    "capacity": 53
+    "capacity": 50
   },
   {
     "name": "C/ COMERÇ, 36",
@@ -2325,7 +2337,7 @@
     "longitude": 2.1820169,
     "borough": "Ciutat Vella",
     "neighborhood": "Sant Pere, Santa Caterina i la Ribera",
-    "capacity": 23
+    "capacity": 21
   },
   {
     "name": "C/ SANT FRANCESC XAVIER, 1",
@@ -2361,7 +2373,7 @@
     "longitude": 2.1546746,
     "borough": "Eixample",
     "neighborhood": "la Nova Esquerra de l'Eixample",
-    "capacity": 17
+    "capacity": 13
   },
   {
     "name": "C/ ROSSELLÓ, 557",
@@ -2373,7 +2385,7 @@
     "longitude": 2.1809764,
     "borough": "Sant Martí",
     "neighborhood": "el Camp de l'Arpa del Clot",
-    "capacity": 36
+    "capacity": 35
   },
   {
     "name": "C/ CLOT, 1",
@@ -2385,7 +2397,7 @@
     "longitude": 2.1874404,
     "borough": "Sant Martí",
     "neighborhood": "el Clot",
-    "capacity": 25
+    "capacity": 22
   },
   {
     "name": "C/ LONDRES, 63",
@@ -2397,7 +2409,7 @@
     "longitude": 2.148291,
     "borough": "Eixample",
     "neighborhood": "l'Antiga Esquerra de l'Eixample",
-    "capacity": 28
+    "capacity": 27
   },
   {
     "name": "270 - CRTA. DE RIBES, 77 (TRINITAT VELLA)",
@@ -2409,7 +2421,7 @@
     "longitude": 2.1898372,
     "borough": "Sant Andreu",
     "neighborhood": "la Trinitat Vella",
-    "capacity": 27
+    "capacity": 26
   },
   {
     "name": "C/ VILADOMAT, 2",
@@ -2445,7 +2457,7 @@
     "longitude": 2.185085,
     "borough": "Ciutat Vella",
     "neighborhood": "Sant Pere, Santa Caterina i la Ribera",
-    "capacity": 25
+    "capacity": 24
   },
   {
     "name": "AV. FRANCESC CAMBÓ, 10",
@@ -2457,7 +2469,7 @@
     "longitude": 2.1773214,
     "borough": "Ciutat Vella",
     "neighborhood": "Sant Pere, Santa Caterina i la Ribera",
-    "capacity": 18
+    "capacity": 20
   },
   {
     "name": "C/ CANTÀBRIA, 55",
@@ -2469,7 +2481,7 @@
     "longitude": 2.198071,
     "borough": "Sant Martí",
     "neighborhood": "la Verneda i la Pau",
-    "capacity": 24
+    "capacity": 23
   },
   {
     "name": "RAMBLA DE L'ONZE DE SETEMBRE, 69",
@@ -2481,7 +2493,7 @@
     "longitude": 2.190246,
     "borough": "Sant Andreu",
     "neighborhood": "Sant Andreu",
-    "capacity": 23
+    "capacity": 25
   },
   {
     "name": "C/ DE RIBES, 59 B",
@@ -2493,7 +2505,7 @@
     "longitude": 2.1830315,
     "borough": "Eixample",
     "neighborhood": "el Fort Pienc",
-    "capacity": 33
+    "capacity": 30
   },
   {
     "name": "C/ BRUC, 20",
@@ -2541,7 +2553,7 @@
     "longitude": 2.166261693115219,
     "borough": "Ciutat Vella",
     "neighborhood": "el Raval",
-    "capacity": 19
+    "capacity": 21
   },
   {
     "name": "AV. DIAGONAL, 652",
@@ -2553,7 +2565,7 @@
     "longitude": 2.1314948,
     "borough": "Les Corts",
     "neighborhood": "les Corts",
-    "capacity": 27
+    "capacity": 26
   },
   {
     "name": "C/ RIERA ALTA, 6",
@@ -2565,7 +2577,7 @@
     "longitude": 2.1671611,
     "borough": "Ciutat Vella",
     "neighborhood": "el Raval",
-    "capacity": 33
+    "capacity": 32
   },
   {
     "name": "C/ FELIU DE CASANOVA, 1",
@@ -2577,7 +2589,7 @@
     "longitude": 2.1297823,
     "borough": "Sants-Montjuïc",
     "neighborhood": "Sants - Badal",
-    "capacity": 25
+    "capacity": 22
   },
   {
     "name": "C/ MALLORCA, 194 (xamfrà)",
@@ -2601,7 +2613,7 @@
     "longitude": 2.18579,
     "borough": "Sant Andreu",
     "neighborhood": "Sant Andreu",
-    "capacity": 9
+    "capacity": 6
   },
   {
     "name": "C/ PAVIA, 3",
@@ -2613,7 +2625,7 @@
     "longitude": 2.1332694,
     "borough": "Sants-Montjuïc",
     "neighborhood": "Sants",
-    "capacity": 27
+    "capacity": 24
   },
   {
     "name": "AV. ESTADI, 38",
@@ -2625,7 +2637,7 @@
     "longitude": 2.1522059,
     "borough": "Sants-Montjuïc",
     "neighborhood": "el Poble-sec",
-    "capacity": 23
+    "capacity": 21
   },
   {
     "name": "C/ CASP, 67",
@@ -2637,7 +2649,7 @@
     "longitude": 2.1764275,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 31
+    "capacity": 29
   },
   {
     "name": "PASSATGE DE SENILLOSA, 3-5",
@@ -2649,7 +2661,7 @@
     "longitude": 2.1250451,
     "borough": "Sarrià-Sant Gervasi",
     "neighborhood": "Sarrià",
-    "capacity": 26
+    "capacity": 25
   },
   {
     "name": "C/ MÚRCIA, 64",
@@ -2673,7 +2685,7 @@
     "longitude": 2.1169828,
     "borough": "Les Corts",
     "neighborhood": "la Maternitat i Sant Ramon",
-    "capacity": 20
+    "capacity": 19
   },
   {
     "name": "C/ INDÚSTRIA, 329",
@@ -2685,7 +2697,7 @@
     "longitude": 2.1844769,
     "borough": "Sant Andreu",
     "neighborhood": "Navas",
-    "capacity": 32
+    "capacity": 34
   },
   {
     "name": "C/ MALATS, 98-100",
@@ -2709,7 +2721,7 @@
     "longitude": 2.1629146,
     "borough": "Eixample",
     "neighborhood": "Sant Antoni",
-    "capacity": 25
+    "capacity": 23
   },
   {
     "name": "C/ PEDRELL, 52",
@@ -2745,7 +2757,7 @@
     "longitude": 2.177292,
     "borough": "Ciutat Vella",
     "neighborhood": "el Barri Gòtic",
-    "capacity": 28
+    "capacity": 29
   },
   {
     "name": "C/ LONDRES, 53",
@@ -2781,7 +2793,7 @@
     "longitude": 2.166797,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 25
+    "capacity": 26
   },
   {
     "name": "PG. TORRAS I BAGES, 29",
@@ -2793,7 +2805,7 @@
     "longitude": 2.1910691,
     "borough": "Sant Andreu",
     "neighborhood": "Sant Andreu",
-    "capacity": 17
+    "capacity": 18
   },
   {
     "name": "C/ MAS CASANOVAS, 137",
@@ -2805,7 +2817,7 @@
     "longitude": 2.1745567,
     "borough": "Horta-Guinardó",
     "neighborhood": "el Guinardó",
-    "capacity": 22
+    "capacity": 21
   },
   {
     "name": "PG. DE GRÀCIA, 61",
@@ -2829,7 +2841,7 @@
     "longitude": 2.1959771,
     "borough": "Sant Martí",
     "neighborhood": "Sant Martí de Provençals",
-    "capacity": 39
+    "capacity": 38
   },
   {
     "name": "C/ QUATRE CAMINS, 46",
@@ -2865,7 +2877,7 @@
     "longitude": 2.1594741,
     "borough": "Eixample",
     "neighborhood": "Sant Antoni",
-    "capacity": 33
+    "capacity": 31
   },
   {
     "name": "C/ ROSSELLÓ, 261",
@@ -2877,7 +2889,7 @@
     "longitude": 2.1599427,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 23
+    "capacity": 22
   },
   {
     "name": "C/ SELVA DE MAR, 230",
@@ -2913,7 +2925,7 @@
     "longitude": 2.1328403,
     "borough": "Sants-Montjuïc",
     "neighborhood": "la Bordeta",
-    "capacity": 15
+    "capacity": 18
   },
   {
     "name": "PG. MARÍTIM DE LA BARCELONETA,6",
@@ -2949,7 +2961,7 @@
     "longitude": 2.136579,
     "borough": "Les Corts",
     "neighborhood": "les Corts",
-    "capacity": 20
+    "capacity": 19
   },
   {
     "name": "PG. VALL D'HEBRÓN, 80",
@@ -2973,7 +2985,7 @@
     "longitude": 2.1479163014196168,
     "borough": "Eixample",
     "neighborhood": "la Nova Esquerra de l'Eixample",
-    "capacity": 23
+    "capacity": 22
   },
   {
     "name": "C/ MARIE CURIE, 8-14",
@@ -2985,7 +2997,7 @@
     "longitude": 2.1693134,
     "borough": "Nou Barris",
     "neighborhood": "la Guineueta",
-    "capacity": 26
+    "capacity": 25
   },
   {
     "name": "C/ JOSEP ESTIVILL, 32",
@@ -2997,7 +3009,7 @@
     "longitude": 2.1877153,
     "borough": "Sant Andreu",
     "neighborhood": "Navas",
-    "capacity": 27
+    "capacity": 26
   },
   {
     "name": "TRAVESSERA DE GRÀCIA, 328",
@@ -3009,7 +3021,7 @@
     "longitude": 2.1689962,
     "borough": "Horta-Guinardó",
     "neighborhood": "el Baix Guinardó",
-    "capacity": 24
+    "capacity": 25
   },
   {
     "name": "C/ CONCEPCIÓ ARENAL, 281",
@@ -3021,7 +3033,7 @@
     "longitude": 2.1842021,
     "borough": "Sant Andreu",
     "neighborhood": "Sant Andreu",
-    "capacity": 24
+    "capacity": 26
   },
   {
     "name": "C/ RIERA D'HORTA, 2",
@@ -3033,7 +3045,7 @@
     "longitude": 2.183966,
     "borough": "Sant Andreu",
     "neighborhood": "el Congrés i els Indians",
-    "capacity": 31
+    "capacity": 30
   },
   {
     "name": "C/ MANILA, 53",
@@ -3057,7 +3069,7 @@
     "longitude": 2.1954152,
     "borough": "Sant Martí",
     "neighborhood": "Provençals del Poblenou",
-    "capacity": 26
+    "capacity": 29
   },
   {
     "name": "C/ CAMPO FLORIDO, 66",
@@ -3069,7 +3081,7 @@
     "longitude": 2.1799878,
     "borough": "Sant Andreu",
     "neighborhood": "el Congrés i els Indians",
-    "capacity": 17
+    "capacity": 19
   },
   {
     "name": "VIA DE BÀRCINO, 54",
@@ -3105,7 +3117,7 @@
     "longitude": 2.112186,
     "borough": "Les Corts",
     "neighborhood": "la Maternitat i Sant Ramon",
-    "capacity": 27
+    "capacity": 26
   },
   {
     "name": "RAMBLA DE PRIM, 19",
@@ -3141,7 +3153,7 @@
     "longitude": 2.13059591593856,
     "borough": "Les Corts",
     "neighborhood": "les Corts",
-    "capacity": 36
+    "capacity": 31
   },
   {
     "name": "C/ DOS DE MAIG, 230-232",
@@ -3201,7 +3213,7 @@
     "longitude": 2.1904005,
     "borough": "Sant Andreu",
     "neighborhood": "la Sagrera",
-    "capacity": 27
+    "capacity": 26
   },
   {
     "name": "RONDA SANT PAU, 79",
@@ -3213,7 +3225,7 @@
     "longitude": 2.1633139,
     "borough": "Eixample",
     "neighborhood": "Sant Antoni",
-    "capacity": 26
+    "capacity": 25
   },
   {
     "name": "C/ RAMON TURRÓ, 182 (xamfrà)",
@@ -3225,7 +3237,7 @@
     "longitude": 2.20085,
     "borough": "Sant Martí",
     "neighborhood": "el Poblenou",
-    "capacity": 19
+    "capacity": 20
   },
   {
     "name": "C/ AMILCAR, 78",
@@ -3261,7 +3273,7 @@
     "longitude": 2.1626355,
     "borough": "Gràcia",
     "neighborhood": "la Vila de Gràcia",
-    "capacity": 17
+    "capacity": 13
   },
   {
     "name": "C/ ENRIC GRANADOS, 35",
@@ -3273,7 +3285,7 @@
     "longitude": 2.1599078,
     "borough": "Eixample",
     "neighborhood": "l'Antiga Esquerra de l'Eixample",
-    "capacity": 17
+    "capacity": 25
   },
   {
     "name": "C/ CASTILLEJOS, 184",
@@ -3285,7 +3297,7 @@
     "longitude": 2.1829894,
     "borough": "Eixample",
     "neighborhood": "el Fort Pienc",
-    "capacity": 25
+    "capacity": 24
   },
   {
     "name": "AV. RIO DE JANEIRO, 118",
@@ -3321,7 +3333,7 @@
     "longitude": 2.1579897,
     "borough": "Gràcia",
     "neighborhood": "la Salut",
-    "capacity": 25
+    "capacity": 23
   },
   {
     "name": "C/ CASTELLNOU, 65",
@@ -3333,7 +3345,7 @@
     "longitude": 2.1279409,
     "borough": "Sarrià-Sant Gervasi",
     "neighborhood": "les Tres Torres",
-    "capacity": 30
+    "capacity": 28
   },
   {
     "name": "C/ FERNANDO PESSOA, 72",
@@ -3393,7 +3405,7 @@
     "longitude": 2.1204941,
     "borough": "Sarrià-Sant Gervasi",
     "neighborhood": "Sarrià",
-    "capacity": 22
+    "capacity": 20
   },
   {
     "name": "C/ ARTESA DE SEGRE, 2",
@@ -3405,7 +3417,7 @@
     "longitude": 2.1344691,
     "borough": "Sarrià-Sant Gervasi",
     "neighborhood": "Sant Gervasi - la Bonanova",
-    "capacity": 25
+    "capacity": 27
   },
   {
     "name": "PL. CATALUNYA, 22",
@@ -3417,7 +3429,7 @@
     "longitude": 2.1702467,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 30
+    "capacity": 26
   },
   {
     "name": "C/ PROVENÇA, 310",
@@ -3429,7 +3441,7 @@
     "longitude": 2.1635462,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 27
+    "capacity": 28
   },
   {
     "name": "C/RADI,10/GRAN VIA DE LES CORTS CATALANES",
@@ -3441,7 +3453,7 @@
     "longitude": 2.1341586,
     "borough": "Sants-Montjuïc",
     "neighborhood": "la Marina de Port",
-    "capacity": 25
+    "capacity": 27
   },
   {
     "name": "C/ ALTS FORNS, 77",
@@ -3477,7 +3489,7 @@
     "longitude": 2.1758261,
     "borough": "Ciutat Vella",
     "neighborhood": "el Raval",
-    "capacity": 26
+    "capacity": 25
   },
   {
     "name": "AV. DIAGONAL, 26",
@@ -3525,7 +3537,7 @@
     "longitude": 2.1953884,
     "borough": "Sant Andreu",
     "neighborhood": "el Bon Pastor",
-    "capacity": 31
+    "capacity": 32
   },
   {
     "name": "GRAN VIA DE LES CORTS CATALANES, 375-385",
@@ -3537,7 +3549,7 @@
     "longitude": 2.1499102,
     "borough": "Eixample",
     "neighborhood": "la Nova Esquerra de l'Eixample",
-    "capacity": 47
+    "capacity": 43
   },
   {
     "name": "C/ BRUC, 103 (xamfrà)",
@@ -3561,7 +3573,7 @@
     "longitude": 2.1805685,
     "borough": "Ciutat Vella",
     "neighborhood": "Sant Pere, Santa Caterina i la Ribera",
-    "capacity": 37
+    "capacity": 36
   },
   {
     "name": "PG. SANTA COLOMA, 105",
@@ -3585,7 +3597,7 @@
     "longitude": 2.191206,
     "borough": "Sant Andreu",
     "neighborhood": "la Sagrera",
-    "capacity": 23
+    "capacity": 26
   },
   {
     "name": "C/ MALATS, 28-30",
@@ -3609,7 +3621,7 @@
     "longitude": 2.1205394,
     "borough": "Sarrià-Sant Gervasi",
     "neighborhood": "Sarrià",
-    "capacity": 18
+    "capacity": 21
   },
   {
     "name": "C/ DEL DR. AIGUADER, 72 / PG. SALVAT PAPASSEIT",
@@ -3657,7 +3669,7 @@
     "longitude": 2.17881,
     "borough": "Ciutat Vella",
     "neighborhood": "el Barri Gòtic",
-    "capacity": 32
+    "capacity": 31
   },
   {
     "name": "C/ DE SANT PAU, 119/ RONDA SANT PAU",
@@ -3669,7 +3681,7 @@
     "longitude": 2.1680021,
     "borough": "Ciutat Vella",
     "neighborhood": "el Raval",
-    "capacity": 23
+    "capacity": 21
   },
   {
     "name": "C/ DE MALADETA, 1",
@@ -3681,7 +3693,7 @@
     "longitude": 2.1769107,
     "borough": "Nou Barris",
     "neighborhood": "Porta",
-    "capacity": 13
+    "capacity": 14
   },
   {
     "name": "C/ FULTON, 1",
@@ -3705,7 +3717,7 @@
     "longitude": 2.1684799,
     "borough": "Horta-Guinardó",
     "neighborhood": "el Baix Guinardó",
-    "capacity": 26
+    "capacity": 27
   },
   {
     "name": "C/ ESPRONCEDA, 298",
@@ -3717,7 +3729,7 @@
     "longitude": 2.1908473,
     "borough": "Sant Andreu",
     "neighborhood": "Navas",
-    "capacity": 25
+    "capacity": 23
   },
   {
     "name": "AV. DIAGONAL, 612",
@@ -3729,7 +3741,7 @@
     "longitude": 2.1422174,
     "borough": "Sarrià-Sant Gervasi",
     "neighborhood": "Sant Gervasi - Galvany",
-    "capacity": 24
+    "capacity": 23
   },
   {
     "name": "C/ SANT ADRIÀ, 88",
@@ -3741,7 +3753,7 @@
     "longitude": 2.2001569,
     "borough": "Sant Andreu",
     "neighborhood": "el Bon Pastor",
-    "capacity": 18
+    "capacity": 20
   },
   {
     "name": "CARRER DEL CINCA, 7",
@@ -3765,7 +3777,7 @@
     "longitude": 2.1389439,
     "borough": "Sants-Montjuïc",
     "neighborhood": "la Bordeta",
-    "capacity": 15
+    "capacity": 17
   },
   {
     "name": "GRAN VIA DE LES CORTS CATALANES, 1062",
@@ -3813,7 +3825,7 @@
     "longitude": 2.1601641,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 15
+    "capacity": 17
   },
   {
     "name": "C/ SANT HERMENEGILD, 30",
@@ -3837,7 +3849,7 @@
     "longitude": 2.1371996,
     "borough": "Sants-Montjuïc",
     "neighborhood": "la Marina de Port",
-    "capacity": 31
+    "capacity": 30
   },
   {
     "name": "C/ MÉNDEZ NÚÑEZ, 16",
@@ -3873,7 +3885,7 @@
     "longitude": 2.195073,
     "borough": "Sant Martí",
     "neighborhood": "la Vila Olímpica del Poblenou",
-    "capacity": 43
+    "capacity": 42
   },
   {
     "name": "C/ RAMON TURRÓ, 292",
@@ -3897,7 +3909,7 @@
     "longitude": 2.194294,
     "borough": "Ciutat Vella",
     "neighborhood": "la Barceloneta",
-    "capacity": 32
+    "capacity": 30
   },
   {
     "name": "C/ MARQUÈS DE SENTMENAT, 46",
@@ -3945,7 +3957,7 @@
     "longitude": 2.16202,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 23
+    "capacity": 21
   },
   {
     "name": "C/ TURÓ BLAU, 1-3",
@@ -3969,7 +3981,7 @@
     "longitude": 2.1821802,
     "borough": "Nou Barris",
     "neighborhood": "Porta",
-    "capacity": 28
+    "capacity": 31
   },
   {
     "name": "C/ DE SANT PAU, 89 - 97",
@@ -4005,7 +4017,7 @@
     "longitude": 2.1889045,
     "borough": "Ciutat Vella",
     "neighborhood": "la Barceloneta",
-    "capacity": 14
+    "capacity": 15
   },
   {
     "name": "C/ CIUTAT D'ASUNCIÓN, 73 / POTOSÍ",
@@ -4041,7 +4053,7 @@
     "longitude": 2.1836886,
     "borough": "Ciutat Vella",
     "neighborhood": "el Barri Gòtic",
-    "capacity": 28
+    "capacity": 27
   },
   {
     "name": "C/ ROMÁN MACAYA, 8",
@@ -4101,7 +4113,7 @@
     "longitude": 2.1671068,
     "borough": "Nou Barris",
     "neighborhood": "el Turó de la Peira",
-    "capacity": 15
+    "capacity": 16
   },
   {
     "name": "C/ FRA JUNÍPER SERRA, 53 | C/ SANTANDER",
@@ -4185,7 +4197,7 @@
     "longitude": 2.1386719,
     "borough": "Sarrià-Sant Gervasi",
     "neighborhood": "Sant Gervasi - Galvany",
-    "capacity": 24
+    "capacity": 25
   },
   {
     "name": "C/ NÀPOLS, 183",
@@ -4197,7 +4209,7 @@
     "longitude": 2.1754896,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 27
+    "capacity": 25
   },
   {
     "name": "C/ DEL GUINARDÓ, 32-38",
@@ -4221,7 +4233,7 @@
     "longitude": 2.180302,
     "borough": "Ciutat Vella",
     "neighborhood": "el Raval",
-    "capacity": 43
+    "capacity": 42
   },
   {
     "name": "PG. FONT D´EN- FARGAS, 1",
@@ -4257,7 +4269,7 @@
     "longitude": 2.1717397,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 26
+    "capacity": 24
   },
   {
     "name": "AV. JOSEP VICENÇ FOIX, 63",
@@ -4305,7 +4317,7 @@
     "longitude": 2.1297303,
     "borough": "Sants-Montjuïc",
     "neighborhood": "Sants",
-    "capacity": 19
+    "capacity": 18
   },
   {
     "name": "C/ INDEPENDÈNCIA, 379",
@@ -4317,7 +4329,7 @@
     "longitude": 2.1778852,
     "borough": "Sant Martí",
     "neighborhood": "el Camp de l'Arpa del Clot",
-    "capacity": 26
+    "capacity": 27
   },
   {
     "name": "C/ GAVÀ, 1",
@@ -4329,7 +4341,7 @@
     "longitude": 2.1419494,
     "borough": "Sants-Montjuïc",
     "neighborhood": "la Bordeta",
-    "capacity": 28
+    "capacity": 30
   },
   {
     "name": "TRAVESSERA DE GRÀCIA, 368",
@@ -4341,7 +4353,7 @@
     "longitude": 2.1715285,
     "borough": "Horta-Guinardó",
     "neighborhood": "el Baix Guinardó",
-    "capacity": 25
+    "capacity": 24
   },
   {
     "name": "C/ MIREIA, 28",
@@ -4365,7 +4377,7 @@
     "longitude": 2.188928,
     "borough": "Ciutat Vella",
     "neighborhood": "la Barceloneta",
-    "capacity": 33
+    "capacity": 32
   },
   {
     "name": "MOLL ORIENTAL",
@@ -4401,7 +4413,7 @@
     "longitude": 2.1564253,
     "borough": "Gràcia",
     "neighborhood": "la Vila de Gràcia",
-    "capacity": 21
+    "capacity": 20
   },
   {
     "name": "C/ SELVA DE MAR, 46",
@@ -4413,7 +4425,7 @@
     "longitude": 2.2088179,
     "borough": "Sant Martí",
     "neighborhood": "Diagonal Mar i el Front Marítim del Poblenou",
-    "capacity": 25
+    "capacity": 27
   },
   {
     "name": "C/ PALAMÓS, 33",
@@ -4437,7 +4449,7 @@
     "longitude": 2.2091221,
     "borough": "Sant Martí",
     "neighborhood": "Diagonal Mar i el Front Marítim del Poblenou",
-    "capacity": 24
+    "capacity": 26
   },
   {
     "name": "C/ AGUSTÍ DURAN I SANPERE, 1",
@@ -4473,7 +4485,7 @@
     "longitude": 2.1390667,
     "borough": "Sarrià-Sant Gervasi",
     "neighborhood": "Sant Gervasi - Galvany",
-    "capacity": 27
+    "capacity": 30
   },
   {
     "name": "RBLA. GUIPÚSCOA, 158",
@@ -4485,7 +4497,7 @@
     "longitude": 2.20603,
     "borough": "Sant Martí",
     "neighborhood": "la Verneda i la Pau",
-    "capacity": 26
+    "capacity": 27
   },
   {
     "name": "RAMBLA DEL BRASIL, 5",
@@ -4497,7 +4509,7 @@
     "longitude": 2.1299539,
     "borough": "Sants-Montjuïc",
     "neighborhood": "Sants - Badal",
-    "capacity": 24
+    "capacity": 23
   },
   {
     "name": "C/ DEL CANÓ, 1",
@@ -4509,7 +4521,7 @@
     "longitude": 2.1574439,
     "borough": "Gràcia",
     "neighborhood": "la Vila de Gràcia",
-    "capacity": 18
+    "capacity": 17
   },
   {
     "name": "C/ FLORIDABLANCA, 49",
@@ -4521,7 +4533,7 @@
     "longitude": 2.157233,
     "borough": "Eixample",
     "neighborhood": "Sant Antoni",
-    "capacity": 18
+    "capacity": 17
   },
   {
     "name": "C/ TARONGERS | AV. MIRAMAR (TELEFÈRIC)",
@@ -4545,7 +4557,7 @@
     "longitude": 2.1826833,
     "borough": "Sant Martí",
     "neighborhood": "el Camp de l'Arpa del Clot",
-    "capacity": 18
+    "capacity": 20
   },
   {
     "name": "PG. DE GARCIA FÀRIA, 37/JOSEP FERRATER",
@@ -4557,7 +4569,7 @@
     "longitude": 2.2136,
     "borough": "Sant Martí",
     "neighborhood": "Diagonal Mar i el Front Marítim del Poblenou",
-    "capacity": 30
+    "capacity": 31
   },
   {
     "name": "C/ MONTFAR, 1",
@@ -4569,7 +4581,7 @@
     "longitude": 2.148729,
     "borough": "Sants-Montjuïc",
     "neighborhood": "la Font de la Guatlla",
-    "capacity": 18
+    "capacity": 22
   },
   {
     "name": "C/ RAMON ALBÓ, 1",
@@ -4581,7 +4593,7 @@
     "longitude": 2.1773157,
     "borough": "Sant Andreu",
     "neighborhood": "el Congrés i els Indians",
-    "capacity": 27
+    "capacity": 26
   },
   {
     "name": "PG. VALLDAURA, 26",
@@ -4605,7 +4617,7 @@
     "longitude": 2.1923283,
     "borough": "Sant Martí",
     "neighborhood": "la Vila Olímpica del Poblenou",
-    "capacity": 38
+    "capacity": 39
   },
   {
     "name": "C/ PROVENÇA, 215",
@@ -4617,7 +4629,7 @@
     "longitude": 2.1586273,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 24
+    "capacity": 23
   },
   {
     "name": "C/ GÒNGORA, 23",
@@ -4641,7 +4653,7 @@
     "longitude": 2.127854,
     "borough": "Sants-Montjuïc",
     "neighborhood": "Sants - Badal",
-    "capacity": 24
+    "capacity": 22
   },
   {
     "name": "C/ CÒRSEGA, 578",
@@ -4689,7 +4701,7 @@
     "longitude": 2.1439036,
     "borough": "Sants-Montjuïc",
     "neighborhood": "Hostafrancs",
-    "capacity": 24
+    "capacity": 25
   },
   {
     "name": "C / GIRONA, 176",
@@ -4725,7 +4737,7 @@
     "longitude": 2.1681961,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 19
+    "capacity": 20
   },
   {
     "name": "AV. SARRIÀ, 163",
@@ -4737,7 +4749,7 @@
     "longitude": 2.1309272,
     "borough": "Les Corts",
     "neighborhood": "les Corts",
-    "capacity": 20
+    "capacity": 19
   },
   {
     "name": "C/ MÚRCIA, 1",
@@ -4749,7 +4761,7 @@
     "longitude": 2.1874539,
     "borough": "Sant Martí",
     "neighborhood": "el Clot",
-    "capacity": 18
+    "capacity": 15
   },
   {
     "name": "VIA AUGUSTA, 68",
@@ -4773,7 +4785,7 @@
     "longitude": 2.1586704,
     "borough": "Gràcia",
     "neighborhood": "la Vila de Gràcia",
-    "capacity": 17
+    "capacity": 15
   },
   {
     "name": "C/ PUJADES, 311/ FLUVIÀ",
@@ -4797,7 +4809,7 @@
     "longitude": 2.2078439,
     "borough": "Sant Martí",
     "neighborhood": "el Poblenou",
-    "capacity": 24
+    "capacity": 26
   },
   {
     "name": "C/ SARDENYA, 326",
@@ -4809,7 +4821,7 @@
     "longitude": 2.1729061,
     "borough": "Eixample",
     "neighborhood": "la Sagrada Família",
-    "capacity": 31
+    "capacity": 32
   },
   {
     "name": "C/ CARDENAL REIG, 11",
@@ -4821,7 +4833,7 @@
     "longitude": 2.114029,
     "borough": "Les Corts",
     "neighborhood": "la Maternitat i Sant Ramon",
-    "capacity": 25
+    "capacity": 23
   },
   {
     "name": "C/ JOAN MIRÓ, 2-12",
@@ -4845,7 +4857,7 @@
     "longitude": 2.1899178803739394,
     "borough": "Sant Martí",
     "neighborhood": "el Parc i la Llacuna del Poblenou",
-    "capacity": 29
+    "capacity": 26
   },
   {
     "name": "PG. VALL D'HEBRÓN, 168",
@@ -4869,7 +4881,7 @@
     "longitude": 2.1937281,
     "borough": "Sant Martí",
     "neighborhood": "el Parc i la Llacuna del Poblenou",
-    "capacity": 23
+    "capacity": 24
   },
   {
     "name": "PG. MANUEL GIRONA, 7",
@@ -4881,7 +4893,7 @@
     "longitude": 2.121,
     "borough": "Sarrià-Sant Gervasi",
     "neighborhood": "Sarrià",
-    "capacity": 25
+    "capacity": 23
   },
   {
     "name": "C/ CARRERA, 1",
@@ -4893,7 +4905,7 @@
     "longitude": 2.174861304726794,
     "borough": "Sants-Montjuïc",
     "neighborhood": "el Poble-sec",
-    "capacity": 27
+    "capacity": 28
   },
   {
     "name": "C/ TEODOR LLORENTE, 1",
@@ -4905,7 +4917,7 @@
     "longitude": 2.18018,
     "borough": "Horta-Guinardó",
     "neighborhood": "el Guinardó",
-    "capacity": 30
+    "capacity": 29
   },
   {
     "name": "C/ JANE ADDAMS, 26/ CRTA. DEL PRAT",
@@ -4929,7 +4941,7 @@
     "longitude": 2.1634306,
     "borough": "Eixample",
     "neighborhood": "Sant Antoni",
-    "capacity": 23
+    "capacity": 24
   },
   {
     "name": "GRAN VIA DE LES CORTS CATALANES, 179 (D)",
@@ -4941,7 +4953,7 @@
     "longitude": 2.1388216,
     "borough": "Sants-Montjuïc",
     "neighborhood": "la Bordeta",
-    "capacity": 47
+    "capacity": 45
   },
   {
     "name": "GRAN VIA DE LES CORTS CATALANES,368",
@@ -4953,7 +4965,7 @@
     "longitude": 2.1479385,
     "borough": "Sants-Montjuïc",
     "neighborhood": "Hostafrancs",
-    "capacity": 25
+    "capacity": 26
   },
   {
     "name": "C/ MONTMANY, 1",
@@ -4965,7 +4977,7 @@
     "longitude": 2.1609345,
     "borough": "Gràcia",
     "neighborhood": "la Vila de Gràcia",
-    "capacity": 26
+    "capacity": 23
   },
   {
     "name": "AV. MERIDIANA, 404",
@@ -4977,7 +4989,7 @@
     "longitude": 2.1834174,
     "borough": "Sant Andreu",
     "neighborhood": "Sant Andreu",
-    "capacity": 32
+    "capacity": 33
   },
   {
     "name": "PG. DE LLUíS COMPANYS (ARC DE TRIOMF)",
@@ -5025,7 +5037,7 @@
     "longitude": 2.1872818,
     "borough": "Sant Andreu",
     "neighborhood": "la Sagrera",
-    "capacity": 25
+    "capacity": 24
   },
   {
     "name": "C/ REINA VICTORIA, 31",
@@ -5049,7 +5061,7 @@
     "longitude": 2.1785364,
     "borough": "Eixample",
     "neighborhood": "la Sagrada Família",
-    "capacity": 14
+    "capacity": 19
   },
   {
     "name": "C/ GARCILASO, 56",
@@ -5073,7 +5085,7 @@
     "longitude": 2.1913538,
     "borough": "Sant Martí",
     "neighborhood": "el Parc i la Llacuna del Poblenou",
-    "capacity": 18
+    "capacity": 19
   },
   {
     "name": "PG. PUJADES, 1 (JUTJATS)",
@@ -5121,7 +5133,7 @@
     "longitude": 2.1753364,
     "borough": "Ciutat Vella",
     "neighborhood": "Sant Pere, Santa Caterina i la Ribera",
-    "capacity": 16
+    "capacity": 21
   },
   {
     "name": "AV. VALLCARCA, 11",
@@ -5133,7 +5145,7 @@
     "longitude": 2.1492066,
     "borough": "Gràcia",
     "neighborhood": "Vallcarca i els Penitents",
-    "capacity": 15
+    "capacity": 18
   },
   {
     "name": "C/ CALABRIA, 158",
@@ -5145,7 +5157,7 @@
     "longitude": 2.1520645,
     "borough": "Eixample",
     "neighborhood": "la Nova Esquerra de l'Eixample",
-    "capacity": 22
+    "capacity": 20
   },
   {
     "name": "C/ ENTENÇA, 70",
@@ -5157,7 +5169,7 @@
     "longitude": 2.1516210083711993,
     "borough": "Eixample",
     "neighborhood": "la Nova Esquerra de l'Eixample",
-    "capacity": 22
+    "capacity": 21
   },
   {
     "name": "C/ SANT ADRIÀ, 113",
@@ -5181,7 +5193,7 @@
     "longitude": 2.1312876,
     "borough": "Les Corts",
     "neighborhood": "les Corts",
-    "capacity": 23
+    "capacity": 22
   },
   {
     "name": "AV. LITORAL, 172",
@@ -5193,7 +5205,7 @@
     "longitude": 2.2037136,
     "borough": "Sant Martí",
     "neighborhood": "la Vila Olímpica del Poblenou",
-    "capacity": 48
+    "capacity": 46
   },
   {
     "name": "C/ MARTÍ I FRANQUÈS, 1",
@@ -5217,7 +5229,7 @@
     "longitude": 2.1946255,
     "borough": "Ciutat Vella",
     "neighborhood": "la Barceloneta",
-    "capacity": 24
+    "capacity": 26
   },
   {
     "name": "PL. VIRREI AMAT",
@@ -5229,7 +5241,7 @@
     "longitude": 2.174444,
     "borough": "Nou Barris",
     "neighborhood": "Vilapicina i la Torre Llobeta",
-    "capacity": 30
+    "capacity": 28
   },
   {
     "name": "PLA DE PALAU",
@@ -5241,7 +5253,7 @@
     "longitude": 2.183723,
     "borough": "Ciutat Vella",
     "neighborhood": "Sant Pere, Santa Caterina i la Ribera",
-    "capacity": 24
+    "capacity": 22
   },
   {
     "name": "C/ PALAUDÀRIES, 2",
@@ -5253,7 +5265,7 @@
     "longitude": 2.1730255457161096,
     "borough": "Sants-Montjuïc",
     "neighborhood": "el Poble-sec",
-    "capacity": 25
+    "capacity": 24
   },
   {
     "name": "C/ NÀPOLS, 82",
@@ -5265,7 +5277,7 @@
     "longitude": 2.1813305,
     "borough": "Eixample",
     "neighborhood": "el Fort Pienc",
-    "capacity": 24
+    "capacity": 23
   },
   {
     "name": "C/ VILAMARÍ, 85",
@@ -5289,7 +5301,7 @@
     "longitude": 2.1965965,
     "borough": "Sant Martí",
     "neighborhood": "la Vila Olímpica del Poblenou",
-    "capacity": 26
+    "capacity": 25
   },
   {
     "name": "AV. DIAGONAL, 650",
@@ -5301,7 +5313,7 @@
     "longitude": 2.1328634,
     "borough": "Les Corts",
     "neighborhood": "les Corts",
-    "capacity": 30
+    "capacity": 29
   },
   {
     "name": "PG. DE GRÀCIA, 89",
@@ -5313,7 +5325,7 @@
     "longitude": 2.1612814,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 28
+    "capacity": 30
   },
   {
     "name": "PG. UNIVERSAL, 29 | C/ DOCTOR LETAMENDI",
@@ -5337,7 +5349,7 @@
     "longitude": 2.1696469558196974,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 21
+    "capacity": 20
   },
   {
     "name": "AV. MERIDIANA, 71",
@@ -5349,7 +5361,7 @@
     "longitude": 2.1867650955645956,
     "borough": "Eixample",
     "neighborhood": "el Fort Pienc",
-    "capacity": 17
+    "capacity": 16
   },
   {
     "name": "GRAN VIA DE LES CORTS CATALANES, 902",
@@ -5361,7 +5373,7 @@
     "longitude": 2.1930174,
     "borough": "Sant Martí",
     "neighborhood": "Provençals del Poblenou",
-    "capacity": 14
+    "capacity": 12
   },
   {
     "name": "C/ CONSELL DE CENT, 482",
@@ -5373,7 +5385,7 @@
     "longitude": 2.1780175,
     "borough": "Eixample",
     "neighborhood": "el Fort Pienc",
-    "capacity": 25
+    "capacity": 27
   },
   {
     "name": "C/ SANCHO DE ÁVILA, 60-64",
@@ -5385,7 +5397,7 @@
     "longitude": 2.1902116,
     "borough": "Sant Martí",
     "neighborhood": "el Parc i la Llacuna del Poblenou",
-    "capacity": 26
+    "capacity": 25
   },
   {
     "name": "C/ MADRAZO, 39",
@@ -5397,7 +5409,7 @@
     "longitude": 2.149144,
     "borough": "Sarrià-Sant Gervasi",
     "neighborhood": "Sant Gervasi - Galvany",
-    "capacity": 20
+    "capacity": 21
   },
   {
     "name": "C/ PONTEVEDRA, 58B | C/ JUDICI",
@@ -5409,7 +5421,7 @@
     "longitude": 2.19067,
     "borough": "Ciutat Vella",
     "neighborhood": "la Barceloneta",
-    "capacity": 19
+    "capacity": 20
   },
   {
     "name": "C/ MADRAZO, 131",
@@ -5421,7 +5433,7 @@
     "longitude": 2.1445567,
     "borough": "Sarrià-Sant Gervasi",
     "neighborhood": "Sant Gervasi - Galvany",
-    "capacity": 26
+    "capacity": 27
   },
   {
     "name": "C/ SANT PERE D´ABANTO, 2",
@@ -5433,7 +5445,7 @@
     "longitude": 2.143565,
     "borough": "Sants-Montjuïc",
     "neighborhood": "Hostafrancs",
-    "capacity": 32
+    "capacity": 33
   },
   {
     "name": "C/ VILAMARÍ, 61",
@@ -5445,7 +5457,7 @@
     "longitude": 2.1490553,
     "borough": "Eixample",
     "neighborhood": "la Nova Esquerra de l'Eixample",
-    "capacity": 19
+    "capacity": 17
   },
   {
     "name": "PG. SANT ANTONI /PL. SANTS",
@@ -5457,7 +5469,7 @@
     "longitude": 2.1358571,
     "borough": "Sants-Montjuïc",
     "neighborhood": "Sants",
-    "capacity": 25
+    "capacity": 23
   },
   {
     "name": "RECINTE PARC DE LA CIUTADELLA",
@@ -5469,7 +5481,7 @@
     "longitude": 2.1875446,
     "borough": "Ciutat Vella",
     "neighborhood": "Sant Pere, Santa Caterina i la Ribera",
-    "capacity": 27
+    "capacity": 25
   },
   {
     "name": "RAMBLA FABRA I PUIG, 67",
@@ -5493,7 +5505,7 @@
     "longitude": 2.1801763,
     "borough": "Ciutat Vella",
     "neighborhood": "Sant Pere, Santa Caterina i la Ribera",
-    "capacity": 34
+    "capacity": 36
   },
   {
     "name": "PG. ZONA FRANCA, 9",
@@ -5541,7 +5553,7 @@
     "longitude": 2.1631263,
     "borough": "Eixample",
     "neighborhood": "l'Antiga Esquerra de l'Eixample",
-    "capacity": 25
+    "capacity": 24
   },
   {
     "name": "C/ PUJADES, 3",
@@ -5553,7 +5565,7 @@
     "longitude": 2.1874966,
     "borough": "Sant Martí",
     "neighborhood": "el Parc i la Llacuna del Poblenou",
-    "capacity": 24
+    "capacity": 23
   },
   {
     "name": "AV. LITORAL (PG MARÍTIM DEL PORT OLÍMPIC)",
@@ -5565,7 +5577,7 @@
     "longitude": 2.1993105,
     "borough": "Sant Martí",
     "neighborhood": "la Vila Olímpica del Poblenou",
-    "capacity": 25
+    "capacity": 27
   },
   {
     "name": "SELVA DE MAR / PG. DEL TAULAT",
@@ -5577,7 +5589,7 @@
     "longitude": 2.2135818,
     "borough": "Sant Martí",
     "neighborhood": "Diagonal Mar i el Front Marítim del Poblenou",
-    "capacity": 24
+    "capacity": 26
   },
   {
     "name": "GRAN VIA DE LES CORTS CATALANES, 368",
@@ -5589,7 +5601,7 @@
     "longitude": 2.1481993,
     "borough": "Sants-Montjuïc",
     "neighborhood": "el Poble-sec",
-    "capacity": 20
+    "capacity": 19
   },
   {
     "name": "C/ DOCTOR AIGUADER, 2",
@@ -5601,7 +5613,7 @@
     "longitude": 2.187093,
     "borough": "Ciutat Vella",
     "neighborhood": "la Barceloneta",
-    "capacity": 16
+    "capacity": 15
   },
   {
     "name": "C/ CARTAGENA, 308",
@@ -5613,7 +5625,7 @@
     "longitude": 2.1757334,
     "borough": "Eixample",
     "neighborhood": "la Sagrada Família",
-    "capacity": 14
+    "capacity": 15
   },
   {
     "name": "C/ ROCAFORT, 214 | C/ ROSSELLÓ",
@@ -5625,7 +5637,7 @@
     "longitude": 2.1454802,
     "borough": "Eixample",
     "neighborhood": "la Nova Esquerra de l'Eixample",
-    "capacity": 24
+    "capacity": 21
   },
   {
     "name": "C/ ARIZALA, 77",
@@ -5637,7 +5649,7 @@
     "longitude": 2.1233038,
     "borough": "Les Corts",
     "neighborhood": "la Maternitat i Sant Ramon",
-    "capacity": 32
+    "capacity": 33
   },
   {
     "name": "GRAN VIA DE LES CORTS CATALANES, 1157 (D)",
@@ -5649,7 +5661,7 @@
     "longitude": 2.20934,
     "borough": "Sant Martí",
     "neighborhood": "el Besòs i el Maresme",
-    "capacity": 53
+    "capacity": 52
   },
   {
     "name": "C/ ARAGÓ, 629",
@@ -5661,7 +5673,7 @@
     "longitude": 2.1884487,
     "borough": "Sant Martí",
     "neighborhood": "el Clot",
-    "capacity": 17
+    "capacity": 16
   },
   {
     "name": "AV. ESTADI, 12",
@@ -5673,7 +5685,7 @@
     "longitude": 2.1476099,
     "borough": "Sants-Montjuïc",
     "neighborhood": "el Poble-sec",
-    "capacity": 40
+    "capacity": 35
   },
   {
     "name": "C/ CARDENAL TEDESCHINI, 13",
@@ -5697,7 +5709,7 @@
     "longitude": 2.1345892,
     "borough": "Sarrià-Sant Gervasi",
     "neighborhood": "les Tres Torres",
-    "capacity": 32
+    "capacity": 31
   },
   {
     "name": "JARDINS DE CAN FERRERO/PG.DE LA ZONA FRANCA",
@@ -5709,7 +5721,7 @@
     "longitude": 2.141563,
     "borough": "Sants-Montjuïc",
     "neighborhood": "la Marina de Port",
-    "capacity": 32
+    "capacity": 30
   },
   {
     "name": "C/ SARDENYA, 66",
@@ -5721,7 +5733,7 @@
     "longitude": 2.189371,
     "borough": "Sant Martí",
     "neighborhood": "la Vila Olímpica del Poblenou",
-    "capacity": 26
+    "capacity": 24
   },
   {
     "name": "C/ PINTOR RIBALTA | AV. XILE",
@@ -5745,7 +5757,7 @@
     "longitude": 2.1518784156327353,
     "borough": "Horta-Guinardó",
     "neighborhood": "la Vall d'Hebron",
-    "capacity": 22
+    "capacity": 21
   },
   {
     "name": "C/ DOLORS BATLLE I SUNYER, 2",
@@ -5757,7 +5769,7 @@
     "longitude": 2.1407,
     "borough": "Sants-Montjuïc",
     "neighborhood": "Sants",
-    "capacity": 20
+    "capacity": 18
   },
   {
     "name": "PG. DE COLOM /VIA LAIETANA",
@@ -5769,7 +5781,7 @@
     "longitude": 2.1822815,
     "borough": "Ciutat Vella",
     "neighborhood": "el Barri Gòtic",
-    "capacity": 22
+    "capacity": 21
   },
   {
     "name": "C/ REUS, 23",
@@ -5781,7 +5793,7 @@
     "longitude": 2.134603,
     "borough": "Sarrià-Sant Gervasi",
     "neighborhood": "Sant Gervasi - la Bonanova",
-    "capacity": 21
+    "capacity": 19
   },
   {
     "name": "C/ HONDURAS, 32-34",
@@ -5793,7 +5805,7 @@
     "longitude": 2.1894852,
     "borough": "Sant Andreu",
     "neighborhood": "la Sagrera",
-    "capacity": 31
+    "capacity": 30
   },
   {
     "name": "AV. VALLCARCA, 196",
@@ -5805,7 +5817,7 @@
     "longitude": 2.1421504,
     "borough": "Gràcia",
     "neighborhood": "Vallcarca i els Penitents",
-    "capacity": 26
+    "capacity": 27
   },
   {
     "name": "C/ ROSSELLÓ, 101",
@@ -5817,7 +5829,7 @@
     "longitude": 2.149131,
     "borough": "Eixample",
     "neighborhood": "la Nova Esquerra de l'Eixample",
-    "capacity": 23
+    "capacity": 21
   },
   {
     "name": "RBLA MUNTANYA, 49",
@@ -5829,7 +5841,7 @@
     "longitude": 2.1768396,
     "borough": "Horta-Guinardó",
     "neighborhood": "el Guinardó",
-    "capacity": 35
+    "capacity": 34
   },
   {
     "name": "C/ JOAN D'ÀUSTRIA, 31B",
@@ -5841,7 +5853,7 @@
     "longitude": 2.1925059,
     "borough": "Sant Martí",
     "neighborhood": "la Vila Olímpica del Poblenou",
-    "capacity": 26
+    "capacity": 25
   },
   {
     "name": "BAIXADA DE LA PLANA, 35",
@@ -5853,7 +5865,7 @@
     "longitude": 2.159081109123213,
     "borough": "Horta-Guinardó",
     "neighborhood": "Horta",
-    "capacity": 31
+    "capacity": 30
   },
   {
     "name": "C/ ELISA, 1",
@@ -5889,7 +5901,7 @@
     "longitude": 2.1812483,
     "borough": "Eixample",
     "neighborhood": "el Fort Pienc",
-    "capacity": 19
+    "capacity": 18
   },
   {
     "name": "AV. PARAL.LEL, 194",
@@ -5925,7 +5937,7 @@
     "longitude": 2.1468644,
     "borough": "Sarrià-Sant Gervasi",
     "neighborhood": "Sant Gervasi - Galvany",
-    "capacity": 23
+    "capacity": 22
   },
   {
     "name": "C/ SANT ADRIÀ, 43",
@@ -5937,7 +5949,7 @@
     "longitude": 2.1948002,
     "borough": "Sant Andreu",
     "neighborhood": "el Bon Pastor",
-    "capacity": 21
+    "capacity": 22
   },
   {
     "name": "C/ SANT ANTONI MARIA CLARET, 214",
@@ -5961,7 +5973,7 @@
     "longitude": 2.170592,
     "borough": "Horta-Guinardó",
     "neighborhood": "el Baix Guinardó",
-    "capacity": 30
+    "capacity": 29
   },
   {
     "name": "C/ PROVENÇA, 388-390",
@@ -5973,7 +5985,7 @@
     "longitude": 2.169941,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 18
+    "capacity": 21
   },
   {
     "name": "RONDA DE SANT PAU, 51",
@@ -6021,7 +6033,7 @@
     "longitude": 2.1913753,
     "borough": "Sant Andreu",
     "neighborhood": "la Sagrera",
-    "capacity": 24
+    "capacity": 27
   },
   {
     "name": "C/ DOCTOR SALVADOR CARDENAL, 1-5",
@@ -6045,7 +6057,7 @@
     "longitude": 2.1649035,
     "borough": "Gràcia",
     "neighborhood": "el Camp d'en Grassot i Gràcia Nova",
-    "capacity": 18
+    "capacity": 16
   },
   {
     "name": "C/ PROVENÇA, 322",
@@ -6057,7 +6069,7 @@
     "longitude": 2.1646338,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 15
+    "capacity": 16
   },
   {
     "name": "PG. ZONA FRANCA, 244",
@@ -6069,7 +6081,7 @@
     "longitude": 2.1369015,
     "borough": "Sants-Montjuïc",
     "neighborhood": "la Marina de Port",
-    "capacity": 14
+    "capacity": 13
   },
   {
     "name": "C/ GALLEGO, 2",
@@ -6093,7 +6105,7 @@
     "longitude": 2.1606506,
     "borough": "Eixample",
     "neighborhood": "Sant Antoni",
-    "capacity": 26
+    "capacity": 25
   },
   {
     "name": "PG. TORRAS I BAGES, 129",
@@ -6117,7 +6129,7 @@
     "longitude": 2.1476169,
     "borough": "Sants-Montjuïc",
     "neighborhood": "la Marina de Port",
-    "capacity": 20
+    "capacity": 21
   },
   {
     "name": "GRAN VIA DE LES CORTS CATALANES, 1131",
@@ -6141,7 +6153,7 @@
     "longitude": 2.1907524,
     "borough": "Sant Martí",
     "neighborhood": "el Clot",
-    "capacity": 26
+    "capacity": 20
   },
   {
     "name": "C/ ROGER DE FLOR, 126",
@@ -6153,7 +6165,7 @@
     "longitude": 2.1771985,
     "borough": "Eixample",
     "neighborhood": "el Fort Pienc",
-    "capacity": 28
+    "capacity": 26
   },
   {
     "name": "C/ VALLESPIR, 130",
@@ -6165,7 +6177,7 @@
     "longitude": 2.1354149,
     "borough": "Les Corts",
     "neighborhood": "les Corts",
-    "capacity": 23
+    "capacity": 24
   },
   {
     "name": "C/ QUETZAL, 22-24",
@@ -6213,7 +6225,7 @@
     "longitude": 2.1559939,
     "borough": "Eixample",
     "neighborhood": "la Nova Esquerra de l'Eixample",
-    "capacity": 26
+    "capacity": 25
   },
   {
     "name": "C/ VILARDELL, 18",
@@ -6225,7 +6237,7 @@
     "longitude": 2.1422556,
     "borough": "Sants-Montjuïc",
     "neighborhood": "Hostafrancs",
-    "capacity": 27
+    "capacity": 31
   },
   {
     "name": "RDA. DE SANT PERE, 26",
@@ -6237,7 +6249,7 @@
     "longitude": 2.17425,
     "borough": "Eixample",
     "neighborhood": "la Dreta de l'Eixample",
-    "capacity": 20
+    "capacity": 19
   },
   {
     "name": "C/ 60, NÚMERO 25",
@@ -6261,7 +6273,7 @@
     "longitude": 2.16113608,
     "borough": "Eixample",
     "neighborhood": "Sant Antoni",
-    "capacity": 22
+    "capacity": 21
   },
   {
     "name": "PG. DE L´EXPOSICIÓ, 34",
@@ -6273,7 +6285,7 @@
     "longitude": 2.162203,
     "borough": "Sants-Montjuïc",
     "neighborhood": "el Poble-sec",
-    "capacity": 23
+    "capacity": 21
   },
   {
     "name": "RAMBLA DEL RAVAL, 20",
@@ -6285,7 +6297,7 @@
     "longitude": 2.1696744,
     "borough": "Ciutat Vella",
     "neighborhood": "el Raval",
-    "capacity": 26
+    "capacity": 25
   },
   {
     "name": "PL. CARLES PI I SUNYER",
@@ -6297,7 +6309,7 @@
     "longitude": 2.174016,
     "borough": "Ciutat Vella",
     "neighborhood": "el Barri Gòtic",
-    "capacity": 20
+    "capacity": 21
   },
   {
     "name": "PL. POETA BOSCÀ | C/ ATLÀNTIDA",
@@ -6309,7 +6321,7 @@
     "longitude": 2.189906,
     "borough": "Ciutat Vella",
     "neighborhood": "la Barceloneta",
-    "capacity": 20
+    "capacity": 21
   },
   {
     "name": "GRAN VIA DE LES CORTS CATALANES, 1118",
@@ -6321,7 +6333,7 @@
     "longitude": 2.2058345,
     "borough": "Sant Martí",
     "neighborhood": "Provençals del Poblenou",
-    "capacity": 16
+    "capacity": 18
   },
   {
     "name": "C/ ALFAMBRA, 2 | AV. DIAGONAL",
@@ -6333,7 +6345,7 @@
     "longitude": 2.113096,
     "borough": "Les Corts",
     "neighborhood": "Pedralbes",
-    "capacity": 24
+    "capacity": 25
   },
   {
     "name": "C/ LLOBREGÓS, 115",
@@ -6345,7 +6357,7 @@
     "longitude": 2.1570492,
     "borough": "Horta-Guinardó",
     "neighborhood": "el Carmel",
-    "capacity": 27
+    "capacity": 26
   },
   {
     "name": "C/ MARROC, 103",
@@ -6369,7 +6381,7 @@
     "longitude": 2.141767,
     "borough": "Sants-Montjuïc",
     "neighborhood": "Sants",
-    "capacity": 20
+    "capacity": 18
   },
   {
     "name": "PL. CATALUNYA, 5",
@@ -6393,7 +6405,7 @@
     "longitude": 2.138931,
     "borough": "Sants-Montjuïc",
     "neighborhood": "la Marina de Port",
-    "capacity": 35
+    "capacity": 34
   },
   {
     "name": "C/ RAMON TRIAS FARGAS, 21",
@@ -6405,7 +6417,7 @@
     "longitude": 2.1904003,
     "borough": "Sant Martí",
     "neighborhood": "la Vila Olímpica del Poblenou",
-    "capacity": 46
+    "capacity": 45
   },
   {
     "name": "C/ GELABERT, 1",
@@ -6441,7 +6453,7 @@
     "longitude": 2.1748621,
     "borough": "Ciutat Vella",
     "neighborhood": "el Raval",
-    "capacity": 23
+    "capacity": 22
   },
   {
     "name": "C/ JORGE MANRIQUE, 15",
@@ -6465,7 +6477,7 @@
     "longitude": 2.1440826,
     "borough": "Sarrià-Sant Gervasi",
     "neighborhood": "Sant Gervasi - Galvany",
-    "capacity": 25
+    "capacity": 27
   },
   {
     "name": "C/ NOVA BOCANA",
@@ -6477,7 +6489,7 @@
     "longitude": 2.1878126,
     "borough": "Ciutat Vella",
     "neighborhood": "la Barceloneta",
-    "capacity": 29
+    "capacity": 28
   },
   {
     "name": "C/ FERNANDO PESSOA, 41",
@@ -6525,6 +6537,6 @@
     "longitude": 2.2053803,
     "borough": "Sant Martí",
     "neighborhood": "el Poblenou",
-    "capacity": 25
+    "capacity": 26
   }
 ]
