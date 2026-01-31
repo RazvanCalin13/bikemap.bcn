@@ -2,14 +2,14 @@
 
 [bikemap.bcn](https://bikemap.bcn) is a visualization of the [Bicing](https://www.bicing.barcelona/) bike-sharing system in Barcelona, Spain. 
 
-Each moving arrow represents a real bike ride, based on anonymized historical system data (processed into parquets).
+The application visualizes historical station occupancy and status data.
 
 ## Features
-- **GPU-accelerated rendering** of thousands of concurrent rides
-- **Natural language date parsing** to jump to any moment in history
-- **Search** for individual rides by date and station name
-- **Full keyboard controls** for playback and navigation
-- **Coverage** of Bicing's modern era (2019-present)
+- **Historical Station Status**: View bike and dock availability over time.
+- **Natural language date parsing** to jump to any moment in history.
+- **Station Search**: Find specific stations by name or neighborhood.
+- **Full keyboard controls** for playback and navigation.
+- **Coverage** of Bicing's modern era (2019-present).
 
 ---
 
@@ -18,13 +18,12 @@ Each moving arrow represents a real bike ride, based on anonymized historical sy
 There is no traditional backend. The client uses [DuckDB WASM](https://duckdb.org/docs/api/wasm/overview.html) to query parquet files using SQL directly from a CDN, downloading only the rows it needs via HTTP range requests.
 
 ### Data Flow
-1. **Raw Data**: Anonymized trip data from [Open Data BCN](https://opendata-ajuntament.barcelona.cat/).
+1. **Raw Data**: Anonymized station status data from [Open Data BCN](https://opendata-ajuntament.barcelona.cat/).
 2. **Processing Pipeline**: 
-   - **Station Clustering**: Unifies station names and coordinates.
-   - **Parquet Export**: Generates daily parquet files.
+   - **Parquet Export**: Generates daily parquet files containing station status.
 3. **Client**: 
    - Queries parquets limits via DuckDB WASM.
-   - Decodes geometries and animates rides using deck.gl.
+   - Visualizes station availability using deck.gl.
 
 ---
 
@@ -46,10 +45,10 @@ NEXT_PUBLIC_MAPBOX_TOKEN=pk.xxx  # Get one at https://mapbox.com
 ```bash
 bun dev
 ```
-> **Note**: If you see a `TurbopackInternalError` (common on Windows), use Webpack:
-> ```bash
-> bun run dev -- --webpack
-> ```
+ **Note**: If you see a `TurbopackInternalError` (common on Windows), use Webpack:
+ ```bash
+ bun run dev -- --webpack
+ ```
 
 Open [http://localhost:3000](http://localhost:3000) to view the app.
 
@@ -62,7 +61,6 @@ If you want to generate your own data tiles or run the processing scripts, you n
 
 ### Prerequisites
 - [Bun](https://bun.sh/) v1.2.9+
-- [Docker](https://www.docker.com/) (for OSRM routing server)
 - `wget` or `curl`
 
 ### 1. Run Processing Scripts
@@ -74,8 +72,8 @@ cd packages/processing
 # 1. Update station list from live API
 bun run fetch-bicing-stations.ts
 
-# 2. Build trips parquet
-bun run build-parquet.ts
+# 2. Build occupancy parquets
+bun run build-occupancy.ts
 ```
 
 ### Outputs
@@ -88,8 +86,6 @@ To update the dataset (e.g., removing months, adding others):
 1. **Update CSVs**: Add or remove `.csv` files in the **project root** `data/` directory.
 2. **Clean Output**: Delete old files in `packages/processing/output/parquets` (if the folder exists) to prevent stale data from persisting.
 3. **Run Pipeline**:
-
-   **Option A: Updating Station Status (Occupancy)**
    *For `..._ESTACIONS.csv` files*
    ```bash
    cd packages/processing
@@ -100,19 +96,6 @@ To update the dataset (e.g., removing months, adding others):
    # 2. Build occupancy parquets
    bun run build-occupancy.ts
    ```
-
-   **Option B: Updating Trip History**
-   *For Trip CSV files (with start/end stations)*
-   ```bash
-   cd packages/processing
-
-   # 1. Update station list
-   bun run fetch-bicing-stations.ts
-
-   # 2. Build trip parquets
-   bun run build-parquet.ts
-   ```
-
 
 ---
 
@@ -132,16 +115,16 @@ size scales with absolute bike availability.
 **Parquet Schema**:
 | Column | Type | Description |
 |--------|------|-------------|
-| `id` | string | Trip ID |
-| `startStationName` | string | Canonical station name |
-| `startedAt` | timestamp | Trip start (UTC) |
-
-| ... | ... | See `packages/processing/README.md` history for full details |
+| `station_id` | integer | Station ID |
+| `bikes` | integer | Available bikes |
+| `docks` | integer | Available docks |
+| `status` | string | Station status |
+| `last_reported` | timestamp | Report time (UTC) |
 
 **Timezone Handling**:
 - **Raw CSV**: NYC/Local (naive)
 - **Parquet**: UTC
-- **Client Display**: Configured to "America/New_York" or relevant local time in formatters.
+- **Client Display**: Configured to "Europe/Madrid" or relevant local time in formatters.
 
 **Legacy vs Modern Data**:
 The pipeline unifies legacy (2013-2019) and modern (2020+) Bicing data formats by keying everything on **Station Names** (mapped via aliases) rather than IDs, which have changed over time.

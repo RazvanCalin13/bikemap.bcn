@@ -2,20 +2,6 @@
 import { DATA_END_DATE, DATA_START_DATE } from "@/lib/config";
 import * as duckdb from "@duckdb/duckdb-wasm";
 
-export interface Trip {
-  id: string;
-  startStationName: string;
-  endStationName: string;
-  startedAt: Date;
-  endedAt: Date;
-  bikeType: string;
-  memberCasual: string;
-  startLat: number;
-  startLng: number;
-  endLat: number | null;
-  endLng: number | null;
-}
-
 export interface StationStatus {
   station_id: number;
   bikes: number;
@@ -272,34 +258,6 @@ class DuckDBService {
       is_charging: Boolean(row.is_charging),
       status: String(row.status)
     }));
-  }
-
-  /**
-   * Get trips starting from a specific station within a time window.
-   */
-  async getTripsFromStation(filter: { startStationName: string, datetime: Date, intervalMs: number }): Promise<Trip[]> {
-    // TODO: Implement actual trip querying when trip data is available.
-    // Currently we only have station status data.
-    console.warn("[DuckDB] getTripsFromStation called but no trip data available.");
-    return [];
-  }
-
-  /**
-   * Get trips that start within a given time range.
-   */
-  async getTripsInRange(filter: { from: Date; to: Date }): Promise<any[]> {
-    // TODO: Implement actual trip querying when trip data is available.
-    console.warn("[DuckDB] getTripsInRange called but no trip data available.");
-    return [];
-  }
-
-  /**
-   * Get trips that were already in progress at chunkStart but end before/after/at chunkEnd.
-   */
-  async getTripsOverlap(filter: { chunkStart: Date; chunkEnd: Date }): Promise<any[]> {
-    // TODO: Implement actual trip querying when trip data is available.
-    console.warn("[DuckDB] getTripsOverlap called but no trip data available.");
-    return [];
   }
 
   /** Calculate system-wide stats (total parked, total docks) for a given time */

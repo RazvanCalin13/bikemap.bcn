@@ -1,7 +1,7 @@
 "use client";
 
 import { Kbd } from "@/components/ui/kbd";
-import { COLORS, DEFAULT_SPEEDUP, SIM_BATCH_SIZE_MS } from "@/lib/config";
+import { COLORS, DEFAULT_SPEEDUP } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
 import { motion } from "motion/react";
@@ -142,10 +142,7 @@ export default function AboutPage() {
           </p>
 
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-            <LegendItem color={COLORS.electric} label="E-bike" />
-            <LegendItem color={COLORS.classic} label="Classic bike" />
-            <LegendItem color={COLORS.fadeIn} label="Bike unlocked" showTrailOnHover={false} glowIntensity="intense" />
-            <LegendItem color={COLORS.fadeOut} label="Bike docked" showTrailOnHover={false} glowIntensity="intense" />
+            {/* Legend for station status is shown on the map */}
           </div>
 
           <hr className="border-white/10" />
@@ -159,15 +156,11 @@ export default function AboutPage() {
             </li>
             <li>
               <span className="font-medium text-zinc-300">GPU rendering</span> —
-              Deck.gl is cracked and makes it possible to render thousands of concurrent bikes with the GPU.
+              Deck.gl renders the station status visualization efficiently.
             </li>
             <li>
-              <span className="font-medium text-zinc-300">Worker threads</span> —
-              Heavy precomputation is done on Web Workers to offload CPU load from the JS main thread.
-            </li>
-            <li>
-              <span className="font-medium text-zinc-300">Continuous streaming</span> —
-              Trips load incrementally and invisibly in {SIM_BATCH_SIZE_MS / 60000}-minute batches.
+              <span className="font-medium text-zinc-300">Efficient Loading</span> —
+              Data is loaded incrementally to minimize bandwidth.
             </li>
           </ul>
 

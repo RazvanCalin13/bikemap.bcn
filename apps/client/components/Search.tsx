@@ -1,43 +1,29 @@
-"use client"
+"use client";
+
 import { EBike } from "@/components/icons/Ebike"
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command"
 import { EnterHint, Kbd } from "@/components/ui/kbd"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { DATA_END_DATE, DATA_START_DATE, REAL_FADE_DURATION_MS } from "@/lib/config"
-import { formatDateTime, formatDateTimeFull, formatDateTimeShort, formatDistance, formatDurationMinutes, formatTimeRange } from "@/lib/format"
+import { DATA_END_DATE, DATA_START_DATE } from "@/lib/config"
+import { formatDateTime, formatDateTimeShort, formatDistance } from "@/lib/format"
 import { useAnimationStore } from "@/lib/stores/animation-store"
 import { usePickerStore } from "@/lib/stores/location-picker-store"
 import { useSearchStore } from "@/lib/stores/search-store"
 import { useMapStore } from "@/lib/stores/map-store"
 import { useStationsStore, type Station } from "@/lib/stores/stations-store"
-import { filterTrips } from "@/lib/trip-filters"
 import { cn } from "@/lib/utils"
-import { duckdbService } from "@/services/duckdb-service"
 import distance from "@turf/distance"
 import { point } from "@turf/helpers"
 import * as chrono from "chrono-node"
 import { Fzf } from "fzf"
-import { ArrowLeft, ArrowRight, Bike, CalendarSearch, History, Loader2, MapPin, Search as SearchIcon } from "lucide-react"
+import { ArrowLeft, ArrowRight, Bike, CalendarSearch, History, MapPin, Search as SearchIcon } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
 import React from "react"
 import dataManifest from "@/lib/data-manifest.json"
 
 type SearchMode = "ride" | "time"
 
-/** ± 30 minutes search window around the selected time */
-const SEARCH_WINDOW_MS = 30 * 60 * 1000
-
 type StationWithDistance = Station & { distance: number }
-
-type Trip = {
-  id: string
-  startStationName: string
-  endStationName: string
-  startedAt: Date
-  endedAt: Date
-  bikeType: string
-  memberCasual: string
-}
 
 const MAX_RESULTS = 15
 
@@ -51,9 +37,6 @@ export function Search() {
   // Multi-step flow state
   const [selectedStation, setSelectedStation] = React.useState<Station | null>(null)
   const [datetimeInput, setDatetimeInput] = React.useState("")
-  const [trips, setTrips] = React.useState<Trip[]>([])
-  const [resultsSearch, setResultsSearch] = React.useState("")
-  const [isLoadingTrips, setIsLoadingTrips] = React.useState(false)
 
   // History navigation state
   const [historyIndex, setHistoryIndex] = React.useState(-1)
@@ -61,7 +44,7 @@ export function Search() {
 
   const { pickedLocation, startPicking } = usePickerStore()
   const { animationStartDate, simCurrentTimeMs } = useAnimationStore()
-  const { stations, getStation, load: loadStations } = useStationsStore()
+  const { stations, load: loadStations } = useStationsStore()
   const { triggerFlyTo } = useMapStore()
 
   const formattedMonths = React.useMemo(() => {
@@ -108,14 +91,6 @@ export function Search() {
     if (step === "station") {
       e.preventDefault()
       setStep("datetime")
-      setSearch("")
-      focusInput()
-    } else if (step === "results") {
-      e.preventDefault()
-      setStep("station")
-      setSelectedStation(null)
-      setTrips([])
-      setResultsSearch("")
       setSearch("")
       focusInput()
     }
@@ -168,7 +143,6 @@ export function Search() {
       setSelectedStation(null)
       setDatetimeInput("")
       setSearch("")
-      setTrips([])
       setHistoryIndex(-1)
       setSavedInput("")
     }
@@ -260,21 +234,6 @@ export function Search() {
     return getMergedMatches(query).slice(0, MAX_RESULTS)
   }, [stations, search, datetimeInput, step, nameFzf, neighborhoodFzf, aliasFzf, pickedLocation])
 
-  // Filter trips by end station name + neighborhood
-  const filteredTrips = React.useMemo(() => {
-    const query = resultsSearch.trim()
-    if (!query) return trips
-
-    const tripFzf = new Fzf(trips, {
-      selector: (trip) => {
-        const endStation = getStation(trip.endStationName)
-        return `${endStation.name} ${endStation.neighborhood}`
-      },
-    })
-
-    return tripFzf.find(query).map((r) => r.item)
-  }, [trips, resultsSearch, getStation])
-
   const handlePickFromMap = () => {
     close()
     startPicking()
@@ -282,10 +241,6 @@ export function Search() {
 
 
   const handleSelectStation = async (station: Station | StationWithDistance) => {
-    // If no date is parsed (e.g. in "Find station" mode), we'll use realCurrentTimeMs
-    // so we don't throw an error here.
-    const effectiveDate = parsedDate || realCurrentTimeMs
-
     // Zoom to station
     triggerFlyTo({
       latitude: station.latitude,
@@ -294,45 +249,7 @@ export function Search() {
       stationName: station.name
     })
 
-    // If in "Find station" mode, close immediately
-    if (mode === "ride") {
-      close()
-      return
-    }
-
-    // Optimistically transition to results step
-    setSelectedStation(station)
-    setTrips([]) // Clear previous results
-    setSearch("") // Clear search input
-    setResultsSearch("") // Clear results search for fresh input
-    setStep("results")
-    setIsLoadingTrips(true)
-    // Focus will be called after component updates
-    setTimeout(() => {
-      const input = document.querySelector<HTMLInputElement>('[cmdk-input]')
-      input?.focus()
-    }, 0)
-
-    try {
-      // Initialize DuckDB if not already done
-      await duckdbService.init()
-
-      const rawTrips = await duckdbService.getTripsFromStation({
-        startStationName: station.name,
-        datetime: parsedDate || realCurrentTimeMs,
-        intervalMs: SEARCH_WINDOW_MS,
-      })
-
-      // Filter trips (must have route, valid speed, etc.)
-      const filtered = filterTrips(rawTrips)
-      console.log("Trips from station:", filtered)
-      setTrips(filtered)
-    } catch (error) {
-      console.error("Failed to load trips:", error)
-      // Keep trips as empty array on error
-    } finally {
-      setIsLoadingTrips(false)
-    }
+    close()
   }
 
   // Focus the command input after step transitions
@@ -347,16 +264,6 @@ export function Search() {
   const handleBackToDatetime = () => {
     setStep("datetime")
     setSearch("")
-    focusInput()
-  }
-
-  // From results step, go back to station step
-  const handleBackToStation = () => {
-    setStep("station")
-    setSelectedStation(null)
-    setTrips([])
-    setResultsSearch("")
-    setSearch("") // Clear station search for fresh input
     focusInput()
   }
 
@@ -410,38 +317,6 @@ export function Search() {
   const handleDatetimeChange = (value: string) => {
     setDatetimeInput(value)
     setHistoryIndex(-1)
-  }
-
-  const handleSelectTrip = (trip: Trip) => {
-    const { setAnimationStartDate, selectTrip, speedup } = useAnimationStore.getState()
-
-    // Start animation at fade-in time (accounting for speedup)
-    const realStartTimeMs = new Date(new Date(trip.startedAt).getTime() - REAL_FADE_DURATION_MS * speedup)
-    setAnimationStartDate(realStartTimeMs)
-
-    const endStation = getStation(trip.endStationName)
-    if (!selectedStation) {
-      throw new Error(`No station selected`)
-    }
-
-    // Select the trip - BikeMap will render it once trips load
-    selectTrip({
-      id: trip.id,
-      info: {
-        id: trip.id,
-        bikeType: trip.bikeType,
-        memberCasual: trip.memberCasual,
-        startStationName: selectedStation.name,
-        endStationName: endStation.name,
-        startNeighborhood: selectedStation.neighborhood,
-        endNeighborhood: endStation.neighborhood,
-        startedAt: trip.startedAt,
-        endedAt: trip.endedAt,
-      },
-    })
-
-    // Close dialog
-    handleOpenChange(false)
   }
 
   // Render datetime step (first step - no station selected yet)
@@ -630,130 +505,6 @@ export function Search() {
               ))}
             </CommandGroup>
           )}
-        </CommandList>
-      </CommandDialog>
-    )
-  }
-
-  // Render results step
-  if (step === "results" && selectedStation) {
-    return (
-      <CommandDialog open={isOpen} onOpenChange={handleOpenChange} onEscapeKeyDown={handleEscapeKeyDown} className="sm:max-w-xl" shouldFilter={false}>
-        <div className="flex items-center gap-2 border-b px-3 py-2 min-w-0 pr-10">
-          <button
-            onClick={handleBackToStation}
-            className="text-muted-foreground hover:text-foreground shrink-0"
-          >
-            <ArrowLeft className="size-4" />
-          </button>
-          <span className="font-medium truncate">{selectedStation.name}</span>
-          <AnimatePresence mode="wait">
-            {isLoadingTrips ? (
-              <motion.div
-                key="loading-spinner"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-              >
-                <Loader2 className="size-4 animate-spin text-muted-foreground shrink-0" />
-              </motion.div>
-            ) : (
-              <motion.span
-                key="trip-count"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-muted-foreground shrink-0"
-              >
-                · {trips.length} ride{trips.length !== 1 ? "s" : ""}
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </div>
-        <CommandInput
-          autoFocus
-          placeholder="Search end station..."
-          value={resultsSearch}
-          onValueChange={setResultsSearch}
-        />
-        <CommandList className="max-h-[500px]">
-          <AnimatePresence mode="wait">
-            {/* Empty state - no results after loading */}
-            {!isLoadingTrips && trips.length === 0 && (
-              <motion.div
-                key="empty"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="py-6 text-center text-sm text-muted-foreground"
-              >
-                No rides found.
-              </motion.div>
-            )}
-
-            {/* Results - show filtered trips */}
-            {!isLoadingTrips && filteredTrips.length > 0 && (
-              <motion.div
-                key="results-list"
-                initial={{ opacity: 0, filter: "blur(4px)" }}
-                animate={{ opacity: 1, filter: "blur(0px)" }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-              >
-                <CommandGroup>
-                  {filteredTrips.slice(0, MAX_RESULTS).map((trip, index) => (
-                    <motion.div
-                      key={trip.id}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.25, ease: "easeOut", delay: index * 0.05 }}
-                    >
-                      <CommandItem value={trip.id} onSelect={() => handleSelectTrip(trip)}>
-                        <div className="flex items-center gap-3 w-full">
-                          {trip.bikeType === "electric_bike" ? (
-                            <EBike className="size-8 text-[#7DCFFF] shrink-0" />
-                          ) : (
-                            <Bike className="size-8 text-[#BB9AF7] shrink-0" />
-                          )}
-                          <div className="flex flex-col shrink-0 pr-4">
-                            <span className="font-medium whitespace-nowrap">
-                              {trip.bikeType === "electric_bike" ? "E-Bike" : "Bike"} ride · {formatDurationMinutes(trip.startedAt, trip.endedAt)}
-                            </span>
-                            <span className="text-sm text-muted-foreground whitespace-nowrap">
-                              <span className="hidden sm:inline">
-                                {formatDateTimeFull({ startDate: trip.startedAt, endDate: trip.endedAt })}
-                              </span>
-                              <span className="sm:hidden">
-                                {formatTimeRange(trip.startedAt, trip.endedAt)}
-                              </span>
-                            </span>
-                          </div>
-                          <div className="ml-auto flex flex-col items-end min-w-0">
-                            <span className="text-zinc-100 font-normal truncate max-w-full">
-                              {getStation(trip.endStationName).name}
-                            </span>
-                            <span className="text-sm text-muted-foreground truncate max-w-full">
-                              {getStation(trip.endStationName).neighborhood}
-                            </span>
-                          </div>
-                        </div>
-                      </CommandItem>
-                    </motion.div>
-                  ))}
-                </CommandGroup>
-              </motion.div>
-            )}
-
-            {/* Filtered empty state - has trips but filter returned nothing */}
-            {!isLoadingTrips && trips.length > 0 && filteredTrips.length === 0 && (
-              <motion.div
-                key="filtered-empty"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="py-6 text-center text-sm text-muted-foreground"
-              >
-                No results found.
-              </motion.div>
-            )}
-          </AnimatePresence>
         </CommandList>
       </CommandDialog>
     )

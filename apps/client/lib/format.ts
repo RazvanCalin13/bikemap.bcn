@@ -23,11 +23,7 @@ export function formatDistance(meters: number): string {
 // Duration Formatting
 // =============================================================================
 
-export function formatDurationMinutes(startedAt: Date, endedAt: Date): string {
-  const ms = endedAt.getTime() - startedAt.getTime();
-  const minutes = Math.round(ms / 60000);
-  return `${minutes} min${minutes !== 1 ? "s" : ""}`;
-}
+// Removed formatDurationMinutes (trip logic removed)
 
 // =============================================================================
 // Date/Time Formatting
@@ -153,15 +149,9 @@ export function formatDateShort(ms: number): string {
 // Speed Formatting
 // =============================================================================
 
-export function formatSpeedKmh(data: {
-  distanceMeters: number;
-  startedAt: Date;
-  endedAt: Date;
-}): string {
-  const km = data.distanceMeters / 1000;
-  const hours = (data.endedAt.getTime() - data.startedAt.getTime()) / 3600000;
-  const kmh = km / hours;
-  return `${kmh.toFixed(1)} km/h`;
+export function formatSpeedKmh(data: any): string {
+  // Deprecated/Removed
+  return "";
 }
 
 // =============================================================================

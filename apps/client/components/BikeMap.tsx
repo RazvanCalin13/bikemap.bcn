@@ -5,7 +5,6 @@ import {
   COLORS,
   INITIAL_VIEW_STATE,
   REAL_MAX_FRAME_DELTA_MS,
-  SIM_CHUNK_SIZE_MS,
 } from "@/lib/config";
 import { createThrottledSampler } from "@/lib/misc";
 import { useAnimationStore } from "@/lib/stores/animation-store";
@@ -104,9 +103,6 @@ export const BikeMap = () => {
   }, [flyToTrigger, flyToTarget]);
 
   // Actions
-  const setIsLoadingTrips = useAnimationStore((s) => s.setIsLoadingTrips);
-  const setLoadError = useAnimationStore((s) => s.setLoadError);
-
   const { stations, load: loadStations } = useStationsStore();
   const { open: openSearch } = useSearchStore();
 
@@ -218,9 +214,6 @@ export const BikeMap = () => {
   useEffect(() => {
     const init = async () => {
       try {
-        setIsLoadingTrips(true);
-        setLoadError(null);
-
         // Parallel init
         await Promise.all([
           loadStations(),
@@ -230,16 +223,12 @@ export const BikeMap = () => {
         // Initial Data Fetch
         const initialStatuses = await duckdbService.getStationStatus(animationStartDate);
         setStationStatuses(initialStatuses);
-
-        setIsLoadingTrips(false);
       } catch (err) {
         console.error("Initialization error:", err);
-        setLoadError(err instanceof Error ? err.message : "Failed to initialize map data");
-        setIsLoadingTrips(false);
       }
     };
     init();
-  }, [animationStartDate, loadStations, setIsLoadingTrips, setLoadError]);
+  }, [animationStartDate, loadStations]);
 
   // Reveal stations one by one
   useEffect(() => {
