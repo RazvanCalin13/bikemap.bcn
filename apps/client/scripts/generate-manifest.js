@@ -11,8 +11,8 @@ const monthNames = [
 
 try {
     if (!fs.existsSync(dataDir)) {
-        console.warn("Data directory not found:", dataDir);
-        fs.writeFileSync(outputFile, JSON.stringify({ months: [] }, null, 2));
+        console.warn("Data directory not found, skipping manifest generation:", dataDir);
+        // Do not overwrite with empty manifest if data is missing during build (e.g. on CI/Live)
         process.exit(0);
     }
 

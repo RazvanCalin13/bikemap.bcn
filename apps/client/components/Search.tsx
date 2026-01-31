@@ -81,9 +81,10 @@ export function Search() {
     // Check bounds
     if (parsedDate < DATA_START_DATE || parsedDate > DATA_END_DATE) return true
 
-    // Check if month exists in manifest
+    // Check if month exists in manifest - only if manifest is not empty
+    const availableMonths = dataManifest.months as string[]
     const monthName = parsedDate.toLocaleString('en-US', { month: 'long' })
-    if (!(dataManifest.months as string[]).includes(monthName)) return true
+    if (availableMonths.length > 0 && !availableMonths.includes(monthName)) return true
 
     return false
   }, [parsedDate])
