@@ -5,7 +5,7 @@
 import { Color, MapViewState } from "@deck.gl/core";
 
 // Default animation start date (Barcelona time)
-export const DEFAULT_ANIMATION_START_DATE = new Date("2025-01-01T09:41:00+01:00"); // CET
+export const DEFAULT_ANIMATION_START_DATE = new Date(); // Start at current time (Live)
 
 // Valid data range for Bicing data (Barcelona time)
 // Modern Bicing (Smou) started around 2019
@@ -13,14 +13,15 @@ export const DATA_START_DATE = new Date("2019-01-01T00:00:00+01:00"); // CET
 export const DATA_END_DATE = new Date("2026-12-31T23:59:59+01:00");   // CET
 
 // Default speedup multiplier for animation
-export const DEFAULT_SPEEDUP = 300; // 5 minutes per second (300x)
+export const DEFAULT_SPEEDUP = 1; // Real-time (1x)
 
 // Playback speed levels (simulation milliseconds per real second)
+// 1 = Real-time
 // 300 = 5 min/s
 // 900 = 15 min/s
 // 3600 = 1 hour/s
 // 14400 = 4 hours/s
-export const SPEED_LEVELS = [300, 900, 3600, 14400];
+export const SPEED_LEVELS = [1, 300, 900, 3600, 14400];
 
 // =============================================================================
 // Rendering (visual tuning)

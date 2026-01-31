@@ -273,9 +273,15 @@ export const BikeMap = () => {
         const safeDelta = Math.min(realDeltaMs, REAL_MAX_FRAME_DELTA_MS);
         advanceSimTime(safeDelta * speedup);
 
-        // Fetch new status if needed (e.g. every 5 sim-minutes)
+        // Fetch new status if needed
         const currentSimTime = useAnimationStore.getState().simCurrentTimeMs;
-        if (Math.abs(currentSimTime - lastFetchSimTimeRef.current) > 5 * 60 * 1000) {
+
+        // Dynamically adjust fetch interval based on speed
+        // If Live (speed ~1), check every 5s
+        // If Fast (speed > 10), check every 5 sim-minutes
+        const fetchInterval = speedup < 10 ? 5 * 1000 : 5 * 60 * 1000;
+
+        if (Math.abs(currentSimTime - lastFetchSimTimeRef.current) > fetchInterval) {
           lastFetchSimTimeRef.current = currentSimTime;
           // Calculate real Date
           const currentDate = new Date(animationStartDate.getTime() + currentSimTime);

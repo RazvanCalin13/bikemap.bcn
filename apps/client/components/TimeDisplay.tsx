@@ -37,7 +37,10 @@ export function TimeDisplay({ simTimeMs, realWindowStartDate }: Props) {
     setSpeedup(SPEED_LEVELS[nextIndex]);
   }, [speedup, setSpeedup]);
 
-
+  // Check if we are "Live" (within 15 minutes of real current time)
+  // This depends on the animation start date being recent logic
+  const diffFromNow = Math.abs(realDisplayTimeMs - Date.now());
+  const isLive = diffFromNow < 15 * 60 * 1000;
 
   return (
     <div className="bg-black/45 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 shadow-[0_0_24px_rgba(0,0,0,0.6)] flex flex-col items-center relative">
@@ -58,9 +61,20 @@ export function TimeDisplay({ simTimeMs, realWindowStartDate }: Props) {
           <div className="text-white/90 text-xs tracking-wide font-mono group-hover:text-white">
             {formatDateShort(realDisplayTimeMs)}
           </div>
-          <div className="text-xl font-semibold tabular-nums text-white/90 tracking-tight group-hover:text-white">
-            {formatTimeOnly(realDisplayTimeMs)}
-          </div>
+
+          {isLive ? (
+            <div className="text-xl font-bold tracking-wider text-[#50C878] flex items-center gap-2">
+              <div
+                className="w-2.5 h-2.5 bg-[#50C878] rounded-full shadow-[0_0_8px_#50C878] animate-pulse"
+                style={{ animationDuration: '4s' }}
+              />
+              LIVE
+            </div>
+          ) : (
+            <div className="text-xl font-semibold tabular-nums text-white/90 tracking-tight group-hover:text-white">
+              {formatTimeOnly(realDisplayTimeMs)}
+            </div>
+          )}
         </div>
 
         <button

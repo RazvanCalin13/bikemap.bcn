@@ -58,7 +58,9 @@ export function Search() {
 
   // Parse datetime with chrono - uses current real time as reference for relative dates like "now"
   const parsedDate = React.useMemo(() => {
-    if (!datetimeInput.trim()) return null
+    const input = datetimeInput.trim().toLowerCase()
+    if (!input) return null
+    if (input === "live" || input === "now") return new Date()
     return chrono.parseDate(datetimeInput, realCurrentTimeMs)
   }, [datetimeInput, realCurrentTimeMs])
 
@@ -317,6 +319,13 @@ export function Search() {
     setHistoryIndex(-1)
     setSavedInput("")
     useAnimationStore.getState().setAnimationStartDateAndPlay(parsedDate)
+
+    // If user asked for "live" or "now", set speed to 1 (real-time).
+    // Otherwise set to default fast speed (300x) for history viewing.
+    const input = datetimeInput.trim().toLowerCase()
+    const isLiveRequest = input === "live" || input === "now"
+    useAnimationStore.getState().setSpeedup(isLiveRequest ? 1 : 300)
+
     handleOpenChange(false)
   }
 
