@@ -29,7 +29,16 @@ import { StationDetailsPanel } from "./StationDetailsPanel";
 import { StationFocusOverlay } from "./StationFocusOverlay";
 import { Kbd } from "./ui/kbd";
 
+
 type AnimationState = "init" | "playing";
+
+interface PulseEvent {
+  stationId: string;
+  type: 'add' | 'sub';
+  startRealTime: number;
+  coordinates: [number, number];
+}
+
 
 // Elastic easing for the "mushroom springing up" effect
 const elasticOut = (t: number) => {
@@ -60,6 +69,8 @@ export const BikeMap = () => {
 
   const [viewState, setViewState] = useState<MapViewState>(INITIAL_VIEW_STATE);
   const [stationStatuses, setStationStatuses] = useState<StationStatus[]>([]);
+  const [pulseEvents, setPulseEvents] = useState<PulseEvent[]>([]);
+  const prevStationStatusesRef = useRef<Map<string, number>>(new Map());
   const [revealedCount, setRevealedCount] = useState(0);
   const [selectedStationName, setSelectedStationName] = useState<string | null>(null);
   const [showHud, setShowHud] = useState(true);
@@ -230,6 +241,71 @@ export const BikeMap = () => {
     init();
   }, [animationStartDate, loadStations]);
 
+  // Track status changes for pulses
+  const lastGlobalPulseTimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    // Show pulses when stations are NOT focused
+    if (selectedStationName) {
+      // Just update reference without generating events so we don't burst when deselecting
+      const newMap = new Map<string, number>();
+      stationStatuses.forEach(s => newMap.set(s.station_id.toString(), s.bikes));
+      prevStationStatusesRef.current = newMap;
+      return;
+    }
+
+    const newMap = new Map<string, number>();
+    const potentialEvents: PulseEvent[] = [];
+    const now = Date.now();
+
+    stationStatuses.forEach(s => {
+      const id = s.station_id.toString();
+      newMap.set(id, s.bikes);
+
+      const prevBikes = prevStationStatusesRef.current.get(id);
+      // Check if we have a previous value to compare against
+      if (prevBikes !== undefined && prevBikes !== s.bikes) {
+        const station = stationById.get(id);
+        if (station) {
+          potentialEvents.push({
+            stationId: id,
+            type: s.bikes > prevBikes ? 'add' : 'sub',
+            startRealTime: now,
+            coordinates: [station.longitude, station.latitude]
+          });
+        }
+      }
+    });
+
+    prevStationStatusesRef.current = newMap;
+
+    // Global Rate Limiter: Max 1 pulse per second
+    if (potentialEvents.length > 0 && (now - lastGlobalPulseTimeRef.current >= 1000)) {
+      // Pick ONE event at random to show "activity" without overwhelming
+      const randomEvent = potentialEvents[Math.floor(Math.random() * potentialEvents.length)];
+
+      setPulseEvents(prev => [
+        ...prev.filter(e => now - e.startRealTime < 2000), // Keep for 2s to allow full fade
+        randomEvent
+      ]);
+      lastGlobalPulseTimeRef.current = now;
+    }
+  }, [stationStatuses, selectedStationName, stationById]);
+
+  // Cleanup effect for pulses
+  useEffect(() => {
+    if (pulseEvents.length === 0) return;
+    const interval = setInterval(() => {
+      const now = Date.now();
+      setPulseEvents(prev => {
+        const valid = prev.filter(e => now - e.startRealTime < 2000);
+        return valid.length !== prev.length ? valid : prev;
+      });
+    }, 500);
+    return () => clearInterval(interval);
+  }, [pulseEvents]);
+
+
   // Reveal stations one by one
   useEffect(() => {
     if (stationStatuses.length === 0) {
@@ -378,9 +454,37 @@ export const BikeMap = () => {
             setSelectedStationName(null);
           }
         }
+      }),
+      new ScatterplotLayer({
+        id: "station-events-pulse",
+        data: !selectedStationName ? pulseEvents : [],
+        pickable: false,
+        stroked: true,
+        filled: false,
+        radiusMinPixels: 0,
+        radiusMaxPixels: 100,
+        lineWidthMinPixels: 2,
+        getPosition: (d: PulseEvent) => d.coordinates,
+        getLineColor: (d: PulseEvent) => {
+          const age = Date.now() - d.startRealTime;
+          const alpha = Math.max(0, 255 * (1 - age / 2000));
+          const color = d.type === "add" ? COLORS.occupancy.high : COLORS.occupancy.empty;
+          return [color[0], color[1], color[2], alpha];
+        },
+        getRadius: (d: PulseEvent) => {
+          const age = Date.now() - d.startRealTime;
+          const progress = Math.min(1, age / 2000);
+          // Ease out cubic
+          const ease = 1 - Math.pow(1 - progress, 3);
+          return 10 + ease * 120; // Grow from 10 to 130
+        },
+        updateTriggers: {
+          getLineColor: [simTimeMs],
+          getRadius: [simTimeMs]
+        }
       })
     ];
-  }, [stationsData, simTimeMs, stationById, triggerFlyTo]);
+  }, [stationsData, simTimeMs, stationById, triggerFlyTo, pulseEvents, viewState.zoom, selectedStationName]);
 
   const selectedStationData = useMemo(() => {
     if (!selectedStationName) return null;

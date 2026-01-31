@@ -2,8 +2,10 @@
 - If the users selects a month in the search box that we don't have data for, we need to show an error message as early as possible saying: Data Not Provided
 
 # Bike Numbers Update
-- On LOCALHOST bike numbers go up and down even when stopped, is this pulling real time data?
+- On LOCALHOST bike numbers go up and down even when stopped, is this pulling real time data? Yes is the answer to that.
 - On LIVE no new numbers are getting updated neighter in the GlobalStats component or when seleting a station.
+
+BUG: ON LIVE IN THE SEARCH MODAL INSERTING ANY DATE WILL SHOW IT AS HAVING NO DATA. ON LOCALHOST EVERYTHING WORKS AS EXPECTED
 
 # Animation
 - The dots no longer animate

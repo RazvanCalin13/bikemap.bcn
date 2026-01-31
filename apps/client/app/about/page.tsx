@@ -149,8 +149,8 @@ export default function AboutPage() {
           </p>
 
           <p>
-            Each dot represents a bike docking station,
-            {` with information published by the City of Barcelona. The animation plays at ${DEFAULT_SPEEDUP}x normal time but can be manipulated with incremental steps.`}
+            Each colored dot represents one of the 544 bike docking stations,
+            {` from information published by the City of Barcelona. The animation plays at ${DEFAULT_SPEEDUP}x normal time but can be manipulated with incremental steps.`}
           </p>
 
           <p>
