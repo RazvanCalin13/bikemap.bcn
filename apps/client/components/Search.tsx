@@ -71,7 +71,7 @@ export function Search() {
 
     // Check if month exists in manifest
     const monthName = parsedDate.toLocaleString('en-US', { month: 'long' })
-    if (!dataManifest.months.includes(monthName)) return true
+    if (!(dataManifest.months as string[]).includes(monthName)) return true
 
     return false
   }, [parsedDate])
