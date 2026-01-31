@@ -16,7 +16,7 @@ import distance from "@turf/distance"
 import { point } from "@turf/helpers"
 import * as chrono from "chrono-node"
 import { Fzf } from "fzf"
-import { ArrowLeft, ArrowRight, Bike, CalendarSearch, History, MapPin, Search as SearchIcon } from "lucide-react"
+import { ArrowLeft, ArrowRight, Bike, CalendarSearch, History, MapPin, Search as SearchIcon, AlertCircle } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
 import React from "react"
 import dataManifest from "@/lib/data-manifest.json"
@@ -63,7 +63,18 @@ export function Search() {
   }, [datetimeInput, realCurrentTimeMs])
 
   // Check if parsed date is outside available data range
-  const isDateOutOfRange = !!parsedDate && (parsedDate < DATA_START_DATE || parsedDate > DATA_END_DATE)
+  const isDateOutOfRange = React.useMemo(() => {
+    if (!parsedDate) return false
+
+    // Check bounds
+    if (parsedDate < DATA_START_DATE || parsedDate > DATA_END_DATE) return true
+
+    // Check if month exists in manifest
+    const monthName = parsedDate.toLocaleString('en-US', { month: 'long' })
+    if (!dataManifest.months.includes(monthName)) return true
+
+    return false
+  }, [parsedDate])
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -179,10 +190,24 @@ export function Search() {
     // Helper to merge results from name, neighborhood, and alias fzf instances
     const getMergedMatches = (q: string): Station[] => {
       const trimQuery = q.trim()
+      const lowerQuery = trimQuery.toLowerCase()
       if (!trimQuery) return []
 
-      // 0. Exact Alias/ID Matches (Top Priority for "Search by ID")
+      // 0. Exact Alias/ID Matches (Top Priority)
       const exactAliasMatches = stations.filter((s) => s.aliases.includes(trimQuery))
+
+      // 1. Direct Name Substring Matches (High Priority for "C/ Marina" vs "Marina")
+      // Sort by: Starts with query > Match index > Length
+      const substringMatches = stations.filter((s) =>
+        s.name.toLowerCase().includes(lowerQuery)
+      ).sort((a, b) => {
+        const aName = a.name.toLowerCase()
+        const bName = b.name.toLowerCase()
+        const aIndex = aName.indexOf(lowerQuery)
+        const bIndex = bName.indexOf(lowerQuery)
+        if (aIndex !== bIndex) return aIndex - bIndex // Earlier match is better
+        return a.name.length - b.name.length // Shorter string is better (closer match)
+      })
 
       const nameMatches = nameFzf.find(q).map((r) => r.item)
       const neighborhoodMatches = neighborhoodFzf.find(q).map((r) => r.item)
@@ -194,6 +219,14 @@ export function Search() {
 
       // Add exact matches first
       for (const station of exactAliasMatches) {
+        if (!seen.has(station.name)) {
+          seen.add(station.name)
+          merged.push(station)
+        }
+      }
+
+      // Add substring matches next
+      for (const station of substringMatches) {
         if (!seen.has(station.name)) {
           seen.add(station.name)
           merged.push(station)
@@ -350,8 +383,8 @@ export function Search() {
         />
         <div className="px-3 py-2 text-sm sm:text-xs text-zinc-500 flex flex-col gap-0.5">
           <span>
-            <span className="hidden sm:inline">Processed <a href="https://www.bicing.barcelona/" target="_blank" className="underline hover:text-zinc-50 text-zinc-300 font-medium">Bicing</a> data from the past {formattedMonths}</span>
-            <span className="sm:hidden"><a href="https://www.bicing.barcelona/" target="_blank" className="underline hover:text-zinc-50 text-zinc-300 font-medium">Bicing</a> data from the past {formattedMonths}</span>
+            <span className="hidden sm:inline">Processed <a href="https://www.bicing.barcelona/" target="_blank" className="underline hover:text-zinc-50 text-zinc-300 font-medium">Bicing</a> data from the past Year</span>
+            <span className="sm:hidden"><a href="https://www.bicing.barcelona/" target="_blank" className="underline hover:text-zinc-50 text-zinc-300 font-medium">Bicing</a> data from the past Year</span>
           </span>
           <span>{mode === "ride" ? 'Try something like "Marina" or "Bilbao"' : 'Try "July 4th 2019 at 8pm" or "Fri 4pm"'}</span>
         </div>
@@ -372,20 +405,21 @@ export function Search() {
                     className={cn("group bg-accent", isDateOutOfRange && "cursor-not-allowed")}
                     disabled={isDateOutOfRange}
                   >
-                    <ArrowRight className="size-4" />
-                    <span className="hidden sm:inline">{formatDateTime(parsedDate)}</span>
-                    <span className="sm:hidden">{formatDateTimeShort(parsedDate)}</span>
+                    {isDateOutOfRange ? (
+                      <AlertCircle className="size-4 text-red-600" />
+                    ) : (
+                      <ArrowRight className="size-4" />
+                    )}
+                    {isDateOutOfRange ? (
+                      <span className="text-red-600 font-bold">No Data Provided</span>
+                    ) : (
+                      <>
+                        <span className="hidden sm:inline">{formatDateTime(parsedDate)}</span>
+                        <span className="sm:hidden">{formatDateTimeShort(parsedDate)}</span>
+                      </>
+                    )}
                     <EnterHint className="ml-auto" />
                   </CommandItem>
-                  {isDateOutOfRange && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="px-3 py-2 text-xs text-zinc-400"
-                    >
-                      No data available for this date.
-                    </motion.div>
-                  )}
                 </CommandGroup>
               </motion.div>
             )}

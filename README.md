@@ -43,10 +43,6 @@ NEXT_PUBLIC_MAPBOX_TOKEN=pk.xxx  # Get one at https://mapbox.com
 
 ### 3. Run Development Server
 ```bash
-bun dev
-```
- **Note**: If you see a `TurbopackInternalError` (common on Windows), use Webpack:
- ```bash
  bun run dev -- --webpack
  ```
 
