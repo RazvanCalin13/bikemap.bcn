@@ -56,27 +56,43 @@ const ArrowIcon = ({ color, showTrail = false }: { color: readonly [number, numb
   );
 };
 
-const LegendItem = ({ color, label, showTrailOnHover = true, glowIntensity = "normal" }: { color: readonly [number, number, number]; label: string; showTrailOnHover?: boolean; glowIntensity?: "normal" | "intense" }) => {
+const LIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="#0a66c2" stroke-width="1"
+    stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+    <rect width="4" height="12" x="2" y="9" /><circle cx="4" cy="4" r="2" />
+  </svg>
+);
+
+const LegendItem = ({ color, label, glowIntensity = "normal" }: { color: readonly [number, number, number]; label: string; glowIntensity?: "normal" | "intense" }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const colorRgb = `rgb(${color.join(", ")})`;
   const glowFilter = glowIntensity === "intense"
     ? `drop-shadow(0 0 5px rgba(${color.join(", ")}, 0.8)) drop-shadow(0 0 7px rgba(${color.join(", ")}, 0.6))`
     : `drop-shadow(0 0 8px rgb(${color.join(", ")}))`;
+
   return (
     <span
-      className="group flex items-center gap-1.5 cursor-default"
+      className="group flex items-center gap-2 cursor-pointer"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <span
         className={cn(
-          "transition-[filter] duration-200 transform-gpu",
+          "block size-2.5 rounded-full transition-[filter] duration-200 transform-gpu",
           isHovered ? "[will-change:filter]" : ""
         )}
-        style={{ filter: isHovered ? glowFilter : "none" }}
-      >
-        <ArrowIcon color={color} showTrail={showTrailOnHover && isHovered} />
-      </span>
-      <span>{label}</span>
+        style={{
+          backgroundColor: colorRgb,
+          filter: isHovered ? glowFilter : "none",
+        }}
+      />
+      <span className="text-zinc-400 group-hover:text-zinc-200 transition-colors">{label}</span>
     </span>
   );
 };
@@ -105,9 +121,9 @@ export default function AboutPage() {
           href="/"
           className="flex items-center gap-0.5 group mb-8 md:fixed md:top-6 md:left-6 md:mb-0"
         >
-          <ArrowLeft className="size-4 text-white/50 group-hover:text-white transition-colors" />
+          <ArrowLeft suppressHydrationWarning className="size-4 text-white/50 group-hover:text-white transition-colors" />
           <Kbd className="bg-transparent text-white/50 group-hover:text-white transition-colors">
-            Esc
+            Back (ESC)
           </Kbd>
         </a>
         <h1 className="text-3xl font-semibold text-zinc-100 mb-8">
@@ -122,27 +138,31 @@ export default function AboutPage() {
 
         <div className="space-y-6 text-zinc-400">
           <p>
-            bikemap.bcn is a visualization of the entire history of{" "}
+            bikemap.bcn is a visualization of bike station activity of the past year or so of {" "}
             <a
               href="https://www.bicing.barcelona/"
               className="text-zinc-300 font-medium hover:text-zinc-100 underline underline-offset-4"
             >
               Bicing
             </a>
-            , the bike-sharing system in Barcelona.
+            , the bike-sharing service of <strong>Barcelona</strong>.
           </p>
 
           <p>
-            Each dot represents a bike station of Bicing in Barcelona,
-            {`published by the City of Barcelona via OpenData. The animation plays at ${DEFAULT_SPEEDUP}x normal speed but can be accelerated in incremental steps.`}
+            Each dot represents a bike docking station,
+            {` with information published by the City of Barcelona. The animation plays at ${DEFAULT_SPEEDUP}x normal time but can be manipulated with incremental steps.`}
           </p>
 
           <p>
-            If you have ever used Bicing, you are part of this visualization.
+            If you have ever used Bicing, you might be able to watch yourself starting or ending a trip.
           </p>
 
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm">
             {/* Legend for station status is shown on the map */}
+            <LegendItem color={COLORS.occupancy.high as [number, number, number]} label="+80% Station Capacity" />
+            <LegendItem color={COLORS.occupancy.medium as [number, number, number]} label="50-80% Station Capacity" />
+            <LegendItem color={COLORS.occupancy.low as [number, number, number]} label="10-50% Station Capacity" />
+            <LegendItem color={COLORS.occupancy.empty as [number, number, number]} label="-10% Station Capacity" />
           </div>
 
           <hr className="border-white/10" />
@@ -166,8 +186,29 @@ export default function AboutPage() {
 
           <hr className="border-white/10" />
 
-          <h2 className="text-lg font-medium text-white">Why</h2>
+          <h2 className="text-lg font-medium text-white">Limitations</h2>
 
+          <p>
+            The data is not real-time and is only updated periodically. It also has gaps as the data is not always available from the City. Hopefully, this will improve in the future.
+          </p>
+
+          <hr className="border-white/10" />
+
+          <h2 className="text-lg font-medium text-white">Reasoning</h2>
+
+          <p>
+            I did this as a weekend project because I love the city and use Bicing myself.
+          </p>
+
+          <p className="flex items-center gap-2">
+            <a
+              href="https://www.linkedin.com/in/razzcalin"
+              className="inline-flex items-center gap-1.5 text-white/70 hover:text-white transition-colors border-b border-current pb-0.5"
+            >
+              <LIcon className="size-3" />
+              @RazzCalin
+            </a>
+          </p>
         </div>
       </main>
     </div>
