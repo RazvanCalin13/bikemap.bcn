@@ -536,11 +536,11 @@ export const BikeMap = () => {
 
       {/* Legend / Info */}
       <div className="absolute bottom-4 right-4 z-10 bg-black/80 p-4 rounded text-white text-xs hidden md:block">
-        <div className="font-bold mb-2">Station Occupancy</div>
-        <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#50C878] rounded-full"></div> High (&gt;80%)</div>
-        <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#FFFF00] rounded-full"></div> Medium</div>
-        <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#FFA500] rounded-full"></div> Low</div>
-        <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#FF3232] rounded-full"></div> Empty (&lt;10%)</div>
+        <div className="font-bold mb-2">Occupancy Level</div>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#50C878] rounded-full"></div> <strong>High</strong> (&gt;80%)</div>
+        {/* <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#FFFF00] rounded-full"></div> Medium</div>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#FFA500] rounded-full"></div> Low</div> */}
+        <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#FF3232] rounded-full"></div> <strong>Empty</strong> (&lt;10%)</div>
       </div>
     </div>
   );
