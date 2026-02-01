@@ -17,7 +17,7 @@ import { ESTIMATED_TOTAL_FLEET, SIM_GRAPH_WINDOW_SIZE_MS } from "@/lib/config";
 import { FlyToInterpolator, MapViewState, WebMercatorViewport } from "@deck.gl/core";
 import { ScatterplotLayer } from "@deck.gl/layers";
 import { DeckGL } from "@deck.gl/react";
-import { Info, Pause, Play, Search, Shuffle } from "lucide-react";
+import { Bike, Pause, Play, Search, Shuffle } from "lucide-react";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Map as MapboxMap } from "react-map-gl/mapbox";
@@ -611,9 +611,9 @@ export const BikeMap = () => {
           <Kbd>R</Kbd>
         </MapControlButton>
 
-        <MapControlButton onClick={() => router.push("/about")} className="w-[100px] justify-center" >
+        <MapControlButton onClick={() => router.push("/about")} className="w-[100px] justify-start" >
           <div className="flex items-center gap-2">
-            <Info className="w-4 h-4" />
+            <Bike className="w-4 h-4" />
             <span>About</span>
           </div>
         </MapControlButton>
